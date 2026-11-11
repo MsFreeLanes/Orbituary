@@ -303,6 +303,7 @@ function onKeydown(event) {
     else if (dom.search.value) clearSearch();
     else if (dom.results.classList.contains('open')) dom.results.classList.remove('open');
     else if (state.mode === 'catalogue') setMode('rotunda');
+    else if (juke.open) toggleJukebox(false);
     else closeLabel();
     return;
   }
@@ -324,15 +325,28 @@ function onKeydown(event) {
       else toast('Open an exhibit first — click any plaque');
       break;
     case 'm': case 'M': toggleFavouritesOnly(); break;
-    case 'r': case 'R': rigReset(); flyToWing(null, 0.9); toast('View reset'); break;
+    case 'r': case 'R': rigReset(true); toast('View reset'); break;
     case 'v': case 'V': if (state.webgl) toggleStats(); break;
     case '?': case 'h': case 'H': toggleHelp(); break;
+    case 'j': case 'J': toggleJukebox(); break;
+    /* space works the jukebox transport — but only when the deck is out and
+       nothing else holds the focus, because a focused button already answers
+       to space itself, and a stray space should not start music behind a closed deck */
+    case ' ':
+      if (juke.open && (document.activeElement === document.body ||
+          document.activeElement === document.documentElement)) {
+        toggleJukePlay();
+        event.preventDefault();
+      }
+      break;
     case 'ArrowLeft': stepExhibit(-1); event.preventDefault(); break;
     case 'ArrowRight': stepExhibit(1); event.preventDefault(); break;
-    case 'ArrowUp': zoomBy(-1); event.preventDefault(); break;
-    case 'ArrowDown': zoomBy(1); event.preventDefault(); break;
-    case 'a': case 'A': orbitBy(-0.3); break;
-    case 'd': case 'D': orbitBy(0.3); break;
+    case 'ArrowUp': dollyBy(-0.12); event.preventDefault(); break;
+    case 'ArrowDown': dollyBy(0.12); event.preventDefault(); break;
+    /* the keyboard speaks in radians, not in drag pixels, so it goes through
+       the camera's own verbs rather than the pointer's */
+    case 'a': case 'A': turnBy(-0.3); break;
+    case 'd': case 'D': turnBy(0.3); break;
     default: break;
   }
 }

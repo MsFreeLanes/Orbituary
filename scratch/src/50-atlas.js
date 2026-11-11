@@ -183,8 +183,185 @@ function drawBannerTile(ctx, px, py, wing) {
   ctx.restore();
 }
 
-/* Build the two atlases and their textures. */
-const labels = { plaque: null, banner: null, plaqueTex: null, bannerTex: null };
+/* An emblem per wing: geometric, drawn here, belonging to nothing but this
+   museum. Twelve different marks so each hall can be recognised from across
+   the rotunda — the arch above a doorway, in effect. */
+function drawEmblem(ctx, cx, cy, size, name, hex) {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = hex;
+  ctx.fillStyle = hex;
+  ctx.lineWidth = Math.max(1.5, size * 0.055);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const poly = (points, close) => {
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const x = p[0] * r, y = p[1] * r;
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
+    if (close !== false) ctx.closePath();
+    ctx.stroke();
+  };
+  const dot = (x, y, rad) => {
+    ctx.beginPath(); ctx.arc(x * r, y * r, rad * size, 0, TAU); ctx.fill();
+  };
+  if (name === 'Gaming') {
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.92, 0, TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * 0.5, 0);
+    ctx.moveTo(0, -r * 0.5); ctx.lineTo(0, r * 0.5); ctx.stroke();
+    dot(-0.62, -0.62, 0.055); dot(0.62, 0.62, 0.055);
+  } else if (name === 'Creative') {
+    [[-0.3, 0.12], [0.3, 0.12], [0, -0.3]].forEach((p) => {
+      ctx.beginPath(); ctx.arc(p[0] * r, p[1] * r, r * 0.52, 0, TAU); ctx.stroke();
+    });
+  } else if (name === 'Media') {
+    poly([[-0.45, -0.62], [0.62, 0], [-0.45, 0.62]]);
+    ctx.beginPath();
+    [-0.85, -0.7].forEach((x) => {
+      ctx.moveTo(x * r, -r * 0.5); ctx.lineTo(x * r, r * 0.5);
+    });
+    ctx.stroke();
+  } else if (name === 'Privacy') {
+    const sides = [];
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 - Math.PI / 2;
+      sides.push([Math.cos(a) * 0.92, Math.sin(a) * 0.92]);
+    }
+    poly(sides);
+    ctx.beginPath(); ctx.arc(0, -r * 0.18, r * 0.26, 0, TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.12, 0); ctx.lineTo(r * 0.12, 0);
+    ctx.lineTo(r * 0.2, r * 0.5); ctx.lineTo(-r * 0.2, r * 0.5);
+    ctx.closePath(); ctx.stroke();
+  } else if (name === 'Tools') {
+    const sides = [];
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6;
+      sides.push([Math.cos(a) * 0.88, Math.sin(a) * 0.88]);
+    }
+    poly(sides);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.34, 0, TAU); ctx.stroke();
+  } else if (name === 'Dev') {
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.35, -r * 0.6); ctx.lineTo(-r * 0.85, 0); ctx.lineTo(-r * 0.35, r * 0.6);
+    ctx.moveTo(r * 0.35, -r * 0.6); ctx.lineTo(r * 0.85, 0); ctx.lineTo(r * 0.35, r * 0.6);
+    ctx.moveTo(r * 0.12, -r * 0.7); ctx.lineTo(-r * 0.12, r * 0.7); ctx.stroke();
+  } else if (name === 'Android') {
+    roundRect(ctx, -r * 0.62, -r * 0.86, r * 1.24, r * 1.72, r * 0.16);
+    ctx.stroke();
+    [[-0.28, -0.5], [0, -0.5], [0.28, -0.5], [-0.28, 0], [0, 0], [0.28, 0]].forEach((p) => dot(p[0], p[1], 0.045));
+  } else if (name === 'Shopping') {
+    poly([[-0.72, -0.28], [0.72, -0.28], [0.5, 0.72], [-0.5, 0.72]]);
+    ctx.beginPath();
+    ctx.arc(0, -0.28 * r, r * 0.42, Math.PI, 0); ctx.stroke();
+  } else if (name === 'AI') {
+    const left = [[-0.7, -0.5], [-0.7, 0.5]], right = [[0.7, -0.62], [0.7, 0], [0.7, 0.62]];
+    ctx.beginPath();
+    left.forEach((a) => right.forEach((b) => {
+      ctx.moveTo(a[0] * r, a[1] * r); ctx.lineTo(b[0] * r, b[1] * r);
+    }));
+    ctx.stroke();
+    left.concat(right).forEach((p) => dot(p[0], p[1], 0.07));
+  } else if (name === 'Reading') {
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.6, -r * 0.75, -r * 0.9, -r * 0.45);
+    ctx.lineTo(-r * 0.9, r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.55, r * 0.3, 0, r * 0.55);
+    ctx.quadraticCurveTo(r * 0.55, r * 0.3, r * 0.9, r * 0.55);
+    ctx.lineTo(r * 0.9, -r * 0.45);
+    ctx.quadraticCurveTo(r * 0.6, -r * 0.75, 0, -r * 0.55);
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.55); ctx.lineTo(0, r * 0.55); ctx.stroke();
+  } else if (name === 'Linux') {
+    roundRect(ctx, -r * 0.9, -r * 0.7, r * 1.8, r * 1.4, r * 0.12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.62, -r * 0.3); ctx.lineTo(-r * 0.3, -r * 0.02); ctx.lineTo(-r * 0.62, r * 0.26);
+    ctx.moveTo(-r * 0.02, r * 0.3); ctx.lineTo(r * 0.55, r * 0.3); ctx.stroke();
+  } else if (name === 'Fun') {
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3);
+      ctx.lineTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9);
+      ctx.stroke();
+    }
+    dot(0, 0, 0.1);
+  } else {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* One hall tile: the sign over a doorway — an arch, the wing's own emblem,
+   the wing's name, and how much is behind the door. */
+function drawHallTile(ctx, px, py, wing) {
+  const W = CFG.hallTile.w, H = CFG.hallTile.h;
+  const hex = wing.hex;
+  ctx.save();
+  ctx.translate(px, py);
+
+  /* the arch itself: a doorway, not a rectangle */
+  ctx.strokeStyle = hex + '99';
+  ctx.lineWidth = 3;
+  const inset = W * 0.055;
+  ctx.beginPath();
+  ctx.moveTo(inset, H * 0.97);
+  ctx.lineTo(inset, H * 0.34);
+  ctx.quadraticCurveTo(inset, H * 0.06, W * 0.5, H * 0.06);
+  ctx.quadraticCurveTo(W - inset, H * 0.06, W - inset, H * 0.34);
+  ctx.lineTo(W - inset, H * 0.97);
+  ctx.stroke();
+
+  /* a keystone mark at the crown of the arch */
+  ctx.fillStyle = hex + 'cc';
+  ctx.fillRect(W * 0.5 - 14, H * 0.045, 28, 4);
+
+  drawEmblem(ctx, W * 0.5, H * 0.30, W * 0.15, wing.name, hex);
+
+  /* the name */
+  ctx.fillStyle = '#f4f7ff';
+  const label = wing.name.toUpperCase();
+  let size = Math.round(W * 0.115);
+  ctx.font = font('display', size);
+  let tracking = size * 0.10;
+  while (measureTracked(ctx, label, tracking) > W * 0.78 && size > 20) {
+    size -= 2;
+    tracking = size * 0.10;
+    ctx.font = font('display', size);
+  }
+  drawTracked(ctx, label, (W - measureTracked(ctx, label, tracking)) / 2, H * 0.62, tracking);
+
+  /* the rule, then the count */
+  ctx.fillStyle = hex + '88';
+  ctx.fillRect(W * 0.28, H * 0.70, W * 0.44, 2);
+  ctx.font = font('mono', Math.round(W * 0.045), '500');
+  ctx.fillStyle = hex + 'dd';
+  const sub = wing.count + (wing.count === 1 ? ' EXHIBIT' : ' EXHIBITS');
+  drawTracked(ctx, sub, (W - measureTracked(ctx, sub, 3)) / 2, H * 0.82, 3);
+
+  ctx.restore();
+}
+
+/* Build the atlases and their textures. */
+const labels = {
+  plaque: null, banner: null, hall: null,
+  plaqueTex: null, bannerTex: null, hallTex: null
+};
+
+function atlasTexture(sheet) {
+  const t = new THREE.CanvasTexture(sheet);
+  t.encoding = THREE.sRGBEncoding;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  return t;
+}
 
 function buildAtlases() {
   const P = CFG.tilePx;
@@ -199,11 +376,7 @@ function buildAtlases() {
     drawPlaqueTile(ctx, col * P, row * P, link, i + 1);
   });
   labels.plaque = sheet;
-  labels.plaqueTex = new THREE.CanvasTexture(sheet);
-  labels.plaqueTex.encoding = THREE.sRGBEncoding;
-  labels.plaqueTex.minFilter = THREE.LinearFilter;
-  labels.plaqueTex.magFilter = THREE.LinearFilter;
-  labels.plaqueTex.generateMipmaps = false;
+  labels.plaqueTex = atlasTexture(sheet);
   labels.plaqueTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 
   const BW = CFG.bannerTile.w, BH = CFG.bannerTile.h;
@@ -218,11 +391,21 @@ function buildAtlases() {
     drawBannerTile(bctx, col * BW, row * BH, wing);
   });
   labels.banner = cloth;
-  labels.bannerTex = new THREE.CanvasTexture(cloth);
-  labels.bannerTex.encoding = THREE.sRGBEncoding;
-  labels.bannerTex.minFilter = THREE.LinearFilter;
-  labels.bannerTex.magFilter = THREE.LinearFilter;
-  labels.bannerTex.generateMipmaps = false;
+  labels.bannerTex = atlasTexture(cloth);
+
+  const HW = CFG.hallTile.w, HH = CFG.hallTile.h;
+  const sign = document.createElement('canvas');
+  sign.width = CFG.hallCols * HW;
+  sign.height = CFG.hallRows * HH;
+  const sctx = sign.getContext('2d');
+  sctx.textBaseline = 'alphabetic';
+  sctx.textAlign = 'left';
+  plan.wings.forEach((wing, i) => {
+    const col = i % CFG.hallCols, row = Math.floor(i / CFG.hallCols);
+    drawHallTile(sctx, col * HW, row * HH, wing);
+  });
+  labels.hall = sign;
+  labels.hallTex = atlasTexture(sign);
 }
 
 /* Tile origin for an index in an atlas: canvas textures are flipped in v, so

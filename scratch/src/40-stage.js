@@ -1,13 +1,16 @@
 /* ── 05 · stage ──────────────────────────────────────────────────────────
-   The building: floor, wall, ceiling, the oculus column in the middle of the
-   rotunda, dust in the air, and the lights that make it worth walking into.
-   Every texture here is drawn on a canvas at boot, so the file stays
-   self-contained and there is nothing to download. */
+   The building: floor, a low wall that stops short of the sky, the oculus
+   column in the middle of the rotunda, dust in the air, and the lights that
+   make it worth walking into. Every texture here is drawn on a canvas at boot,
+   so the file stays self-contained and there is nothing to download.
+   The sky itself — the planetarium over all of this — is section 05b. */
 const world = {
   core: null, shaft: null, medallion: null, dust: null,
   daises: [], rims: [], columns: null, columnGlow: null,
   pool: null, poolRing: null, beam: null, selectionLight: null,
-  ambientLights: []
+  ambientLights: [],
+  sky: null, dome: null, stars: null, faintStars: null, skyGrid: null,
+  shooting: null, plazaRim: null, horizon: null
 };
 
 let renderer, scene, camera, clock;
@@ -199,17 +202,21 @@ function createStage() {
   scene.add(medallion);
   world.medallion = medallion;
 
-  /* wall + ceiling */
+  /* The wall is a dado: it rises just far enough to hold the exhibits' backs
+     and then stops. Above it there is no ceiling — the sky comes all the way
+     down to the horizon, which is what makes this a planetarium. */
   const wall = new THREE.Mesh(
-    new THREE.CylinderGeometry(plan.wallR, plan.wallR, CFG.ceilingY + 6, 128, 1, true),
+    new THREE.CylinderGeometry(plan.wallR, plan.wallR, CFG.dadoHeight + 1, 128, 1, true),
     new THREE.MeshStandardMaterial({
       map: wallTexture(), color: 0xffffff, roughness: 0.95, metalness: 0.05,
       side: THREE.BackSide
     })
   );
-  wall.position.y = (CFG.ceilingY + 6) / 2 - 1;
+  wall.position.y = (CFG.dadoHeight + 1) / 2 - 1;
   scene.add(wall);
 
+  /* a strip of light along the inside of that wall, and a lit coping on top
+     of it, so the edge against the sky is a line of light and not a cut */
   const cove = new THREE.Mesh(
     new THREE.CylinderGeometry(plan.wallR - 0.15, plan.wallR - 0.15, 1.1, 128, 1, true),
     new THREE.MeshBasicMaterial({
@@ -217,22 +224,26 @@ function createStage() {
       side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false
     })
   );
-  cove.position.y = CFG.ceilingY - 1.6;
+  cove.position.y = CFG.dadoHeight - 0.9;
   scene.add(cove);
 
-  const ceiling = new THREE.Mesh(
-    new THREE.CircleGeometry(plan.floorR, 96),
-    new THREE.MeshStandardMaterial({ color: 0x0b0d16, roughness: 1, metalness: 0, side: THREE.DoubleSide })
+  const coping = new THREE.Mesh(
+    new THREE.RingGeometry(plan.wallR - 0.6, plan.wallR + 0.15, 160),
+    new THREE.MeshBasicMaterial({
+      color: 0x9fb8ff, transparent: true, opacity: 0.15, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
   );
-  ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.y = CFG.ceilingY;
-  scene.add(ceiling);
+  coping.rotation.x = -Math.PI / 2;
+  coping.position.y = CFG.dadoHeight + 0.02;
+  scene.add(coping);
 
   buildCore();
   buildWingFloors();
   buildColumns();
   buildDust();
   buildSelectionFixtures();
+  buildSky();
 }
 
 /* The oculus: a shaft of light with a slowly turning armature inside it. */
@@ -240,9 +251,11 @@ function buildCore() {
   world.core = new THREE.Group();
 
   /* A shaft of light from the oculus: brightest where the sky is, thinning as
-     it falls. Additive, depth-write off, so it never occludes an exhibit. */
+     it falls. It climbs past the wall and into the stars, which is the whole
+     point of the building. Additive, depth-write off, so it never occludes an
+     exhibit. */
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 2.6, CFG.ceilingY, 48, 1, true),
+    new THREE.CylinderGeometry(1.0, 2.6, CFG.beamHeight, 48, 1, true),
     new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
@@ -262,12 +275,12 @@ function buildCore() {
         '  float grad = pow(vH, 1.7);',                        // light enters at the top
         '  float band = 0.88 + 0.12 * sin(uTime * 1.4 + vH * 9.0);',
         '  vec3 col = mix(uLow, uHigh, grad);',
-        '  gl_FragColor = vec4(col * band, grad * 0.22);',
+        '  gl_FragColor = vec4(col * band, grad * 0.13);',
         '}'
       ].join('\n')
     })
   );
-  shaft.position.y = CFG.ceilingY / 2;
+  shaft.position.y = CFG.beamHeight / 2;
   world.core.add(shaft);
   world.shaft = shaft;
 
@@ -357,11 +370,14 @@ function buildWingFloors() {
   });
 }
 
-/* A colonnade stands behind the wings: one engaged column per wing centre,
-   with a thin lit strip that takes the wing's colour. */
+/* The piers between halls. One column stands at the mouth of each boundary
+   between two wings, with a thin lit strip on the face that looks into the
+   hub, tinted with the colour of the wing behind it. Together with the
+   partitions in section 06b this is what turns one wide ring of exhibits into
+   twelve separate rooms. */
 function buildColumns() {
   const count = plan.wings.length;
-  const r = plan.wallR - 1.4;
+  const r = plan.dividerR - 0.7;
   const geometry = new THREE.CylinderGeometry(0.62, 0.78, CFG.columnHeight, 16, 1, false);
   world.columns = new THREE.InstancedMesh(
     geometry,
@@ -379,12 +395,17 @@ function buildColumns() {
   const q = new THREE.Quaternion();
   const s = new THREE.Vector3(1, 1, 1);
   const pos = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
   plan.wings.forEach((wing, i) => {
-    const x = polarX(wing.aCenter, r), z = polarZ(wing.aCenter, r);
-    pos.set(x, CFG.columnHeight / 2, z);
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), wing.aCenter);
+    const a = wing.aEnd;
+    pos.set(polarX(a, r), CFG.columnHeight / 2, polarZ(a, r));
+    q.setFromAxisAngle(up, a);
     m.compose(pos, q, s);
     world.columns.setMatrixAt(i, m);
+    /* the strip sits on the hub-facing face of the pier, where the eye finds
+       it, rather than inside the stone where it would never be seen */
+    pos.set(polarX(a, r - 0.7), CFG.columnHeight * 0.5, polarZ(a, r - 0.7));
+    m.compose(pos, q, s);
     world.columnGlow.setMatrixAt(i, m);
     world.columnGlow.setColorAt(i, new THREE.Color(wing.color));
   });
@@ -493,6 +514,8 @@ function buildSelectionFixtures() {
 
 /* Per-frame business for the room: turning rings, breathing light, dust. */
 function updateStage(elapsed, delta) {
+  updateSky(elapsed, delta);
+  updateHalls(elapsed);
   if (world.shaft) world.shaft.material.uniforms.uTime.value = elapsed;
   if (world.dust) world.dust.material.uniforms.uTime.value = elapsed;
   if (world.heart) {

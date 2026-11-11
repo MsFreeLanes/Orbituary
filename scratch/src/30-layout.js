@@ -76,6 +76,12 @@ function buildFloorPlan() {
   plan.wallR = plan.rMax + CFG.wallPad;
   plan.floorR = plan.rMax + CFG.floorPad;
   plan.camMax = Math.min(24, plan.rMin - 1.5);
+  /* the architecture of the halls, derived once so every module agrees on
+     where a room begins: the backdrop wall, and the partitions that start
+     just outside the innermost row (which keeps the hub one open plaza). */
+  plan.hallR = plan.wallR - CFG.washInset;
+  plan.dividerR = plan.rMin + CFG.dividerIn;
+  plan.dividerOutR = plan.wallR - 1.0;
 
   /* 4 · bake every exhibit's position into the link record. Depth 0 is the
         outer row, so `depth` counts down as the radius shrinks. */
@@ -101,6 +107,8 @@ function buildFloorPlan() {
     /* the floor footprint of the whole wing, used by the dais and plan view */
     wing.aSpan = wing.wedge * 0.94;
     wing.aStart = wing.aCenter - wing.aSpan / 2;
+    /* the true boundary with the next wing around, where the piers stand */
+    wing.aEnd = wing.aCenter + wing.wedge / 2;
   });
 
   /* plaques stand just inside their frame; the frame's outer shell is what the

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   02 · DATA
+   03 · DATA
    The collection. Curated by hand, bundled locally — nothing here is fetched
    at runtime, so the page works offline and nothing the visitor types can
    reach it. `n` name · `u` url · `c` category (wing) · `d` wall-label text.

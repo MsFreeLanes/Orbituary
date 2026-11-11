@@ -79,6 +79,7 @@ function bootFallback(reason) {
   buildFloorPlan();
   buildChips();
   buildHelpLegend();
+  buildJukebox();
   bindChrome();
   bindCatalogue();
   recomputeVisibility({ instant: true });
@@ -94,12 +95,22 @@ async function boot() {
      is in there — state, plan, room, world — plus a few verbs. Nothing in the
      app reads it back. */
   window.museum = {
-    state, plan, room, world, rig, CFG, LINKS,
+    state, plan, room, world, rig, CFG, LINKS, juke,
+    /* the renderer and camera only exist once the stage is built, so these are
+       read when asked for rather than captured now */
+    get camera() { return camera; },
+    get renderer() { return renderer; },
+    get drawCalls() { return renderer ? renderer.info.render.calls : 0; },
     go: (index) => selectExhibit(index, true),
     find: (query) => { dom.search.value = query; onSearchInput(); },
     wing: (name) => { flyToWing(name, 1.2); soloWing(name); },
     tour: () => toggleTour(),
-    catalogue: () => setMode('catalogue')
+    catalogue: () => setMode('catalogue'),
+    jukebox: (index) => {
+      toggleJukebox(true);
+      if (index === undefined) toggleJukePlay();
+      else selectTune(index, true);
+    }
   };
 
   const noLibrary = typeof THREE === 'undefined';
@@ -125,15 +136,16 @@ async function boot() {
   buildAtlases();
   await nextFrame();
 
-  curtain(0.6, 'casting plinths and hanging banners…');
+  curtain(0.6, 'casting plinths, hanging banners, building halls…');
   buildExhibits();
-  buildBanners();
+  buildHalls();
   await nextFrame();
 
   curtain(0.72, 'drawing the plan…');
   buildPlan();
   buildChips();
   buildHelpLegend();
+  buildJukebox();
   bindChrome();
   bindCatalogue();
   bindStageInput();

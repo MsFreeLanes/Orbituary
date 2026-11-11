@@ -89,6 +89,37 @@ body.dragging #stage canvas{cursor:grabbing}
   40%{transform:translate(3%,-2%)} 60%{transform:translate(-2%,-4%)}
   80%{transform:translate(4%,2%)}  100%{transform:translate(0,0)}
 }
+/* scanlines: the faint raster of a projection room, one line every third pixel */
+#scanlines{
+  position:fixed;inset:0;z-index:4;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(180deg,
+    rgba(255,255,255,.032) 0 1px, transparent 1px 3px);
+  animation:raster 24s linear infinite;
+}
+@keyframes raster{to{background-position:0 120px}}
+
+/* ── hud furniture: corner ticks and a horizon rule ─────────────────────── */
+/* Small L-shaped marks at the corners of the floating panels: the language of
+   an instrument readout rather than a web card. One rule covers them all. */
+#plan::before,#caption::before,#juke .jk-head::after{
+  content:"";position:absolute;left:0;top:0;width:15px;height:15px;pointer-events:none;
+  border-top:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  border-left:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  opacity:.55;
+}
+#plan::after,#caption::after{
+  content:"";position:absolute;right:0;bottom:0;width:15px;height:15px;pointer-events:none;
+  border-bottom:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  border-right:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  opacity:.55;
+}
+#juke .jk-head::after{left:auto;right:0;border-left:none;
+  border-top:1px solid color-mix(in srgb,var(--gold) 60%,transparent)}
+#topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(108,140,255,.34) 22%,
+    rgba(34,211,238,.3) 50%,rgba(108,140,255,.34) 78%,transparent);
+}
 
 /* ── chrome: loading curtain ───────────────────────────────────────────── */
 #curtain{
@@ -128,8 +159,11 @@ body.dragging #stage canvas{cursor:grabbing}
 .brand .name{
   font-family:var(--display);font-size:14.5px;font-weight:600;
   letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;
+  background:linear-gradient(180deg,#ffffff 12%,#cfe0ff 46%,#6f8cc9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 12px rgba(108,140,255,.35));
 }
-.brand .meta{margin-top:3px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.brand .meta{margin-top:3px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 .brand .meta b{color:var(--gold);font-weight:600}
 
 /* search */
@@ -352,6 +386,7 @@ body.mode-catalogue #catalogue{display:block}
 }
 #help.open{display:grid}
 .sheet{
+  position:relative;
   width:min(880px,100%);max-height:86vh;overflow-y:auto;border-radius:var(--r-lg);
   background:linear-gradient(180deg,#15172a,#0b0c15);border:1px solid var(--line-strong);
   box-shadow:var(--shadow);
@@ -392,6 +427,95 @@ body.mode-catalogue #catalogue{display:block}
 #caption .nm{display:block;font-family:var(--display);font-size:19px;font-weight:600;margin-top:5px;line-height:1.25}
 #caption .d{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.55}
 
+/* ── the jukebox: a fly-out deck on the left wall ─────────────────────── */
+/* An eighties machine in chrome and neon: a spinning record, a level meter,
+   a request column and a transport bar. It slides in from the left wall so
+   it never competes with the exhibit drawer on the right. */
+#juke{
+  position:fixed;left:22px;top:50%;z-index:18;width:322px;
+  transform:translateY(-50%) translateX(-118%);
+  background:linear-gradient(168deg,#1b1e33,#0c0d18 58%,#12141f);
+  border:1px solid var(--line-strong);border-radius:var(--r-lg);
+  box-shadow:var(--shadow),0 0 34px rgba(108,140,255,.12);
+  backdrop-filter:blur(14px);overflow:hidden;
+  transition:transform .5s var(--ease),opacity .3s ease;
+}
+#juke.open{transform:translateY(-50%) translateX(0)}
+body.mode-catalogue #juke{opacity:0;pointer-events:none}
+#juke::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),transparent 22%)}
+.jk-head{position:relative;display:flex;align-items:center;gap:9px;padding:13px 15px 11px;
+  background:linear-gradient(180deg,rgba(108,140,255,.16),transparent);
+  border-bottom:1px solid var(--line)}
+.jk-head h2{font-family:var(--display);font-size:13px;font-weight:600;
+  letter-spacing:.26em;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff,#9fc0ff 60%,#5f7bbf);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.jk-bulb{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink-faint);
+  transition:background .3s,box-shadow .3s}
+#juke.playing .jk-bulb{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.jk-side{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.jk-x{width:24px;height:24px;border-radius:6px;color:var(--ink-faint);font-size:12px}
+.jk-x:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+.jk-deck{display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:center;
+  padding:14px 15px;border-bottom:1px solid var(--line);
+  background:radial-gradient(circle at 18% 50%,color-mix(in srgb,var(--tune,var(--accent)) 16%,transparent),transparent 62%)}
+.jk-disc{position:relative;width:58px;height:58px;border-radius:50%;flex:none;
+  background:
+    repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,.055) 0 1px,transparent 1px 3px),
+    radial-gradient(circle at 50% 50%,#2a2e46 0 26%,#14161f 27%,#0a0b12 74%,#1a1d2b 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 6px 18px rgba(0,0,0,.5);
+  animation:spin 1.7s linear infinite;animation-play-state:paused}
+#juke.playing .jk-disc{animation-play-state:running}
+.jk-disc i{position:absolute;inset:34%;border-radius:50%;
+  background:radial-gradient(circle,var(--tune,var(--accent)) 0 45%,rgba(255,255,255,.25) 46%,transparent 70%)}
+.jk-disc::after{content:"";position:absolute;left:50%;top:6%;width:2px;height:22%;
+  margin-left:-1px;background:rgba(255,255,255,.35);border-radius:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.jk-lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint)}
+.jk-marquee{overflow:hidden;white-space:nowrap;margin:3px 0 2px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 82%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 6%,#000 82%,transparent)}
+.jk-marquee span{display:inline-block;font-family:var(--display);font-size:16px;font-weight:600;
+  letter-spacing:.02em;color:var(--ink);padding-right:34px}
+#juke.playing .jk-marquee span{animation:slide 13s linear infinite}
+@keyframes slide{from{transform:translateX(4%)}to{transform:translateX(-104%)}}
+.jk-tag{font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em}
+.jk-vu{display:flex;gap:2px;align-items:flex-end;height:16px;margin-top:8px}
+.jk-vu i{flex:1;height:2px;border-radius:1px;background:var(--tune,var(--accent));
+  opacity:.35;transition:height .09s linear,opacity .09s linear}
+#juke.playing .jk-vu i{opacity:.9}
+
+.jk-list{list-style:none;max-height:212px;overflow-y:auto;overscroll-behavior:contain;
+  padding:5px 0;border-bottom:1px solid var(--line)}
+.jk-list::-webkit-scrollbar{width:6px}
+.jk-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px}
+.jk-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  width:100%;padding:8px 15px;text-align:left;border-left:2px solid transparent;
+  transition:background .16s,border-color .16s}
+.jk-row:hover{background:rgba(255,255,255,.05)}
+.jk-row .no{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint)}
+.jk-row .nm{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jk-row .nm em{display:block;font-style:normal;font-size:9.5px;font-weight:400;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
+.jk-row .bp{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint)}
+.jk-row[aria-current="true"]{border-left-color:var(--tune,var(--accent));background:color-mix(in srgb,var(--tune,var(--accent)) 13%,transparent)}
+.jk-row[aria-current="true"] .nm{color:#fff}
+
+.jk-transport{display:flex;align-items:center;gap:8px;padding:12px 15px}
+.jk-transport button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);color:var(--ink-soft);font-size:12px;
+  display:grid;place-items:center;transition:all .18s}
+.jk-transport button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.07)}
+#juke-play{width:38px;height:38px;border-color:color-mix(in srgb,var(--accent) 55%,transparent);
+  color:#fff;background:rgba(108,140,255,.18);box-shadow:0 0 16px rgba(108,140,255,.25)}
+.jk-transport input[type=range]{flex:1;min-width:44px;height:16px;accent-color:var(--accent);background:none}
+.jk-bpm{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);white-space:nowrap}
+.jk-note{padding:0 15px 13px;font-size:10px;line-height:1.6;color:var(--ink-faint);letter-spacing:.02em}
+body.juke-on #caption{left:370px;max-width:min(360px,44vw)}
+
 /* ── responsive ───────────────────────────────────────────────────────── */
 @media (max-width:1080px){ #plan{display:none} }
 @media (max-width:860px){
@@ -407,6 +531,9 @@ body.mode-catalogue #catalogue{display:block}
   #hints{display:none}
   #catalogue{padding:92px 16px 110px}
   .ex-title{font-size:23px}
+  #juke{left:12px;right:12px;width:auto;top:auto;bottom:12px;transform:translateY(130%)}
+  #juke.open{transform:translateY(0)}
+  .jk-list{max-height:148px}
 }
 @media (max-width:560px){
   .icon-btn{width:34px;height:34px}
@@ -418,6 +545,7 @@ body.mode-catalogue #catalogue{display:block}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.1s!important}
   #grain{display:none}
+  #scanlines{display:none}
 }
 </style>
 </head>
@@ -428,6 +556,7 @@ body.mode-catalogue #catalogue{display:block}
 <div id="bloom" aria-hidden="true"></div>
 <div id="vignette" aria-hidden="true"></div>
 <div id="grain" aria-hidden="true"></div>
+<div id="scanlines" aria-hidden="true"></div>
 
 <!-- ── loading curtain ──────────────────────────────────────────────────── -->
 <div id="curtain">
@@ -462,6 +591,7 @@ body.mode-catalogue #catalogue{display:block}
     <button class="icon-btn" id="btn-tour"  aria-pressed="false" title="Guided tour (T)" aria-label="Guided tour"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v2M12 18.4v2M3.6 12h2M18.4 12h2"/></svg></button>
     <button class="icon-btn" id="btn-random" title="Surprise me — random exhibit (S)" aria-label="Random exhibit"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none"/></svg></button>
     <button class="icon-btn" id="btn-catalogue" aria-pressed="false" title="Catalogue view (C)" aria-label="Catalogue view"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></button>
+    <button class="icon-btn" id="btn-juke" aria-pressed="false" title="Jukebox (J)" aria-label="Jukebox"><svg viewBox="0 0 24 24"><path d="M5.4 19.6V10.8a6.6 6.6 0 0 1 13.2 0v8.8z"/><path d="M8.4 13.2h7.2M8.4 16h7.2"/><circle cx="12" cy="9.4" r="1.4"/></svg></button>
     <button class="icon-btn" id="btn-sound" aria-pressed="false" title="Ambient sound (M)" aria-label="Ambient sound"><svg viewBox="0 0 24 24"><path d="M5 9.5h2.6L12 5.6v12.8L7.6 14.5H5z"/><path d="M15.8 9.2a4 4 0 0 1 0 5.6"/></svg></button>
     <button class="icon-btn" id="btn-reset" title="Reset view (R)" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M19.8 4.6v4.2h-4.2"/></svg></button>
     <button class="icon-btn" id="btn-help" title="About & shortcuts (?)" aria-label="About and shortcuts"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.1.9-1.1 1.8"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg></button>
@@ -486,6 +616,34 @@ body.mode-catalogue #catalogue{display:block}
   <span><kbd>T</kbd> tour</span>
   <span><kbd>C</kbd> catalogue</span>
 </div>
+
+<aside id="juke" role="dialog" aria-label="Jukebox" aria-hidden="true">
+  <div class="jk-head">
+    <span class="jk-bulb" aria-hidden="true"></span>
+    <h2>Jukebox</h2>
+    <span class="jk-side" id="juke-side">side a</span>
+    <button class="jk-x" id="juke-close" aria-label="Close jukebox">✕</button>
+  </div>
+  <div class="jk-deck">
+    <div class="jk-disc" id="juke-disc" aria-hidden="true"><i></i></div>
+    <div>
+      <div class="jk-lbl">Now playing</div>
+      <div class="jk-marquee"><span id="juke-title">pick a tune</span></div>
+      <div class="jk-tag" id="juke-tag">original chiptune · synthesised live</div>
+      <div class="jk-vu" id="juke-vu" aria-hidden="true"></div>
+    </div>
+  </div>
+  <ol class="jk-list" id="juke-list"></ol>
+  <div class="jk-transport">
+    <button id="juke-prev" aria-label="Previous tune">◀◀</button>
+    <button id="juke-play" aria-pressed="false" aria-label="Play the jukebox">▶</button>
+    <button id="juke-next" aria-label="Next tune">▶▶</button>
+    <input id="juke-vol" type="range" min="0" max="100" value="55" aria-label="Jukebox volume">
+    <span class="jk-bpm" id="juke-bpm">– bpm</span>
+  </div>
+  <p class="jk-note">Nothing is downloaded and nothing is a cover: a small step sequencer
+     writes every note in your browser. The titles point at a genre, not at a track.</p>
+</aside>
 
 <aside id="exhibit" role="dialog" aria-label="Exhibit details" aria-hidden="true">
   <div class="ex-rule"></div>
@@ -544,15 +702,19 @@ body.mode-catalogue #catalogue{display:block}
           <dt>Scroll / pinch</dt><dd>Dolly in and out</dd>
           <dt>Click</dt><dd>Open an exhibit and walk the camera to it</dd>
           <dt>← →</dt><dd>Previous / next exhibit in the current selection</dd>
+          <dt>↑ ↓</dt><dd>Step the camera closer or further away</dd>
+          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
           <dt>/</dt><dd>Jump to the search field</dd>
           <dt>T</dt><dd>Guided tour — the camera walks the wings for you</dd>
           <dt>S</dt><dd>Surprise me with a random exhibit</dd>
           <dt>C</dt><dd>Catalogue view (the same collection as cards)</dd>
           <dt>F</dt><dd>Favourite the open exhibit</dd>
-          <dt>M</dt><dd>Ambient room tone on / off</dd>
+          <dt>M</dt><dd>Show only the exhibits you have favourited</dd>
+          <dt>J</dt><dd>The jukebox — original chiptune, written live in your browser</dd>
+          <dt>Space</dt><dd>Play or pause the record on the deck</dd>
           <dt>R</dt><dd>Return to the centre of the rotunda</dd>
-          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
           <dt>V</dt><dd>Performance readout — draw calls and frame rate</dd>
+          <dt>? H</dt><dd>These notes</dd>
           <dt>Esc</dt><dd>Close whatever is open</dd>
         </dl>
       </div>
@@ -561,9 +723,11 @@ body.mode-catalogue #catalogue{display:block}
         <div class="legend" id="help-legend"></div>
         <h4 style="margin-top:22px">How it is built</h4>
         <p>One HTML file, no build step, no tracking. Three.js draws all 88 plaques,
-           frames, plinths and floor lights in a handful of instanced draw calls, and the
-           renderer sleeps whenever the room is still — the plan view below mirrors the
-           exact geometry the GPU sees.</p>
+           frames, plinths, the twelve hall backdrops and the star field above them in
+           about fifty instanced draw calls, and the renderer sleeps whenever the room is
+           still — the plan view below mirrors the exact geometry the GPU sees. Each wing
+           is its own hall: a lit backdrop in its own colour, a name plate on the dado,
+           partitions on either side and a constellation running through its plaques.</p>
         <p>The plan view is clickable: pick a wing to send the camera there. Favourites
            live in this browser only (localStorage), nothing leaves the page.</p>
       </div>
@@ -577,29 +741,33 @@ body.mode-catalogue #catalogue{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════════
-   THE CODE — one IIFE, fifteen numbered sections, read top to bottom:
+   THE CODE — one IIFE, nineteen numbered sections, read top to bottom:
 
-     01 open        bootstrap guard, config, state, DOM handles
+     01 config      bootstrap guard, config, state, DOM handles
      02 utils       small maths / string helpers
      03 data        the collection itself
      04 layout      floor plan: turns 88 links into 12 wings of tiered arcs
-     05 stage       the room: floor, wall, centrepiece, dust, lights
-     06 plaques     the atlas (one texture for every piece of text in the room)
+     05 stage       the room: floor, dado, centrepiece, dust, lights
+     05b sky        the planetarium overhead: nebula, stars, shooting stars
+     06 labels      the atlases (one texture for every piece of text in the room)
+     06b halls      the twelve rooms: backdrops, partitions, signs, paths
      07 exhibits    the 88 exhibits as instanced meshes + the panel shader
      08 camera      the orbit rig, cinematic flights, pinch zoom
      09 picking     raycasting, hover, selection, spotlight
-     10 motion     fade / stagger transitions
-     11 ui          chips, search, exhibit panel, favourites
-     12 catalogue  the 2D view of the same collection
-     13 plan        the clickable SVG floor plan
+     10 transitions fade / stagger when the collection is filtered
+     11 interface   chips, search, exhibit panel, favourites, room tone
+     11b jukebox    a fly-out deck of original chiptune, synthesised live
+     12 catalogue   the 2D view of the same collection
+     13 plan view   the clickable SVG floor plan
      14 tour        the guided tour
-     15 loop/boot  the render loop, audio, boot sequence
+     15 render loop the render loop, the dirty flag, the stats readout
+     16 boot        the order things happen in, and the console API
 
    Performance contract, so the behaviour is legible rather than surprising:
      · every plaque, frame, plinth and floor light is an InstancedMesh — the
-       88 exhibits cost four draw calls, not 352.
-     · all text in the room comes from ONE canvas atlas (plus one for the wing
-       banners), so there is one texture bind instead of 100.
+       88 exhibits cost four draw calls, not 352, and the twelve halls cost six.
+     · all text in the room comes from three canvas atlases (plaques, banners,
+       hall signs), so there are three texture binds instead of 112.
      · the renderer sleeps when the room is still: a dirty flag drives
        rendering, an idle heartbeat keeps the centrepiece turning at 12 fps,
        and anything that moves wakes it to full rate.
@@ -634,28 +802,54 @@ const CFG = {
   puckRadius:   2.2,
   banner:       { w: 8.2, h: 2.05 },
   bannerLift:   2.6,   // banners float this far above their wing's outer row
-  columnLift:   3.4,   // wall columns stand this far outside the outer row
-  columnHeight: 20,
+  columnHeight: 15,    // the piers between halls
 
   /* the room */
   wallPad:      9,     // wall stands this far behind the outermost row
   floorPad:     12,
-  ceilingY:     25,
+  dadoHeight:   7.2,   // the wall rises this far and stops: above it is sky
+  beamHeight:   58,    // how far that shaft climbs up into the stars
   fogColor:     0x07070e,
   fogDensity:   0.0125,
   dustCount:    1300,
 
+  /* the planetarium overhead */
+  skyPad:       26,    // the sky sphere stands this far beyond the plaza edge
+  skyLift:      10,    // and its equator sits this high
+  skySpin:      0.0035,// radians a second: the whole dome turns, slowly
+  starCount:    2200,  // bright stars, drawn as points so they can twinkle
+  faintStars:   1800,  // the deep field behind them
+  shootingStars: 6,
+  gridMeridians: 12,
+  gridParallels: 4,
+
+  /* twelve themed halls instead of one open ring */
+  hallTile:     { w: 512, h: 300 },
+  hallCols:     4,
+  hallRows:     3,     // 12 tiles — one emblem per wing
+  signSize:     { w: 9.6, h: 5.6 },  // the wing's name plate, fixed proportions
+  signLift:     0.9,   // its top edge sits this far below the coping
+  washClear:    2.4,   // each backdrop stops this far above its own banner
+  washInset:    2.4,   // it stands this far in front of the wall line
+  dividerHeight: 11,   // the walls between halls
+  dividerThickness: 0.5,
+  dividerIn:    1.2,   // they begin this far outside the innermost row
+  spokeInner:   13.5,  // the light path into a hall starts here…
+  spokeWidth:   4.8,   // …and is never wider than this
+
   /* camera */
-  camFov:       56,
+  camFov:       58,
   camRadius:    17.5,  // opening dolly distance once the intro flight lands
-  camPhi:       1.10,
+  camPhi:       1.22,  // low enough that the sky is in the frame
+  camPhiMin:    0.18,  // how far down the tilt can go
+  camPhiMax:    1.47,  // …and how near straight up
   camMin:       6,
   exhibitRange: 14.5,  // how far the camera stands back from a single plaque
   exhibitSwing: 0.12,  // and how far around the circle, so the row reads in depth
   exhibitEyeLift: 3.6, // camera height above the plaque centre
   wingEyeY:     9.5,   // eye height when a whole wing is framed
   wingSwing:    0.75,  // how far around from the hall's centre line to stand
-  camTargetY:   5.6,
+  camTargetY:   6.2,
   introFrom:    { radius: 96, phi: 0.42, angle: -0.7 },
 
   /* atlases */
@@ -665,6 +859,12 @@ const CFG = {
   bannerCols:   4,
   bannerRows:   3,
   bannerTile:   { w: 640, h: 160 },
+
+  /* the jukebox — see section 11b */
+  jukeVolume:   0.55,   // the volume slider's starting position, 0…1
+  jukeLook:     0.14,   // seconds of music queued ahead of the audio clock
+  jukeTick:     25,     // how often the sequencer wakes up, in ms
+  jukeVu:       14,     // bars in the level meter
 
   /* feel */
   flySeconds:   1.15,
@@ -747,8 +947,23 @@ dom.panel = {
 };
 dom.buttons = {
   tour: $('btn-tour'), random: $('btn-random'), catalogue: $('btn-catalogue'),
-  sound: $('btn-sound'), reset: $('btn-reset'), help: $('btn-help'),
+  juke: $('btn-juke'), sound: $('btn-sound'), reset: $('btn-reset'), help: $('btn-help'),
   helpClose: $('help-close'), stats: $('st-fps')
+};
+/* The jukebox's parts (section 11b): a deck, a request column, a transport. */
+dom.juke = {
+  root:   $('juke'),
+  list:   $('juke-list'),
+  title:  $('juke-title'),
+  tag:    $('juke-tag'),
+  side:   $('juke-side'),
+  bpm:    $('juke-bpm'),
+  vu:     $('juke-vu'),
+  play:   $('juke-play'),
+  prev:   $('juke-prev'),
+  next:   $('juke-next'),
+  vol:    $('juke-vol'),
+  close:  $('juke-close')
 };
 dom.stats = $('stats');
 dom.statValues = {
@@ -816,7 +1031,7 @@ function curtain(progress, step) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   02 · DATA
+   03 · DATA
    The collection. Curated by hand, bundled locally — nothing here is fetched
    at runtime, so the page works offline and nothing the visitor types can
    reach it. `n` name · `u` url · `c` category (wing) · `d` wall-label text.
@@ -1016,6 +1231,12 @@ function buildFloorPlan() {
   plan.wallR = plan.rMax + CFG.wallPad;
   plan.floorR = plan.rMax + CFG.floorPad;
   plan.camMax = Math.min(24, plan.rMin - 1.5);
+  /* the architecture of the halls, derived once so every module agrees on
+     where a room begins: the backdrop wall, and the partitions that start
+     just outside the innermost row (which keeps the hub one open plaza). */
+  plan.hallR = plan.wallR - CFG.washInset;
+  plan.dividerR = plan.rMin + CFG.dividerIn;
+  plan.dividerOutR = plan.wallR - 1.0;
 
   /* 4 · bake every exhibit's position into the link record. Depth 0 is the
         outer row, so `depth` counts down as the radius shrinks. */
@@ -1041,6 +1262,8 @@ function buildFloorPlan() {
     /* the floor footprint of the whole wing, used by the dais and plan view */
     wing.aSpan = wing.wedge * 0.94;
     wing.aStart = wing.aCenter - wing.aSpan / 2;
+    /* the true boundary with the next wing around, where the piers stand */
+    wing.aEnd = wing.aCenter + wing.wedge / 2;
   });
 
   /* plaques stand just inside their frame; the frame's outer shell is what the
@@ -1056,15 +1279,18 @@ function applyCameraLimits() {
 }
 
 /* ── 05 · stage ──────────────────────────────────────────────────────────
-   The building: floor, wall, ceiling, the oculus column in the middle of the
-   rotunda, dust in the air, and the lights that make it worth walking into.
-   Every texture here is drawn on a canvas at boot, so the file stays
-   self-contained and there is nothing to download. */
+   The building: floor, a low wall that stops short of the sky, the oculus
+   column in the middle of the rotunda, dust in the air, and the lights that
+   make it worth walking into. Every texture here is drawn on a canvas at boot,
+   so the file stays self-contained and there is nothing to download.
+   The sky itself — the planetarium over all of this — is section 05b. */
 const world = {
   core: null, shaft: null, medallion: null, dust: null,
   daises: [], rims: [], columns: null, columnGlow: null,
   pool: null, poolRing: null, beam: null, selectionLight: null,
-  ambientLights: []
+  ambientLights: [],
+  sky: null, dome: null, stars: null, faintStars: null, skyGrid: null,
+  shooting: null, plazaRim: null, horizon: null
 };
 
 let renderer, scene, camera, clock;
@@ -1256,17 +1482,21 @@ function createStage() {
   scene.add(medallion);
   world.medallion = medallion;
 
-  /* wall + ceiling */
+  /* The wall is a dado: it rises just far enough to hold the exhibits' backs
+     and then stops. Above it there is no ceiling — the sky comes all the way
+     down to the horizon, which is what makes this a planetarium. */
   const wall = new THREE.Mesh(
-    new THREE.CylinderGeometry(plan.wallR, plan.wallR, CFG.ceilingY + 6, 128, 1, true),
+    new THREE.CylinderGeometry(plan.wallR, plan.wallR, CFG.dadoHeight + 1, 128, 1, true),
     new THREE.MeshStandardMaterial({
       map: wallTexture(), color: 0xffffff, roughness: 0.95, metalness: 0.05,
       side: THREE.BackSide
     })
   );
-  wall.position.y = (CFG.ceilingY + 6) / 2 - 1;
+  wall.position.y = (CFG.dadoHeight + 1) / 2 - 1;
   scene.add(wall);
 
+  /* a strip of light along the inside of that wall, and a lit coping on top
+     of it, so the edge against the sky is a line of light and not a cut */
   const cove = new THREE.Mesh(
     new THREE.CylinderGeometry(plan.wallR - 0.15, plan.wallR - 0.15, 1.1, 128, 1, true),
     new THREE.MeshBasicMaterial({
@@ -1274,22 +1504,26 @@ function createStage() {
       side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false
     })
   );
-  cove.position.y = CFG.ceilingY - 1.6;
+  cove.position.y = CFG.dadoHeight - 0.9;
   scene.add(cove);
 
-  const ceiling = new THREE.Mesh(
-    new THREE.CircleGeometry(plan.floorR, 96),
-    new THREE.MeshStandardMaterial({ color: 0x0b0d16, roughness: 1, metalness: 0, side: THREE.DoubleSide })
+  const coping = new THREE.Mesh(
+    new THREE.RingGeometry(plan.wallR - 0.6, plan.wallR + 0.15, 160),
+    new THREE.MeshBasicMaterial({
+      color: 0x9fb8ff, transparent: true, opacity: 0.15, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
   );
-  ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.y = CFG.ceilingY;
-  scene.add(ceiling);
+  coping.rotation.x = -Math.PI / 2;
+  coping.position.y = CFG.dadoHeight + 0.02;
+  scene.add(coping);
 
   buildCore();
   buildWingFloors();
   buildColumns();
   buildDust();
   buildSelectionFixtures();
+  buildSky();
 }
 
 /* The oculus: a shaft of light with a slowly turning armature inside it. */
@@ -1297,9 +1531,11 @@ function buildCore() {
   world.core = new THREE.Group();
 
   /* A shaft of light from the oculus: brightest where the sky is, thinning as
-     it falls. Additive, depth-write off, so it never occludes an exhibit. */
+     it falls. It climbs past the wall and into the stars, which is the whole
+     point of the building. Additive, depth-write off, so it never occludes an
+     exhibit. */
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 2.6, CFG.ceilingY, 48, 1, true),
+    new THREE.CylinderGeometry(1.0, 2.6, CFG.beamHeight, 48, 1, true),
     new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
@@ -1319,12 +1555,12 @@ function buildCore() {
         '  float grad = pow(vH, 1.7);',                        // light enters at the top
         '  float band = 0.88 + 0.12 * sin(uTime * 1.4 + vH * 9.0);',
         '  vec3 col = mix(uLow, uHigh, grad);',
-        '  gl_FragColor = vec4(col * band, grad * 0.22);',
+        '  gl_FragColor = vec4(col * band, grad * 0.13);',
         '}'
       ].join('\n')
     })
   );
-  shaft.position.y = CFG.ceilingY / 2;
+  shaft.position.y = CFG.beamHeight / 2;
   world.core.add(shaft);
   world.shaft = shaft;
 
@@ -1414,11 +1650,14 @@ function buildWingFloors() {
   });
 }
 
-/* A colonnade stands behind the wings: one engaged column per wing centre,
-   with a thin lit strip that takes the wing's colour. */
+/* The piers between halls. One column stands at the mouth of each boundary
+   between two wings, with a thin lit strip on the face that looks into the
+   hub, tinted with the colour of the wing behind it. Together with the
+   partitions in section 06b this is what turns one wide ring of exhibits into
+   twelve separate rooms. */
 function buildColumns() {
   const count = plan.wings.length;
-  const r = plan.wallR - 1.4;
+  const r = plan.dividerR - 0.7;
   const geometry = new THREE.CylinderGeometry(0.62, 0.78, CFG.columnHeight, 16, 1, false);
   world.columns = new THREE.InstancedMesh(
     geometry,
@@ -1436,12 +1675,17 @@ function buildColumns() {
   const q = new THREE.Quaternion();
   const s = new THREE.Vector3(1, 1, 1);
   const pos = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
   plan.wings.forEach((wing, i) => {
-    const x = polarX(wing.aCenter, r), z = polarZ(wing.aCenter, r);
-    pos.set(x, CFG.columnHeight / 2, z);
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), wing.aCenter);
+    const a = wing.aEnd;
+    pos.set(polarX(a, r), CFG.columnHeight / 2, polarZ(a, r));
+    q.setFromAxisAngle(up, a);
     m.compose(pos, q, s);
     world.columns.setMatrixAt(i, m);
+    /* the strip sits on the hub-facing face of the pier, where the eye finds
+       it, rather than inside the stone where it would never be seen */
+    pos.set(polarX(a, r - 0.7), CFG.columnHeight * 0.5, polarZ(a, r - 0.7));
+    m.compose(pos, q, s);
     world.columnGlow.setMatrixAt(i, m);
     world.columnGlow.setColorAt(i, new THREE.Color(wing.color));
   });
@@ -1550,6 +1794,8 @@ function buildSelectionFixtures() {
 
 /* Per-frame business for the room: turning rings, breathing light, dust. */
 function updateStage(elapsed, delta) {
+  updateSky(elapsed, delta);
+  updateHalls(elapsed);
   if (world.shaft) world.shaft.material.uniforms.uTime.value = elapsed;
   if (world.dust) world.dust.material.uniforms.uTime.value = elapsed;
   if (world.heart) {
@@ -1570,6 +1816,332 @@ function updateStage(elapsed, delta) {
   if (world.medallion) world.medallion.rotation.z += delta * 0.02;
   world.ambientLights[1].position.x = Math.cos(elapsed * 0.13) * 12;
   world.ambientLights[1].position.z = Math.sin(elapsed * 0.13) * 12;
+}
+
+/* ── 05b · the sky ───────────────────────────────────────────────────────
+   Above the dado the museum has no ceiling: it has a planetarium. One big
+   inverted sphere carries a painted nebula; two layers of stars sit on its
+   inner face as points, so they twinkle and stay perfectly round at any
+   distance; a faint great-circle grid turns with them the way a real dome
+   does, and every so often a shooting star crosses the field. All of it is
+   drawn or generated at boot — there is nothing to download. */
+
+/* star colours, weighted towards blue-white the way a real sky is */
+const STAR_TINTS = [
+  [0.76, 0.85, 1.00], [0.95, 0.97, 1.00], [1.00, 0.90, 0.76],
+  [0.70, 0.92, 1.00], [1.00, 0.76, 0.66], [0.86, 0.80, 1.00]
+];
+
+/* A soft radial blob — the whole nebula is built out of these. */
+function softBlob(ctx, px, py, radius, rgb, alpha) {
+  const g = ctx.createRadialGradient(px, py, 0, px, py, radius);
+  g.addColorStop(0, 'rgba(' + rgb + ',' + alpha + ')');
+  g.addColorStop(0.55, 'rgba(' + rgb + ',' + (alpha * 0.35) + ')');
+  g.addColorStop(1, 'rgba(' + rgb + ',0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, TAU);
+  ctx.fill();
+}
+
+/* The painted sky, as one equirectangular canvas: zenith at the top of the
+   canvas, horizon through the middle. Smooth washes ONLY — every crisp point
+   of light is geometry. Painting 1-pixel stars into the texture looks fine on
+   the canvas and turns into a shimmering lattice once it is minified onto a
+   sphere, which is the opposite of the effect we are after. */
+function nebulaTexture() {
+  const W = 1024, H = 512;
+  const { c, x } = canvas2d(W, H);
+
+  x.fillStyle = '#03040a';
+  x.fillRect(0, 0, W, H);
+
+  /* depth: the zenith is the darkest, the horizon carries the room's glow.
+     Kept deliberately shallow — a strong gradient here bands and dithers on
+     weak GPUs, and the sky is meant to read as black, not as a blue screen. */
+  const depth = x.createLinearGradient(0, 0, 0, H);
+  depth.addColorStop(0.00, 'rgba(9,12,30,0.30)');
+  depth.addColorStop(0.42, 'rgba(13,18,40,0.22)');
+  depth.addColorStop(0.52, 'rgba(40,56,108,0.16)');
+  depth.addColorStop(0.62, 'rgba(14,18,38,0.14)');
+  depth.addColorStop(1.00, 'rgba(3,4,9,0.60)');
+  x.fillStyle = depth;
+  x.fillRect(0, 0, W, H);
+
+  /* the galactic band: a river of light laid diagonally across the sphere */
+  for (let i = 0; i < 110; i++) {
+    const u = i / 110;
+    const px = u * W;
+    const py = H * 0.34 + Math.sin(u * TAU) * H * 0.13 + (Math.random() - 0.5) * 46;
+    softBlob(x, px, py, 60 + Math.random() * 130, '118,148,232', 0.018 + Math.random() * 0.018);
+  }
+  /* two clouds of a different colour, so the sky is not one hue */
+  softBlob(x, W * 0.18, H * 0.30, 250, '150,90,170', 0.038);
+  softBlob(x, W * 0.72, H * 0.62, 300, '60,150,180', 0.038);
+  softBlob(x, W * 0.50, H * 0.52, 360, '90,110,200', 0.030);
+
+  /* horizon haze: where the room's light meets the sky */
+  for (let i = 0; i < 30; i++) {
+    softBlob(x, Math.random() * W, H * 0.52 + (Math.random() - 0.5) * 40,
+      110 + Math.random() * 170, '118,158,252', 0.022);
+  }
+
+  /* the deep field, painted as soft grains rather than pixels: too far away to
+     twinkle, just enough to make the black feel inhabited */
+  for (let i = 0; i < 240; i++) {
+    const py = 130 + Math.random() * (H - 260);
+    softBlob(x, Math.random() * W, py, 1.0 + Math.random() * 1.0, '214,228,255',
+      0.08 + Math.random() * 0.12);
+  }
+  return textureFrom(c);
+}
+
+/* — stars: points on the inside of the dome, twinkling in the shader ——————— */
+const STAR_SHADER = {
+  vertex: [
+    'attribute float aSeed;',
+    'attribute float aSize;',
+    'attribute vec3 aTint;',
+    'uniform float uTime;',
+    'uniform float uScale;',
+    'varying float vTw;',
+    'varying vec3 vTint;',
+    'void main(){',
+    '  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+    /* two sines per star, both irrational-ish, so a field of them never
+       pulses in step */
+    '  float beat = 0.55 + fract(aSeed * 7.13) * 2.1;',
+    '  float tw = 0.66 + 0.34 * sin(uTime * beat + aSeed * 17.0)',
+    '                  + 0.10 * sin(uTime * beat * 2.7 + aSeed * 5.0);',
+    '  vTw = clamp(tw, 0.25, 1.25);',
+    '  vTint = aTint;',
+    '  gl_PointSize = aSize * uScale * (0.7 + 0.55 * vTw) * (150.0 / max(1.0, -mv.z));',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'
+  ].join('\n'),
+  fragment: [
+    'varying float vTw;',
+    'varying vec3 vTint;',
+    'void main(){',
+    '  vec2 d = gl_PointCoord - 0.5;',
+    '  float r = length(d) * 2.0;',
+    '  float halo = smoothstep(1.0, 0.0, r);',
+    '  float core = smoothstep(0.40, 0.0, r);',
+    '  float a = halo * 0.30 + core * 0.95;',
+    '  if (a < 0.012) discard;',
+    '  gl_FragColor = vec4(vTint * (0.5 + 1.15 * core) * vTw, a * vTw);',
+    '}'
+  ].join('\n')
+};
+
+/* Points spread evenly over the part of the sphere that is above the horizon.
+   (sin latitude is uniform, which is what makes the density even.) */
+function starField(count, radius, sizeFloor, sizeCeil, dim, seed) {
+  const position = new Float32Array(count * 3);
+  const aSeed = new Float32Array(count);
+  const aSize = new Float32Array(count);
+  const aTint = new Float32Array(count * 3);
+  const lowest = Math.sin(-3 * Math.PI / 180);
+  for (let i = 0; i < count; i++) {
+    const sinLat = lowest + (1 - lowest) * Math.random();
+    const lat = Math.asin(sinLat);
+    const lon = Math.random() * TAU;
+    const cosLat = Math.cos(lat);
+    position[i * 3] = Math.sin(lon) * cosLat * radius;
+    position[i * 3 + 1] = sinLat * radius;
+    position[i * 3 + 2] = Math.cos(lon) * cosLat * radius;
+    aSeed[i] = (seed + i) * 0.6180339887;
+    aSize[i] = sizeFloor + Math.pow(Math.random(), 3) * (sizeCeil - sizeFloor);
+    const tint = STAR_TINTS[Math.floor(Math.random() * STAR_TINTS.length)];
+    aTint[i * 3] = tint[0] * dim;
+    aTint[i * 3 + 1] = tint[1] * dim;
+    aTint[i * 3 + 2] = tint[2] * dim;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(aSize, 1));
+  geometry.setAttribute('aTint', new THREE.BufferAttribute(aTint, 3));
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uScale: { value: 1 } },
+    vertexShader: STAR_SHADER.vertex,
+    fragmentShader: STAR_SHADER.fragment,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  return new THREE.Points(geometry, material);
+}
+
+/* — the planetarium grid: meridians and parallels, barely there —────────── */
+function skyGrid(radius) {
+  const points = [];
+  const push = (v) => points.push(v.x, v.y, v.z);
+  const at = (lat, lon) => new THREE.Vector3(
+    Math.sin(lon) * Math.cos(lat) * radius,
+    Math.sin(lat) * radius,
+    Math.cos(lon) * Math.cos(lat) * radius
+  );
+  for (let m = 0; m < CFG.gridMeridians; m++) {
+    const lon = (m / CFG.gridMeridians) * TAU;
+    let previous = at(-0.12, lon);
+    for (let step = 1; step <= 14; step++) {
+      const next = at(-0.12 + (step / 14) * (Math.PI / 2 + 0.12), lon);
+      push(previous); push(next);
+      previous = next;
+    }
+  }
+  for (let p = 1; p <= CFG.gridParallels; p++) {
+    const lat = (p / (CFG.gridParallels + 1)) * (Math.PI / 2);
+    let previous = at(lat, 0);
+    for (let step = 1; step <= 48; step++) {
+      const next = at(lat, (step / 48) * TAU);
+      push(previous); push(next);
+      previous = next;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+  return new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+    color: 0x8fb4ff, transparent: true, opacity: 0.032,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+}
+
+/* — shooting stars: one line per streak, animated entirely in the shader —── */
+const STREAK_SHADER = {
+  vertex: [
+    'attribute vec3 aEnd;',
+    'attribute float aSeed;',
+    'attribute float aHead;',
+    'uniform float uTime;',
+    'varying float vAlpha;',
+    'void main(){',
+    '  float cycle = 15.0 + fract(aSeed * 13.37) * 21.0;',      // seconds between visits
+    '  float t = fract((uTime + aSeed * 41.0) / cycle);',
+    '  float travel = clamp(t / 0.30, 0.0, 1.0);',
+    '  float lit = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.06, 0.30, t));',
+    '  vAlpha = lit * mix(0.05, 1.0, aHead);',
+    '  vec3 p = position + aEnd * travel;',
+    '  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);',
+    '}'
+  ].join('\n'),
+  fragment: [
+    'varying float vAlpha;',
+    'void main(){',
+    '  if (vAlpha < 0.01) discard;',
+    '  gl_FragColor = vec4(vec3(0.86, 0.92, 1.0) * vAlpha, vAlpha);',
+    '}'
+  ].join('\n')
+};
+
+function shootingStars(radius) {
+  const count = CFG.shootingStars;
+  const position = new Float32Array(count * 2 * 3);
+  const aEnd = new Float32Array(count * 2 * 3);
+  const aSeed = new Float32Array(count * 2);
+  const aHead = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    /* a start point high on the dome, and a tangent to travel along */
+    const lat = 0.35 + Math.random() * 0.9;
+    const lon = Math.random() * TAU;
+    const start = new THREE.Vector3(
+      Math.sin(lon) * Math.cos(lat) * radius,
+      Math.sin(lat) * radius,
+      Math.cos(lon) * Math.cos(lat) * radius
+    );
+    const up = start.clone().normalize();
+    const dir = new THREE.Vector3(Math.random() - 0.5, -0.25 - Math.random() * 0.4, Math.random() - 0.5)
+      .normalize();
+    const tangent = dir.clone().sub(up.clone().multiplyScalar(dir.dot(up))).normalize();
+    const length = 16 + Math.random() * 22;
+    for (let v = 0; v < 2; v++) {
+      const k = i * 2 + v;
+      position[k * 3] = start.x; position[k * 3 + 1] = start.y; position[k * 3 + 2] = start.z;
+      aEnd[k * 3] = tangent.x * length;
+      aEnd[k * 3 + 1] = tangent.y * length;
+      aEnd[k * 3 + 2] = tangent.z * length;
+      aSeed[k] = i * 0.7548776662 + 0.11;
+      aHead[k] = v;                       // 0 = tail, 1 = head
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute('aEnd', new THREE.BufferAttribute(aEnd, 3));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1));
+  geometry.setAttribute('aHead', new THREE.BufferAttribute(aHead, 1));
+  return new THREE.LineSegments(geometry, new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: STREAK_SHADER.vertex,
+    fragmentShader: STREAK_SHADER.fragment,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  }));
+}
+
+/* — assembling the sky —————————————————————────────────────────────────── */
+function buildSky() {
+  const radius = plan.floorR + CFG.skyPad;
+  world.sky = new THREE.Group();
+  world.sky.position.y = CFG.skyLift;
+
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 96, 48),
+    new THREE.MeshBasicMaterial({
+      map: nebulaTexture(), side: THREE.BackSide, fog: false, depthWrite: true
+    })
+  );
+  world.sky.add(dome);
+  world.dome = dome;
+
+  /* the bright stars ride slightly inside the painted ones, so walking
+     through the rotunda gives them a little parallax */
+  world.stars = starField(CFG.starCount, radius * 0.90, 0.9, 4.2, 1.0, 0);
+  world.faintStars = starField(CFG.faintStars, radius * 0.98, 0.5, 1.5, 0.42, 7);
+  world.sky.add(world.stars);
+  world.sky.add(world.faintStars);
+  world.skyGrid = skyGrid(radius * 0.96);
+  world.sky.add(world.skyGrid);
+  world.shooting = shootingStars(radius * 0.94);
+  world.sky.add(world.shooting);
+  scene.add(world.sky);
+
+  /* the lip of the plaza: one bright ring where the floor meets the sky */
+  world.plazaRim = new THREE.Mesh(
+    new THREE.RingGeometry(plan.floorR - 1.4, plan.floorR + 0.6, 160),
+    new THREE.MeshBasicMaterial({
+      color: 0x7fa8ff, transparent: true, opacity: 0.22, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
+  );
+  world.plazaRim.rotation.x = -Math.PI / 2;
+  world.plazaRim.position.y = 0.04;
+  scene.add(world.plazaRim);
+
+  /* and a soft glow standing just above it, so the horizon is not a hard line */
+  world.horizon = new THREE.Mesh(
+    new THREE.CylinderGeometry(plan.floorR - 0.4, plan.floorR - 0.4, 9, 128, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x2b3f78, transparent: true, opacity: 0.30, side: THREE.BackSide,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+    })
+  );
+  world.horizon.position.y = 4.5;
+  scene.add(world.horizon);
+}
+
+/* The dome turns — slowly enough that you only notice it in the grid. */
+function updateSky(elapsed, delta) {
+  if (!world.sky) return;
+  world.sky.rotation.y += delta * CFG.skySpin;
+  const scale = renderer.getPixelRatio();
+  world.stars.material.uniforms.uTime.value = elapsed;
+  world.stars.material.uniforms.uScale.value = scale;
+  world.faintStars.material.uniforms.uTime.value = elapsed;
+  world.faintStars.material.uniforms.uScale.value = scale * 0.8;
+  world.shooting.material.uniforms.uTime.value = elapsed;
+  world.plazaRim.material.opacity = 0.18 + 0.06 * Math.sin(elapsed * 0.7);
 }
 
 /* ── 06 · labels ─────────────────────────────────────────────────────────
@@ -1757,8 +2329,185 @@ function drawBannerTile(ctx, px, py, wing) {
   ctx.restore();
 }
 
-/* Build the two atlases and their textures. */
-const labels = { plaque: null, banner: null, plaqueTex: null, bannerTex: null };
+/* An emblem per wing: geometric, drawn here, belonging to nothing but this
+   museum. Twelve different marks so each hall can be recognised from across
+   the rotunda — the arch above a doorway, in effect. */
+function drawEmblem(ctx, cx, cy, size, name, hex) {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = hex;
+  ctx.fillStyle = hex;
+  ctx.lineWidth = Math.max(1.5, size * 0.055);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const poly = (points, close) => {
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const x = p[0] * r, y = p[1] * r;
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    });
+    if (close !== false) ctx.closePath();
+    ctx.stroke();
+  };
+  const dot = (x, y, rad) => {
+    ctx.beginPath(); ctx.arc(x * r, y * r, rad * size, 0, TAU); ctx.fill();
+  };
+  if (name === 'Gaming') {
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.92, 0, TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * 0.5, 0);
+    ctx.moveTo(0, -r * 0.5); ctx.lineTo(0, r * 0.5); ctx.stroke();
+    dot(-0.62, -0.62, 0.055); dot(0.62, 0.62, 0.055);
+  } else if (name === 'Creative') {
+    [[-0.3, 0.12], [0.3, 0.12], [0, -0.3]].forEach((p) => {
+      ctx.beginPath(); ctx.arc(p[0] * r, p[1] * r, r * 0.52, 0, TAU); ctx.stroke();
+    });
+  } else if (name === 'Media') {
+    poly([[-0.45, -0.62], [0.62, 0], [-0.45, 0.62]]);
+    ctx.beginPath();
+    [-0.85, -0.7].forEach((x) => {
+      ctx.moveTo(x * r, -r * 0.5); ctx.lineTo(x * r, r * 0.5);
+    });
+    ctx.stroke();
+  } else if (name === 'Privacy') {
+    const sides = [];
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 - Math.PI / 2;
+      sides.push([Math.cos(a) * 0.92, Math.sin(a) * 0.92]);
+    }
+    poly(sides);
+    ctx.beginPath(); ctx.arc(0, -r * 0.18, r * 0.26, 0, TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.12, 0); ctx.lineTo(r * 0.12, 0);
+    ctx.lineTo(r * 0.2, r * 0.5); ctx.lineTo(-r * 0.2, r * 0.5);
+    ctx.closePath(); ctx.stroke();
+  } else if (name === 'Tools') {
+    const sides = [];
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6;
+      sides.push([Math.cos(a) * 0.88, Math.sin(a) * 0.88]);
+    }
+    poly(sides);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.34, 0, TAU); ctx.stroke();
+  } else if (name === 'Dev') {
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.35, -r * 0.6); ctx.lineTo(-r * 0.85, 0); ctx.lineTo(-r * 0.35, r * 0.6);
+    ctx.moveTo(r * 0.35, -r * 0.6); ctx.lineTo(r * 0.85, 0); ctx.lineTo(r * 0.35, r * 0.6);
+    ctx.moveTo(r * 0.12, -r * 0.7); ctx.lineTo(-r * 0.12, r * 0.7); ctx.stroke();
+  } else if (name === 'Android') {
+    roundRect(ctx, -r * 0.62, -r * 0.86, r * 1.24, r * 1.72, r * 0.16);
+    ctx.stroke();
+    [[-0.28, -0.5], [0, -0.5], [0.28, -0.5], [-0.28, 0], [0, 0], [0.28, 0]].forEach((p) => dot(p[0], p[1], 0.045));
+  } else if (name === 'Shopping') {
+    poly([[-0.72, -0.28], [0.72, -0.28], [0.5, 0.72], [-0.5, 0.72]]);
+    ctx.beginPath();
+    ctx.arc(0, -0.28 * r, r * 0.42, Math.PI, 0); ctx.stroke();
+  } else if (name === 'AI') {
+    const left = [[-0.7, -0.5], [-0.7, 0.5]], right = [[0.7, -0.62], [0.7, 0], [0.7, 0.62]];
+    ctx.beginPath();
+    left.forEach((a) => right.forEach((b) => {
+      ctx.moveTo(a[0] * r, a[1] * r); ctx.lineTo(b[0] * r, b[1] * r);
+    }));
+    ctx.stroke();
+    left.concat(right).forEach((p) => dot(p[0], p[1], 0.07));
+  } else if (name === 'Reading') {
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.6, -r * 0.75, -r * 0.9, -r * 0.45);
+    ctx.lineTo(-r * 0.9, r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.55, r * 0.3, 0, r * 0.55);
+    ctx.quadraticCurveTo(r * 0.55, r * 0.3, r * 0.9, r * 0.55);
+    ctx.lineTo(r * 0.9, -r * 0.45);
+    ctx.quadraticCurveTo(r * 0.6, -r * 0.75, 0, -r * 0.55);
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.55); ctx.lineTo(0, r * 0.55); ctx.stroke();
+  } else if (name === 'Linux') {
+    roundRect(ctx, -r * 0.9, -r * 0.7, r * 1.8, r * 1.4, r * 0.12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.62, -r * 0.3); ctx.lineTo(-r * 0.3, -r * 0.02); ctx.lineTo(-r * 0.62, r * 0.26);
+    ctx.moveTo(-r * 0.02, r * 0.3); ctx.lineTo(r * 0.55, r * 0.3); ctx.stroke();
+  } else if (name === 'Fun') {
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3);
+      ctx.lineTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9);
+      ctx.stroke();
+    }
+    dot(0, 0, 0.1);
+  } else {
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* One hall tile: the sign over a doorway — an arch, the wing's own emblem,
+   the wing's name, and how much is behind the door. */
+function drawHallTile(ctx, px, py, wing) {
+  const W = CFG.hallTile.w, H = CFG.hallTile.h;
+  const hex = wing.hex;
+  ctx.save();
+  ctx.translate(px, py);
+
+  /* the arch itself: a doorway, not a rectangle */
+  ctx.strokeStyle = hex + '99';
+  ctx.lineWidth = 3;
+  const inset = W * 0.055;
+  ctx.beginPath();
+  ctx.moveTo(inset, H * 0.97);
+  ctx.lineTo(inset, H * 0.34);
+  ctx.quadraticCurveTo(inset, H * 0.06, W * 0.5, H * 0.06);
+  ctx.quadraticCurveTo(W - inset, H * 0.06, W - inset, H * 0.34);
+  ctx.lineTo(W - inset, H * 0.97);
+  ctx.stroke();
+
+  /* a keystone mark at the crown of the arch */
+  ctx.fillStyle = hex + 'cc';
+  ctx.fillRect(W * 0.5 - 14, H * 0.045, 28, 4);
+
+  drawEmblem(ctx, W * 0.5, H * 0.30, W * 0.15, wing.name, hex);
+
+  /* the name */
+  ctx.fillStyle = '#f4f7ff';
+  const label = wing.name.toUpperCase();
+  let size = Math.round(W * 0.115);
+  ctx.font = font('display', size);
+  let tracking = size * 0.10;
+  while (measureTracked(ctx, label, tracking) > W * 0.78 && size > 20) {
+    size -= 2;
+    tracking = size * 0.10;
+    ctx.font = font('display', size);
+  }
+  drawTracked(ctx, label, (W - measureTracked(ctx, label, tracking)) / 2, H * 0.62, tracking);
+
+  /* the rule, then the count */
+  ctx.fillStyle = hex + '88';
+  ctx.fillRect(W * 0.28, H * 0.70, W * 0.44, 2);
+  ctx.font = font('mono', Math.round(W * 0.045), '500');
+  ctx.fillStyle = hex + 'dd';
+  const sub = wing.count + (wing.count === 1 ? ' EXHIBIT' : ' EXHIBITS');
+  drawTracked(ctx, sub, (W - measureTracked(ctx, sub, 3)) / 2, H * 0.82, 3);
+
+  ctx.restore();
+}
+
+/* Build the atlases and their textures. */
+const labels = {
+  plaque: null, banner: null, hall: null,
+  plaqueTex: null, bannerTex: null, hallTex: null
+};
+
+function atlasTexture(sheet) {
+  const t = new THREE.CanvasTexture(sheet);
+  t.encoding = THREE.sRGBEncoding;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  return t;
+}
 
 function buildAtlases() {
   const P = CFG.tilePx;
@@ -1773,11 +2522,7 @@ function buildAtlases() {
     drawPlaqueTile(ctx, col * P, row * P, link, i + 1);
   });
   labels.plaque = sheet;
-  labels.plaqueTex = new THREE.CanvasTexture(sheet);
-  labels.plaqueTex.encoding = THREE.sRGBEncoding;
-  labels.plaqueTex.minFilter = THREE.LinearFilter;
-  labels.plaqueTex.magFilter = THREE.LinearFilter;
-  labels.plaqueTex.generateMipmaps = false;
+  labels.plaqueTex = atlasTexture(sheet);
   labels.plaqueTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 
   const BW = CFG.bannerTile.w, BH = CFG.bannerTile.h;
@@ -1792,11 +2537,21 @@ function buildAtlases() {
     drawBannerTile(bctx, col * BW, row * BH, wing);
   });
   labels.banner = cloth;
-  labels.bannerTex = new THREE.CanvasTexture(cloth);
-  labels.bannerTex.encoding = THREE.sRGBEncoding;
-  labels.bannerTex.minFilter = THREE.LinearFilter;
-  labels.bannerTex.magFilter = THREE.LinearFilter;
-  labels.bannerTex.generateMipmaps = false;
+  labels.bannerTex = atlasTexture(cloth);
+
+  const HW = CFG.hallTile.w, HH = CFG.hallTile.h;
+  const sign = document.createElement('canvas');
+  sign.width = CFG.hallCols * HW;
+  sign.height = CFG.hallRows * HH;
+  const sctx = sign.getContext('2d');
+  sctx.textBaseline = 'alphabetic';
+  sctx.textAlign = 'left';
+  plan.wings.forEach((wing, i) => {
+    const col = i % CFG.hallCols, row = Math.floor(i / CFG.hallCols);
+    drawHallTile(sctx, col * HW, row * HH, wing);
+  });
+  labels.hall = sign;
+  labels.hallTex = atlasTexture(sign);
 }
 
 /* Tile origin for an index in an atlas: canvas textures are flipped in v, so
@@ -1889,6 +2644,303 @@ function panelMaterial(texture, cols, rows, opts) {
     side: THREE.DoubleSide,
     depthWrite: options.flat ? false : true
   });
+}
+
+/* ── 06b · halls ───────────────────────────────────────────────────────
+   Twelve wings is not the same thing as twelve rooms. This section builds the
+   architecture that makes them read that way from the hub:
+
+     · a lit backdrop wall behind each wing's exhibits, tinted that wing's
+       colour and painted procedurally with a retro-futurist sunburst;
+     · a partition on every boundary, capped with a light line, so the eye
+       reads a wall instead of an open ring;
+     · a big enamel sign at eye level on the dado, with an emblem that belongs
+       to that wing alone;
+     · a path of light on the floor running into each hall;
+     · a faint constellation joining each wing's exhibits to one another.
+
+   Six draw calls in total: every piece is one instanced mesh (or one line
+   set), and all of it dims away with its wing when a filter is applied. */
+const halls = {
+  wash: null, sign: null, dividers: null, dividerLight: null,
+  spokes: null, constellations: null,
+  attr: {}, washMaterial: null, signMaterial: null,
+  lineWings: null
+};
+
+/* The backdrop. No texture: the shader draws the hall itself — rays fanning
+   out of the base, the arch this hall is built under, a field of hairlines,
+   and a pool of light where the wall meets the floor. */
+function washMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      attribute float aAlpha;
+      attribute vec3 aWing;
+      varying vec2 vLocal;
+      varying float vAlpha;
+      varying vec3 vWing;
+      void main() {
+        vLocal = uv;
+        vAlpha = aAlpha;
+        vWing = aWing;
+        vec4 world = vec4(position, 1.0);
+        #ifdef USE_INSTANCING
+          world = instanceMatrix * world;
+        #endif
+        gl_Position = projectionMatrix * modelViewMatrix * world;
+      }`,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vLocal;
+      varying float vAlpha;
+      varying vec3 vWing;
+      void main() {
+        if (vAlpha < 0.02) discard;
+        float u = vLocal.x * 2.0 - 1.0;
+        float v = vLocal.y;
+        /* rays fanning out of the base of the hall */
+        float ang = atan(v + 0.14, abs(u) + 0.03);
+        float rays = 0.5 + 0.5 * sin(ang * 14.0 - uTime * 0.12);
+        float fan = smoothstep(1.0, 0.15, v) * smoothstep(0.0, 0.18, v);
+        /* the arch, and the hairlines of an eighties faceplate — wide enough
+           apart that they survive being minified across the hall */
+        float arch = abs(length(vec2(u * 0.78, (v - 0.10) * 1.15)) - 0.60);
+        float archLine = smoothstep(0.018, 0.0, arch);
+        float lines = smoothstep(0.075, 0.0, abs(fract(v * 11.0) - 0.5) - 0.40);
+        /* light pooling at the base, where the hall is entered */
+        float base = pow(max(0.0, 1.0 - abs(u)), 2.2) * (1.0 - v);
+        float lift = 0.055 + 0.17 * rays * fan + 0.34 * base
+                   + 0.60 * archLine + 0.13 * lines;
+        vec3 rgb = vWing * lift + vec3(0.012, 0.016, 0.034);
+        float a = vAlpha * (0.44 + 0.56 * smoothstep(0.0, 0.22, v));
+        gl_FragColor = vec4(rgb * a, a);
+      }`,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+}
+
+/* The floor path: bright at the hall end, gone by the time it reaches the
+   hub, with soft edges so it reads as light on stone rather than a decal.
+   The bright end is at the BOTTOM of the canvas: composeFloor() below puts
+   uv.y = 0 at the outer edge of the plane. */
+function spokeTexture() {
+  const { c, x } = canvas2d(64, 256);
+  const along = x.createLinearGradient(0, 0, 0, 256);
+  along.addColorStop(0.00, 'rgba(255,255,255,0.00)');
+  along.addColorStop(0.28, 'rgba(255,255,255,0.10)');
+  along.addColorStop(0.70, 'rgba(255,255,255,0.38)');
+  along.addColorStop(1.00, 'rgba(255,255,255,0.72)');
+  x.fillStyle = along;
+  x.fillRect(0, 0, 64, 256);
+  x.globalCompositeOperation = 'destination-out';
+  const edge = x.createLinearGradient(0, 0, 64, 0);
+  edge.addColorStop(0.00, 'rgba(0,0,0,1)');
+  edge.addColorStop(0.34, 'rgba(0,0,0,0)');
+  edge.addColorStop(0.66, 'rgba(0,0,0,0)');
+  edge.addColorStop(1.00, 'rgba(0,0,0,1)');
+  x.fillStyle = edge;
+  x.fillRect(0, 0, 64, 256);
+  return textureFrom(c);
+}
+
+/* A floor plane laid down a radius. Lying it flat turns its +Y into -Z, so
+   after the yaw its +Y points back toward the hub and uv.y = 0 is the outer
+   edge — which is where the light path wants to be brightest. */
+function composeFloor(mesh, index, angle, midRadius, width, length, y) {
+  _v.set(polarX(angle, midRadius), y, polarZ(angle, midRadius));
+  _q.setFromAxisAngle(_up, angle);
+  _q.multiply(_flat);
+  _s.set(width, length, 1);
+  _m.compose(_v, _q, _s);
+  mesh.setMatrixAt(index, _m);
+}
+
+function addWashAttributes(mesh, count) {
+  const aAlpha = new THREE.InstancedBufferAttribute(new Float32Array(count).fill(1), 1);
+  const aWing = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
+  mesh.geometry.setAttribute('aAlpha', aAlpha);
+  mesh.geometry.setAttribute('aWing', aWing);
+  return { aAlpha, aWing };
+}
+
+function buildHalls() {
+  const n = plan.wings.length;
+  const color = new THREE.Color();
+
+  /* — backdrops ———————————————————————————————————————————————————————
+     Each one stops just above its own banner, so a hall is exactly as tall as
+     the exhibits it houses and the sky still runs uninterrupted above it. */
+  halls.washMaterial = washMaterial();
+  halls.wash = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), halls.washMaterial, n);
+  halls.wash.frustumCulled = false;
+  halls.attr.wash = addWashAttributes(halls.wash, n);
+  plan.wings.forEach((wing, i) => {
+    wing._washBottom = CFG.dadoHeight;
+    wing._washTop = wing._bannerY + CFG.banner.h * 0.5 + CFG.washClear;
+    const height = wing._washTop - wing._washBottom;
+    composeBox(halls.wash, i, polarX(wing.aCenter, plan.hallR),
+      (wing._washTop + wing._washBottom) / 2, polarZ(wing.aCenter, plan.hallR),
+      wing.aCenter + Math.PI, 2 * plan.hallR * Math.sin(wing.wedge / 2), height, 1);
+    color.setHex(wing.color);
+    halls.attr.wash.aWing.setXYZ(i, color.r, color.g, color.b);
+    halls.attr.wash.aAlpha.setX(i, 1);
+  });
+  halls.wash.instanceMatrix.needsUpdate = true;
+  halls.attr.wash.aWing.needsUpdate = true;
+  halls.attr.wash.aAlpha.needsUpdate = true;
+  scene.add(halls.wash);
+
+  /* — signs ————————————————————————————————————————————————————————————
+     Fixed size, mounted on the dado at eye level, so a small wing is not
+     signed with a small name the way it would be if the sign spanned the bay. */
+  halls.signMaterial = panelMaterial(labels.hallTex, CFG.hallCols, CFG.hallRows, { boost: 1.25 });
+  halls.sign = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(CFG.signSize.w, CFG.signSize.h), halls.signMaterial, n
+  );
+  halls.attr.sign = addPanelAttributes(halls.sign, n, CFG.hallCols, CFG.hallRows);
+  plan.wings.forEach((wing, i) => {
+    const y = CFG.dadoHeight - CFG.signSize.h * 0.5 - CFG.signLift;
+    compose(halls.sign, i, polarX(wing.aCenter, plan.wallR - 0.35), y,
+      polarZ(wing.aCenter, plan.wallR - 0.35), wing.aCenter + Math.PI, 1);
+    const tile = tileOrigin(i, CFG.hallCols, CFG.hallRows);
+    halls.attr.sign.aTile.setXY(i, tile[0], tile[1]);
+    color.setHex(wing.color);
+    halls.attr.sign.aWing.setXYZ(i, color.r, color.g, color.b);
+    halls.attr.sign.aAlpha.setX(i, 1);
+  });
+  halls.sign.instanceMatrix.needsUpdate = true;
+  flushPanelAttributes(halls.attr.sign);
+  scene.add(halls.sign);
+
+  /* — partitions ———————————————————————————————————————————————————————
+     One wall on each boundary, running from just outside the innermost row to
+     the backdrop. They stop well below the top of the backdrops, so the halls
+     feel partitioned without the rotunda ever feeling shut in. */
+  const length = plan.dividerOutR - plan.dividerR;
+  const midR = (plan.dividerOutR + plan.dividerR) / 2;
+  halls.dividers = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, metalness: 0.28 }),
+    n
+  );
+  halls.dividerLight = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false
+    }),
+    n
+  );
+  plan.wings.forEach((wing, i) => {
+    const a = wing.aEnd;
+    composeBox(halls.dividers, i, polarX(a, midR), CFG.dividerHeight / 2, polarZ(a, midR),
+      a, CFG.dividerThickness, CFG.dividerHeight, length);
+    composeBox(halls.dividerLight, i, polarX(a, midR), CFG.dividerHeight - 0.06, polarZ(a, midR),
+      a, 0.16, 0.16, length);
+    halls.dividers.setColorAt(i, color.setHex(wing.color).multiplyScalar(0.26));
+    halls.dividerLight.setColorAt(i, color.setHex(wing.color));
+  });
+  halls.dividers.instanceMatrix.needsUpdate = true;
+  halls.dividerLight.instanceMatrix.needsUpdate = true;
+  halls.dividers.instanceColor.needsUpdate = true;
+  halls.dividerLight.instanceColor.needsUpdate = true;
+  scene.add(halls.dividers);
+  scene.add(halls.dividerLight);
+
+  /* — paths of light ————————————————————————————————————————————————— */
+  halls.spokes = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      map: spokeTexture(), transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }),
+    n
+  );
+  plan.wings.forEach((wing, i) => {
+    const outer = wing.rMax + 2.5;
+    const width = Math.min(CFG.spokeWidth, 2 * CFG.spokeInner * Math.sin(wing.wedge / 2));
+    composeFloor(halls.spokes, i, wing.aCenter, (CFG.spokeInner + outer) / 2,
+      width, outer - CFG.spokeInner, 0.05);
+    halls.spokes.setColorAt(i, color.setHex(wing.color));
+  });
+  halls.spokes.instanceMatrix.needsUpdate = true;
+  halls.spokes.instanceColor.needsUpdate = true;
+  scene.add(halls.spokes);
+
+  /* — constellations ———————————————————————————————————————————————————
+     Each wing's exhibits are joined along its arcs and between its rows, the
+     way a planetarium joins stars into a figure. */
+  const positions = [];
+  const wingsOfLine = [];
+  const pair = (a, b, wingIndex) => {
+    positions.push(LINKS[a]._plate.x, LINKS[a]._plate.y, LINKS[a]._plate.z);
+    positions.push(LINKS[b]._plate.x, LINKS[b]._plate.y, LINKS[b]._plate.z);
+    wingsOfLine.push(wingIndex, wingIndex);
+  };
+  plan.wings.forEach((wing, wi) => {
+    wing.rows.forEach((row, depth) => {
+      for (let k = 0; k + 1 < row.length; k++) pair(row[k], row[k + 1], wi);
+      const next = wing.rows[depth + 1];
+      if (next) {
+        pair(row[0], next[0], wi);
+        pair(row[row.length - 1], next[next.length - 1], wi);
+      }
+    });
+  });
+  const figure = new THREE.BufferGeometry();
+  figure.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  figure.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(positions.length), 3));
+  halls.lineWings = wingsOfLine;
+  halls.constellations = new THREE.LineSegments(
+    figure,
+    new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
+  );
+  halls.constellations.frustumCulled = false;
+  scene.add(halls.constellations);
+  paintConstellations();
+}
+
+/* The lines carry their brightness in their vertex colour, so fading a wing
+  costs nothing but a colour write. */
+function paintConstellations() {
+  const attribute = halls.constellations.geometry.attributes.color;
+  const color = new THREE.Color();
+  halls.lineWings.forEach((wingIndex, vertex) => {
+    const wing = plan.wings[wingIndex];
+    color.setHex(wing.color).multiplyScalar(0.42 * wing._fade);
+    attribute.setXYZ(vertex, color.r, color.g, color.b);
+  });
+  attribute.needsUpdate = true;
+}
+
+/* Dim the whole hall — backdrop, sign, partitions, path and constellation —
+   with the wing it belongs to. Called from applyWingFades() in section 10. */
+function applyHallFades() {
+  const color = new THREE.Color();
+  plan.wings.forEach((wing, i) => {
+    const fade = wing._fade;
+    halls.attr.wash.aAlpha.setX(i, fade);
+    halls.attr.sign.aAlpha.setX(i, fade);
+    halls.dividers.setColorAt(i, color.setHex(wing.color).multiplyScalar(0.02 + 0.28 * fade));
+    halls.dividerLight.setColorAt(i, color.setHex(wing.color).multiplyScalar(0.9 * fade));
+    halls.spokes.setColorAt(i, color.setHex(wing.color).multiplyScalar(0.40 * fade));
+  });
+  halls.attr.wash.aAlpha.needsUpdate = true;
+  halls.attr.sign.aAlpha.needsUpdate = true;
+  halls.dividers.instanceColor.needsUpdate = true;
+  halls.dividerLight.instanceColor.needsUpdate = true;
+  halls.spokes.instanceColor.needsUpdate = true;
+  paintConstellations();
+}
+
+/* The backdrops and the dust both breathe, so the room is never quite still. */
+function updateHalls(elapsed) {
+  halls.washMaterial.uniforms.uTime.value = elapsed;
 }
 
 /* ── 07 · exhibits ───────────────────────────────────────────────────────
@@ -2145,7 +3197,6 @@ function rigReset(soft) {
     target: { x: 0, y: CFG.camTargetY, z: 0 },
     seconds: soft ? 1.1 : 0.01
   });
-  rig.goal = null;
 }
 
 /* Fly to a pose. `seconds` 0 snaps. `look` offsets the aim, so a selected
@@ -2161,7 +3212,7 @@ function flyTo(options) {
     },
     to: {
       theta: o.theta === undefined ? rig.theta : o.theta,
-      phi: clamp(o.phi === undefined ? rig.phi : o.phi, 0.18, 1.47),
+      phi: clamp(o.phi === undefined ? rig.phi : o.phi, CFG.camPhiMin, CFG.camPhiMax),
       radius: clamp(o.radius === undefined ? rig.radius : o.radius, CFG.camMin, CFG.camMax * 2.4),
       x: o.target ? o.target.x : rig.target.x,
       y: o.target ? o.target.y : rig.target.y,
@@ -2184,7 +3235,7 @@ function poseFor(eye, target, seconds) {
   const radius = Math.max(CFG.camMin, Math.hypot(dx, dy, dz));
   flyTo({
     theta: Math.atan2(dx, dz),          // same polar convention the room uses
-    phi: clamp(Math.acos(clamp(dy / radius, -1, 1)), 0.18, 1.47),
+    phi: clamp(Math.acos(clamp(dy / radius, -1, 1)), CFG.camPhiMin, CFG.camPhiMax),
     radius: radius,
     target: target,
     seconds: seconds
@@ -2242,7 +3293,7 @@ function updateCamera(delta) {
     /* inertia: keep drifting after a drag, settling within a couple of frames */
     if (!rig.dragging && (Math.abs(rig.velocity.theta) > 1e-5 || Math.abs(rig.velocity.phi) > 1e-5)) {
       rig.theta += rig.velocity.theta;
-      rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+      rig.phi = clamp(rig.phi + rig.velocity.phi, CFG.camPhiMin, CFG.camPhiMax);
       rig.velocity.theta *= 0.90;
       rig.velocity.phi *= 0.90;
       state.dirty = true;
@@ -2270,13 +3321,32 @@ function updateCamera(delta) {
 }
 
 /* — input —————————————————————————————————————————————————──────────────── */
-function orbitBy(dx, dy) {
+/* Two vocabularies for the same rig: the pointer speaks in pixels and
+   multiplicative factors, the keyboard speaks in radians and fractions. The
+   nudges below are the primitives; orbitBy and zoomBy translate and defer. */
+function turnBy(radians) {
   rig.goal = null;
-  rig.velocity.theta = -dx * 0.005;
-  rig.velocity.phi = -dy * 0.005;
-  rig.theta += rig.velocity.theta;
-  rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+  /* the rig coasts on whatever velocity the last move left behind — for a drag
+     that is a few hundredths of a radian, so a key press hands it a tenth of
+     its own step or the room would spin a quarter turn per tap */
+  rig.velocity.theta = radians * 0.1;
+  rig.theta += radians;
   state.dirty = true;
+}
+function tiltBy(radians) {
+  rig.goal = null;
+  rig.velocity.phi = radians * 0.1;
+  rig.phi = clamp(rig.phi + radians, CFG.camPhiMin, CFG.camPhiMax);
+  state.dirty = true;
+}
+function dollyBy(fraction) {
+  rig.goal = null;
+  rig.radius = clamp(rig.radius * (1 + fraction), CFG.camMin, CFG.camMax);
+  state.dirty = true;
+}
+function orbitBy(dx, dy) {
+  turnBy(-dx * 0.005);
+  tiltBy(-dy * 0.005);
 }
 function zoomBy(factor) {
   rig.goal = null;
@@ -2412,7 +3482,10 @@ function moveTip(clientX, clientY) {
 /* — selection —————————————————————————————————————————————————──────────── */
 function selectExhibit(index, fly) {
   const link = LINKS[index];
-  if (!link || !state.visibleSet.has(index)) return;
+  if (!link) return;
+  /* off stage is not the same as unreachable: a plan dot in a soloed wing is
+     still a request to go somewhere, so take the filters off and carry on */
+  if (!state.visibleSet.has(index)) bringIntoView(link);
   state.selected = index;
   moveSelectionMark(index);
   paintLabel(link, index);
@@ -2571,6 +3644,23 @@ function recomputeVisibility(options) {
   if (state.mode === 'catalogue') paintCatalogue();
 }
 
+/* A click on something that is off stage — a plan dot in a wing that has been
+   soloed away, a saved exhibit while the favourites filter is up — should never
+   be a dead click. Take the filters off: the exhibit is standing there like all
+   the others, and the caller can fly to it. */
+function bringIntoView(link) {
+  if (state.query) clearSearch();
+  if (state.favouritesOnly) {
+    state.favouritesOnly = false;
+    recomputeVisibility();
+  }
+  if (state.wingsOn.size !== plan.wings.length) {
+    plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
+    recomputeVisibility();
+  }
+  return state.visibleSet.has(link._i);
+}
+
 function countInWing(wing, query) {
   let shown = 0;
   wing.items.forEach((i) => {
@@ -2629,7 +3719,8 @@ function animateFades(delta, elapsed) {
   return moving;
 }
 
-/* A wing's banner and its lit lip ride along with its exhibits. */
+/* A wing's banner, its lit lip and the whole room around it ride along with
+   its exhibits. */
 function applyWingFades() {
   plan.wings.forEach((wing, i) => {
     room.attr.banner.aAlpha.setX(i, wing._fade);
@@ -2644,6 +3735,7 @@ function applyWingFades() {
   });
   room.attr.banner.aAlpha.needsUpdate = true;
   room.banner.instanceMatrix.needsUpdate = true;
+  applyHallFades();
 }
 
 /* Staggered opening: the room assembles itself wing by wing behind the
@@ -2966,6 +4058,7 @@ function onKeydown(event) {
     else if (dom.search.value) clearSearch();
     else if (dom.results.classList.contains('open')) dom.results.classList.remove('open');
     else if (state.mode === 'catalogue') setMode('rotunda');
+    else if (juke.open) toggleJukebox(false);
     else closeLabel();
     return;
   }
@@ -2987,15 +4080,28 @@ function onKeydown(event) {
       else toast('Open an exhibit first — click any plaque');
       break;
     case 'm': case 'M': toggleFavouritesOnly(); break;
-    case 'r': case 'R': rigReset(); flyToWing(null, 0.9); toast('View reset'); break;
+    case 'r': case 'R': rigReset(true); toast('View reset'); break;
     case 'v': case 'V': if (state.webgl) toggleStats(); break;
     case '?': case 'h': case 'H': toggleHelp(); break;
+    case 'j': case 'J': toggleJukebox(); break;
+    /* space works the jukebox transport — but only when the deck is out and
+       nothing else holds the focus, because a focused button already answers
+       to space itself, and a stray space should not start music behind a closed deck */
+    case ' ':
+      if (juke.open && (document.activeElement === document.body ||
+          document.activeElement === document.documentElement)) {
+        toggleJukePlay();
+        event.preventDefault();
+      }
+      break;
     case 'ArrowLeft': stepExhibit(-1); event.preventDefault(); break;
     case 'ArrowRight': stepExhibit(1); event.preventDefault(); break;
-    case 'ArrowUp': zoomBy(-1); event.preventDefault(); break;
-    case 'ArrowDown': zoomBy(1); event.preventDefault(); break;
-    case 'a': case 'A': orbitBy(-0.3); break;
-    case 'd': case 'D': orbitBy(0.3); break;
+    case 'ArrowUp': dollyBy(-0.12); event.preventDefault(); break;
+    case 'ArrowDown': dollyBy(0.12); event.preventDefault(); break;
+    /* the keyboard speaks in radians, not in drag pixels, so it goes through
+       the camera's own verbs rather than the pointer's */
+    case 'a': case 'A': turnBy(-0.3); break;
+    case 'd': case 'D': turnBy(0.3); break;
     default: break;
   }
 }
@@ -3065,6 +4171,407 @@ function bindChrome() {
     }
   });
   document.addEventListener('keydown', onKeydown);
+}
+
+/* ── 11b · the jukebox ───────────────────────────────────────────────────
+   A fly-out machine for the two traditions with the loudest soundtracks:
+   video games and anime. It plays no recordings and no covers. The twelve
+   tunes below are original patterns — one bar of sixteenths each, written
+   out like a lead sheet — and a small step sequencer turns them into
+   oscillators the moment you press play. The titles point at a genre, not
+   at a track, and nothing is ever downloaded.
+
+   The sequencer is the classic Web Audio pattern: a timer wakes up every
+   CFG.jukeTick ms and queues whatever falls inside the next CFG.jukeLook
+   seconds, scheduling each note at an exact audio-clock time. That is what
+   keeps the timing rock steady while the tab is busy drawing the rotunda. */
+
+/* — the tunes ————————————————————————————————————————───────────────────── */
+/* Degrees are steps of the scale, counted from the chord's own root, so 0 /
+   2 / 4 are the chord tones and the odd numbers are passing notes. A bar of
+   sixteenth steps, null is a rest. `prog` is one chord root per bar, counted
+   from the tonic. */
+const SCALES = {
+  major:      [0, 2, 4, 5, 7, 9, 11],
+  minor:      [0, 2, 3, 5, 7, 8, 10],
+  dorian:     [0, 2, 3, 5, 7, 9, 10],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  harmonic:   [0, 2, 3, 5, 7, 8, 11],
+  pentatonic: [0, 3, 5, 7, 10]
+};
+
+/* Drum kits: step numbers inside the bar. */
+const KITS = {
+  four:   { kick: [0, 4, 8, 12], snare: [4, 12], hat: [2, 6, 10, 14] },
+  break:  { kick: [0, 10, 14],   snare: [4, 12],  hat: [2, 6, 8, 14] },
+  march:  { kick: [0, 8, 11],    snare: [4, 12],  hat: [0, 2, 4, 6, 8, 10, 12, 14] },
+  ballad: { kick: [0, 8],        snare: [],       hat: [] }
+};
+
+const JUKE_TUNES = [
+  { name: 'Overworld Bounce', tag: 'platformer', hex: '#f5d08a',
+    bpm: 152, scale: 'major', root: 48, prog: [0, 5, 3, 4], kit: 'four', swing: 0.10, arp: 2,
+    bass: [0, null, null, 0, 4, null, null, 4, 3, null, null, 3, 4, null, null, null],
+    lead: [0, null, 4, null, 2, null, 4, null, 7, null, 4, null, 2, null, 0, null] },
+
+  { name: 'Mecha March', tag: 'giant robot', hex: '#ff7a6b',
+    bpm: 128, scale: 'harmonic', root: 45, prog: [0, 5, 3, 4], kit: 'march', swing: 0, arp: 1,
+    bass: [0, 0, null, 0, 0, null, 0, null, 4, 4, null, 4, 4, null, 4, null],
+    lead: [0, null, null, null, 3, null, 2, null, 4, null, null, null, 2, null, null, null] },
+
+  { name: 'Magical Girl Waltz', tag: 'moonlight transformation', hex: '#ff9ecb',
+    bpm: 104, scale: 'major', root: 50, prog: [0, 3, 4, 5], kit: 'ballad', swing: 0, arp: 2,
+    bass: [0, null, null, 4, null, null, 0, null, null, null, 4, null, null, null, 0, null],
+    lead: [4, null, null, null, 2, null, null, null, 0, null, null, null, 7, null, null, null] },
+
+  { name: 'Pixel Dungeon Hunt', tag: 'eight-bit adventure', hex: '#8de08a',
+    bpm: 140, scale: 'harmonic', root: 47, prog: [0, 0, 5, 4], kit: 'break', swing: 0, arp: 2,
+    bass: [0, null, 0, null, 0, null, 0, null, 6, null, 6, null, 0, null, 0, null],
+    lead: [0, 2, 3, 2, 4, null, 3, 2, 0, null, null, 0, -1, null, null, null] },
+
+  { name: 'Final Airship', tag: 'long way home', hex: '#7fd8ff',
+    bpm: 116, scale: 'mixolydian', root: 46, prog: [0, 4, 5, 3], kit: 'four', swing: 0, arp: 2,
+    bass: [0, null, null, null, 4, null, null, null, 0, null, null, null, 3, null, null, null],
+    lead: [7, null, null, null, 6, null, null, null, 4, null, null, null, 2, null, null, null] },
+
+  { name: 'Neon Drift', tag: 'night circuit', hex: '#6c8cff',
+    bpm: 112, scale: 'minor', root: 43, prog: [0, 5, 2, 4], kit: 'four', swing: 0, arp: 2,
+    bass: [0, null, 0, null, 0, null, 0, null, 5, null, 5, null, 4, null, 4, null],
+    lead: [null, null, 2, null, null, null, 4, null, null, null, 7, null, 6, null, null, null] },
+
+  { name: 'Cassette Battle Theme', tag: 'shōnen, second round', hex: '#ffb347',
+    bpm: 156, scale: 'dorian', root: 45, prog: [0, 2, 5, 4], kit: 'break', swing: 0.05, arp: 2,
+    bass: [0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3, 3, 4, 4],
+    lead: [0, null, 0, 2, 3, null, 2, 3, 4, null, 3, 4, 7, null, null, null] },
+
+  { name: 'Lunar Lullaby', tag: 'ending credits', hex: '#c9b8ff',
+    bpm: 72, scale: 'pentatonic', root: 48, prog: [0, 2, 4, 2], kit: 'ballad', swing: 0, arp: 0,
+    bass: [0, null, null, null, null, null, null, null, 2, null, null, null, null, null, null, null],
+    lead: [4, null, null, null, null, null, 2, null, 0, null, null, null, null, null, null, null] },
+
+  { name: 'Coin Palace', tag: 'minigame, high stakes', hex: '#ffd166',
+    bpm: 132, scale: 'major', root: 48, prog: [0, 4, 5, 3], kit: 'four', swing: 0.18, arp: 1,
+    bass: [0, null, 4, null, 0, null, 4, null, 3, null, 7, null, 4, null, 7, null],
+    lead: [0, null, 2, null, 4, null, 5, null, 7, null, 4, null, 2, null, 0, null] },
+
+  { name: 'Super Robot Dash', tag: 'arcade, one credit left', hex: '#22d3ee',
+    bpm: 168, scale: 'mixolydian', root: 45, prog: [0, 3, 4, 4], kit: 'break', swing: 0, arp: 2,
+    bass: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    lead: [7, 7, 4, 7, 9, null, 7, 4, 7, 7, 9, 7, 11, null, 9, 7] },
+
+  { name: 'Rainy Station, 1988', tag: 'slice of life, late', hex: '#9fb6d9',
+    bpm: 84, scale: 'dorian', root: 48, prog: [0, 5, 2, 4], kit: 'ballad', swing: 0.08, arp: 1,
+    bass: [0, null, null, null, 2, null, null, null, 0, null, null, null, 4, null, null, null],
+    lead: [2, null, null, null, 4, null, null, null, 7, null, null, null, null, null, 4, null] },
+
+  { name: 'Boss Gate', tag: 'final, second form', hex: '#e05c8a',
+    bpm: 148, scale: 'harmonic', root: 43, prog: [0, 5, 6, 4], kit: 'break', swing: 0, arp: 1,
+    bass: [0, null, null, null, 0, null, null, null, 5, null, null, null, 4, null, null, null],
+    lead: [0, null, null, 0, null, null, 3, null, 4, null, null, 4, null, null, 7, null] }
+];
+
+/* — the machine ————————————————————————————————————─────────────────────── */
+const juke = {
+  open: false, playing: false, started: false,
+  index: 0, level: CFG.jukeVolume,
+  step: 0, bar: 0, nextTime: 0, timer: 0, raf: 0,
+  bus: null, bassBus: null, analyser: null, data: null, noise: null,
+  meter: []
+};
+
+/* Scale arithmetic: rotate the scale so it starts on the chord root, then
+   count steps up or down from there. Math.floor keeps negative degrees (the
+   seventh below the root, say) in the right octave. */
+function degreeSemis(scale, degree) {
+  const n = scale.length;
+  return scale[((degree % n) + n) % n] + 12 * Math.floor(degree / n);
+}
+function ladderFor(scale, chordDegree) {
+  const n = scale.length;
+  const k = ((chordDegree % n) + n) % n;
+  return scale.slice(k).concat(scale.slice(0, k));
+}
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+/* — building the deck ———————————————————————————————────────────────────── */
+function buildJukebox() {
+  const remembered = store.read('jukebox', null);
+  if (remembered) {
+    juke.index = clamp(remembered.i | 0, 0, JUKE_TUNES.length - 1);
+    juke.level = clamp(typeof remembered.v === 'number' ? remembered.v : CFG.jukeVolume, 0, 1);
+  }
+  dom.juke.vol.value = String(Math.round(juke.level * 100));
+
+  dom.juke.list.innerHTML = JUKE_TUNES.map((tune, i) =>
+    '<li><button class="jk-row" data-tune="' + i + '">' +
+    '<span class="no">' + pad2(i + 1) + '</span>' +
+    '<span class="nm">' + esc(tune.name) + '<em>' + esc(tune.tag) + '</em></span>' +
+    '<span class="bp">' + tune.bpm + '</span></button></li>'
+  ).join('');
+
+  for (let i = 0; i < CFG.jukeVu; i++) {
+    const bar = document.createElement('i');
+    dom.juke.vu.appendChild(bar);
+    juke.meter.push(bar);
+  }
+  juke.data = new Uint8Array(CFG.jukeVu);
+
+  dom.juke.list.addEventListener('click', (event) => {
+    const row = event.target.closest('[data-tune]');
+    if (row) selectTune(Number(row.dataset.tune), true);
+  });
+  dom.juke.play.addEventListener('click', toggleJukePlay);
+  dom.juke.prev.addEventListener('click', () => selectTune(juke.index - 1, juke.playing));
+  dom.juke.next.addEventListener('click', () => selectTune(juke.index + 1, juke.playing));
+  dom.juke.close.addEventListener('click', () => toggleJukebox(false));
+  dom.juke.vol.addEventListener('input', () => {
+    juke.level = Number(dom.juke.vol.value) / 100;
+    if (juke.bus) juke.bus.gain.setTargetAtTime(juke.level, audio.ctx.currentTime, 0.02);
+    rememberJukebox();
+  });
+  dom.buttons.juke.addEventListener('click', () => toggleJukebox());
+  paintJukeDeck();
+}
+
+function rememberJukebox() {
+  store.write('jukebox', { i: juke.index, v: juke.level });
+}
+
+function toggleJukebox(force) {
+  juke.open = force === undefined ? !juke.open : !!force;
+  dom.juke.root.classList.toggle('open', juke.open);
+  document.body.classList.toggle('juke-on', juke.open);
+  dom.juke.root.setAttribute('aria-hidden', juke.open ? 'false' : 'true');
+  dom.buttons.juke.setAttribute('aria-pressed', juke.open ? 'true' : 'false');
+  if (juke.open && !juke.started) selectTune(juke.index, true);
+  if (juke.open) dom.juke.play.focus({ preventScroll: true });
+}
+
+/* — the deck face ——————————————————————————————————─────────────────────── */
+function paintJukeDeck() {
+  const tune = JUKE_TUNES[juke.index];
+  dom.juke.root.style.setProperty('--tune', tune.hex);
+  dom.juke.title.textContent = tune.name;
+  dom.juke.tag.textContent = tune.tag + ' · ' + tune.scale + ' · ' + (tune.arp ? 'arpeggiated' : 'no arp');
+  dom.juke.bpm.textContent = tune.bpm + ' bpm';
+  dom.juke.side.textContent = juke.index < 6 ? 'side a' : 'side b';
+  dom.juke.play.textContent = juke.playing ? '❚❚' : '▶';
+  dom.juke.play.setAttribute('aria-pressed', juke.playing ? 'true' : 'false');
+  dom.juke.play.setAttribute('aria-label', juke.playing ? 'Stop the jukebox' : 'Play the jukebox');
+  dom.juke.root.classList.toggle('playing', juke.playing);
+  const rows = dom.juke.list.querySelectorAll('[data-tune]');
+  rows.forEach((row, i) => row.setAttribute('aria-current', i === juke.index ? 'true' : 'false'));
+  /* restart the marquee so a short title starts from the left again */
+  const span = dom.juke.title;
+  span.style.animation = 'none';
+  void span.offsetWidth;
+  span.style.animation = '';
+}
+
+function selectTune(index, autoplay) {
+  juke.index = ((index % JUKE_TUNES.length) + JUKE_TUNES.length) % JUKE_TUNES.length;
+  const tune = JUKE_TUNES[juke.index];
+  juke.step = 0;
+  juke.bar = 0;
+  paintJukeDeck();
+  rememberJukebox();
+  announce('Jukebox: ' + tune.name + ', ' + tune.bpm + ' beats per minute');
+  if (autoplay) startJukebox();
+}
+
+/* — the sequencer ——————————————————————————————————─────────────────────── */
+function buildJukeBus() {
+  if (juke.bus) return;
+  const ctx = audio.ctx;
+  juke.bus = ctx.createGain();
+  juke.bus.gain.value = juke.level;
+  const tone = ctx.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = 7200;
+  juke.bassBus = ctx.createGain();
+  juke.bassBus.gain.value = 1;
+  const bassTone = ctx.createBiquadFilter();
+  bassTone.type = 'lowpass';
+  bassTone.frequency.value = 520;
+  juke.bassBus.connect(bassTone).connect(juke.bus);
+  juke.bus.connect(tone);
+  /* one compressor on the whole machine: twelve oscillators can add up to a
+     clipped square wave, and this is what keeps the lead from spitting */
+  const squash = ctx.createDynamicsCompressor();
+  squash.threshold.value = -18;
+  squash.knee.value = 12;
+  squash.ratio.value = 6;
+  squash.attack.value = 0.004;
+  squash.release.value = 0.16;
+  tone.disconnect();
+  tone.connect(squash);
+  juke.analyser = ctx.createAnalyser();
+  juke.analyser.fftSize = 64;
+  juke.analyser.smoothingTimeConstant = 0.65;
+  squash.connect(juke.analyser).connect(audio.master);
+
+  /* one shared hiss for every snare and hi-hat */
+  juke.noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.4), ctx.sampleRate);
+  const data = juke.noise.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+}
+
+function startJukebox() {
+  const a = ensureAudio();
+  if (!a) { toast('This browser has no Web Audio, so the jukebox stays silent'); return; }
+  juke.ctx = a.ctx;
+  buildJukeBus();
+  if (a.ctx.state === 'suspended') a.ctx.resume();
+  juke.started = true;
+  juke.playing = true;
+  juke.bus.gain.setTargetAtTime(juke.level, a.ctx.currentTime, 0.02);
+  juke.nextTime = a.ctx.currentTime + 0.08;
+  juke.timer = setInterval(pumpJukebox, CFG.jukeTick);
+  pumpJukebox();
+  paintJukeDeck();
+  cancelAnimationFrame(juke.raf);
+  juke.raf = requestAnimationFrame(paintJukeMeter);
+}
+
+function stopJukebox() {
+  juke.playing = false;
+  clearInterval(juke.timer);
+  juke.timer = 0;
+  cancelAnimationFrame(juke.raf);
+  if (juke.bus) juke.bus.gain.setTargetAtTime(0.0001, audio.ctx.currentTime, 0.03);
+  for (const bar of juke.meter) bar.style.height = '2px';
+  paintJukeDeck();
+}
+
+function toggleJukePlay() {
+  if (juke.playing) stopJukebox();
+  else startJukebox();
+}
+
+/* Queue every step that falls inside the lookahead window. */
+function pumpJukebox() {
+  if (!juke.playing) return;
+  const tune = JUKE_TUNES[juke.index];
+  const sixteenth = 60 / tune.bpm / 4;
+  const horizon = audio.ctx.currentTime + CFG.jukeLook;
+  while (juke.nextTime < horizon) {
+    const lazy = (juke.step % 2 === 1) ? tune.swing * sixteenth : 0;
+    playJukeStep(tune, juke.step, juke.bar, juke.nextTime + lazy, sixteenth);
+    juke.nextTime += sixteenth;
+    juke.step++;
+    if (juke.step >= 16) {
+      juke.step = 0;
+      juke.bar = (juke.bar + 1) % tune.prog.length;
+    }
+  }
+}
+
+function playJukeStep(tune, step, bar, time, gap) {
+  const scale = SCALES[tune.scale];
+  const ladder = ladderFor(scale, tune.prog[bar]);
+  const chord = tune.root + degreeSemis(scale, tune.prog[bar]);
+
+  const b = tune.bass[step];
+  if (b !== null && b !== undefined) {
+    jukeTone(time, midiHz(chord + degreeSemis(ladder, b)), gap * 1.7, 'triangle', 0.30, juke.bassBus);
+  }
+  const l = tune.lead[step];
+  if (l !== null && l !== undefined) {
+    jukeLead(time, midiHz(chord + 24 + degreeSemis(ladder, l)), gap * 2.1);
+  }
+  if (tune.arp === 1 && step % 2 === 0) jukeArp(ladder, chord, step / 2, time, gap);
+  if (tune.arp === 2) jukeArp(ladder, chord, step, time, gap);
+
+  const kit = KITS[tune.kit];
+  if (kit.kick.indexOf(step) >= 0) jukeKick(time);
+  if (kit.snare.indexOf(step) >= 0) jukeSnare(time);
+  if (kit.hat.indexOf(step) >= 0) jukeHat(time);
+}
+
+/* — the voices: two squares for the lead, a filtered triangle for the bass,
+     a sine that falls for the kick, the shared hiss for the rest —──────── */
+function jukeTone(time, hz, dur, type, peak, bus, detune) {
+  const ctx = audio.ctx;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, time);
+  env.gain.linearRampToValueAtTime(peak, time + 0.014);
+  env.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+  env.connect(bus || juke.bus);
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(hz, time);
+  if (detune) osc.detune.setValueAtTime(detune, time);
+  osc.connect(env);
+  osc.start(time);
+  osc.stop(time + dur + 0.03);
+  return osc;
+}
+
+function jukeLead(time, hz, dur) {
+  jukeTone(time, hz, dur, 'square', 0.11, null, -8);
+  jukeTone(time, hz, dur, 'square', 0.07, null, 9);
+  jukeTone(time, hz / 2, dur * 0.6, 'square', 0.03);
+}
+
+/* The arpeggio walks the chord tones and lifts an octave every time round. */
+function jukeArp(ladder, chord, step, time, gap) {
+  const shape = [0, 2, 4, 7];
+  const pick = (step + Math.floor(step / shape.length)) % shape.length;
+  const lift = 12 + 12 * (Math.floor(step / shape.length) % 2);
+  jukeTone(time, midiHz(chord + lift + degreeSemis(ladder, shape[pick])),
+    gap * 0.8, 'square', 0.045);
+}
+
+function jukeKick(time) {
+  const ctx = audio.ctx;
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(152, time);
+  osc.frequency.exponentialRampToValueAtTime(46, time + 0.11);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.42, time);
+  env.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+  osc.connect(env).connect(juke.bus);
+  osc.start(time);
+  osc.stop(time + 0.2);
+}
+
+function jukeHiss(time, cutoff, peak, dur) {
+  const ctx = audio.ctx;
+  const src = ctx.createBufferSource();
+  src.buffer = juke.noise;
+  src.playbackRate.value = 1;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = cutoff;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(peak, time);
+  env.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+  src.connect(filter).connect(env).connect(juke.bus);
+  src.start(time);
+  src.stop(time + dur + 0.02);
+}
+
+function jukeSnare(time) {
+  jukeHiss(time, 1500, 0.20, 0.17);
+  jukeTone(time, 196, 0.09, 'triangle', 0.10);
+}
+function jukeHat(time) { jukeHiss(time, 7200, 0.075, 0.045); }
+
+/* — the level meter: the analyser is already in the signal path, so the
+     bars are honest rather than decorative —────────────────────────────── */
+function paintJukeMeter() {
+  if (!juke.playing) return;
+  juke.analyser.getByteFrequencyData(juke.data);
+  for (let i = 0; i < juke.meter.length; i++) {
+    /* the analyser reports decibels on a 0–255 ramp where a healthy band sits
+       near 150, so a raw divide pins every bar to the ceiling. The floor keeps
+       a silent band flat and the curve spreads the loud end out. */
+    const raw = Math.max(0, juke.data[i + 1] - 70) / 160;
+    const v = Math.min(1, Math.pow(raw, 0.7));
+    juke.meter[i].style.height = (2 + v * 14).toFixed(1) + 'px';
+  }
+  juke.raf = requestAnimationFrame(paintJukeMeter);
 }
 
 /* ── 12 · catalogue ──────────────────────────────────────────────────────
@@ -3436,27 +4943,31 @@ function frame() {
   }
   if (!moving) state.busy = false;
 
-  /* fps is measured over a second of wall time, not frame counts */
-  fpsClock += delta;
-  if (fpsClock >= 0.5) {
-    fpsValue = Math.round(rendered / fpsClock);
+  /* fps is measured over a window of wall time, not over the simulation clock:
+     delta is clamped, so a slow machine would read its own ceiling back */
+  const now = performance.now();
+  if (now - fpsClock >= 500) {
+    fpsValue = Math.round(rendered * 1000 / (now - fpsClock));
     rendered = 0;
-    fpsClock = 0;
+    fpsClock = now;
     if (state.stats) paintStats();
   }
 }
 
 function paintStats() {
   const info = renderer.info;
-  dom.statValues.fps.textContent = fpsValue + ' fps';
-  dom.statValues.calls.textContent = info.render.calls + ' calls';
-  dom.statValues.tris.textContent = (info.render.triangles / 1000).toFixed(1) + 'k tris';
+  /* the markup already names each unit, so these are bare numbers */
+  dom.statValues.fps.textContent = fpsValue;
+  dom.statValues.calls.textContent = info.render.calls;
+  dom.statValues.tris.textContent = (info.render.triangles / 1000).toFixed(1) + 'k';
   dom.statValues.vis.textContent = room.visibleCount + '/' + LINKS.length;
 }
 
 function startLoop() {
   if (rafId) return;
   clock.start();
+  fpsClock = performance.now();
+  rendered = 0;
   rafId = requestAnimationFrame(frame);
 }
 
@@ -3553,6 +5064,7 @@ function bootFallback(reason) {
   buildFloorPlan();
   buildChips();
   buildHelpLegend();
+  buildJukebox();
   bindChrome();
   bindCatalogue();
   recomputeVisibility({ instant: true });
@@ -3568,12 +5080,22 @@ async function boot() {
      is in there — state, plan, room, world — plus a few verbs. Nothing in the
      app reads it back. */
   window.museum = {
-    state, plan, room, world, rig, CFG, LINKS,
+    state, plan, room, world, rig, CFG, LINKS, juke,
+    /* the renderer and camera only exist once the stage is built, so these are
+       read when asked for rather than captured now */
+    get camera() { return camera; },
+    get renderer() { return renderer; },
+    get drawCalls() { return renderer ? renderer.info.render.calls : 0; },
     go: (index) => selectExhibit(index, true),
     find: (query) => { dom.search.value = query; onSearchInput(); },
     wing: (name) => { flyToWing(name, 1.2); soloWing(name); },
     tour: () => toggleTour(),
-    catalogue: () => setMode('catalogue')
+    catalogue: () => setMode('catalogue'),
+    jukebox: (index) => {
+      toggleJukebox(true);
+      if (index === undefined) toggleJukePlay();
+      else selectTune(index, true);
+    }
   };
 
   const noLibrary = typeof THREE === 'undefined';
@@ -3599,15 +5121,16 @@ async function boot() {
   buildAtlases();
   await nextFrame();
 
-  curtain(0.6, 'casting plinths and hanging banners…');
+  curtain(0.6, 'casting plinths, hanging banners, building halls…');
   buildExhibits();
-  buildBanners();
+  buildHalls();
   await nextFrame();
 
   curtain(0.72, 'drawing the plan…');
   buildPlan();
   buildChips();
   buildHelpLegend();
+  buildJukebox();
   bindChrome();
   bindCatalogue();
   bindStageInput();

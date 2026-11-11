@@ -1,27 +1,31 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   THE CODE — one IIFE, fifteen numbered sections, read top to bottom:
+   THE CODE — one IIFE, nineteen numbered sections, read top to bottom:
 
-     01 open        bootstrap guard, config, state, DOM handles
+     01 config      bootstrap guard, config, state, DOM handles
      02 utils       small maths / string helpers
      03 data        the collection itself
      04 layout      floor plan: turns 88 links into 12 wings of tiered arcs
-     05 stage       the room: floor, wall, centrepiece, dust, lights
-     06 plaques     the atlas (one texture for every piece of text in the room)
+     05 stage       the room: floor, dado, centrepiece, dust, lights
+     05b sky        the planetarium overhead: nebula, stars, shooting stars
+     06 labels      the atlases (one texture for every piece of text in the room)
+     06b halls      the twelve rooms: backdrops, partitions, signs, paths
      07 exhibits    the 88 exhibits as instanced meshes + the panel shader
      08 camera      the orbit rig, cinematic flights, pinch zoom
      09 picking     raycasting, hover, selection, spotlight
-     10 motion     fade / stagger transitions
-     11 ui          chips, search, exhibit panel, favourites
-     12 catalogue  the 2D view of the same collection
-     13 plan        the clickable SVG floor plan
+     10 transitions fade / stagger when the collection is filtered
+     11 interface   chips, search, exhibit panel, favourites, room tone
+     11b jukebox    a fly-out deck of original chiptune, synthesised live
+     12 catalogue   the 2D view of the same collection
+     13 plan view   the clickable SVG floor plan
      14 tour        the guided tour
-     15 loop/boot  the render loop, audio, boot sequence
+     15 render loop the render loop, the dirty flag, the stats readout
+     16 boot        the order things happen in, and the console API
 
    Performance contract, so the behaviour is legible rather than surprising:
      · every plaque, frame, plinth and floor light is an InstancedMesh — the
-       88 exhibits cost four draw calls, not 352.
-     · all text in the room comes from ONE canvas atlas (plus one for the wing
-       banners), so there is one texture bind instead of 100.
+       88 exhibits cost four draw calls, not 352, and the twelve halls cost six.
+     · all text in the room comes from three canvas atlases (plaques, banners,
+       hall signs), so there are three texture binds instead of 112.
      · the renderer sleeps when the room is still: a dirty flag drives
        rendering, an idle heartbeat keeps the centrepiece turning at 12 fps,
        and anything that moves wakes it to full rate.
@@ -56,28 +60,54 @@ const CFG = {
   puckRadius:   2.2,
   banner:       { w: 8.2, h: 2.05 },
   bannerLift:   2.6,   // banners float this far above their wing's outer row
-  columnLift:   3.4,   // wall columns stand this far outside the outer row
-  columnHeight: 20,
+  columnHeight: 15,    // the piers between halls
 
   /* the room */
   wallPad:      9,     // wall stands this far behind the outermost row
   floorPad:     12,
-  ceilingY:     25,
+  dadoHeight:   7.2,   // the wall rises this far and stops: above it is sky
+  beamHeight:   58,    // how far that shaft climbs up into the stars
   fogColor:     0x07070e,
   fogDensity:   0.0125,
   dustCount:    1300,
 
+  /* the planetarium overhead */
+  skyPad:       26,    // the sky sphere stands this far beyond the plaza edge
+  skyLift:      10,    // and its equator sits this high
+  skySpin:      0.0035,// radians a second: the whole dome turns, slowly
+  starCount:    2200,  // bright stars, drawn as points so they can twinkle
+  faintStars:   1800,  // the deep field behind them
+  shootingStars: 6,
+  gridMeridians: 12,
+  gridParallels: 4,
+
+  /* twelve themed halls instead of one open ring */
+  hallTile:     { w: 512, h: 300 },
+  hallCols:     4,
+  hallRows:     3,     // 12 tiles — one emblem per wing
+  signSize:     { w: 9.6, h: 5.6 },  // the wing's name plate, fixed proportions
+  signLift:     0.9,   // its top edge sits this far below the coping
+  washClear:    2.4,   // each backdrop stops this far above its own banner
+  washInset:    2.4,   // it stands this far in front of the wall line
+  dividerHeight: 11,   // the walls between halls
+  dividerThickness: 0.5,
+  dividerIn:    1.2,   // they begin this far outside the innermost row
+  spokeInner:   13.5,  // the light path into a hall starts here…
+  spokeWidth:   4.8,   // …and is never wider than this
+
   /* camera */
-  camFov:       56,
+  camFov:       58,
   camRadius:    17.5,  // opening dolly distance once the intro flight lands
-  camPhi:       1.10,
+  camPhi:       1.22,  // low enough that the sky is in the frame
+  camPhiMin:    0.18,  // how far down the tilt can go
+  camPhiMax:    1.47,  // …and how near straight up
   camMin:       6,
   exhibitRange: 14.5,  // how far the camera stands back from a single plaque
   exhibitSwing: 0.12,  // and how far around the circle, so the row reads in depth
   exhibitEyeLift: 3.6, // camera height above the plaque centre
   wingEyeY:     9.5,   // eye height when a whole wing is framed
   wingSwing:    0.75,  // how far around from the hall's centre line to stand
-  camTargetY:   5.6,
+  camTargetY:   6.2,
   introFrom:    { radius: 96, phi: 0.42, angle: -0.7 },
 
   /* atlases */
@@ -87,6 +117,12 @@ const CFG = {
   bannerCols:   4,
   bannerRows:   3,
   bannerTile:   { w: 640, h: 160 },
+
+  /* the jukebox — see section 11b */
+  jukeVolume:   0.55,   // the volume slider's starting position, 0…1
+  jukeLook:     0.14,   // seconds of music queued ahead of the audio clock
+  jukeTick:     25,     // how often the sequencer wakes up, in ms
+  jukeVu:       14,     // bars in the level meter
 
   /* feel */
   flySeconds:   1.15,
@@ -169,8 +205,23 @@ dom.panel = {
 };
 dom.buttons = {
   tour: $('btn-tour'), random: $('btn-random'), catalogue: $('btn-catalogue'),
-  sound: $('btn-sound'), reset: $('btn-reset'), help: $('btn-help'),
+  juke: $('btn-juke'), sound: $('btn-sound'), reset: $('btn-reset'), help: $('btn-help'),
   helpClose: $('help-close'), stats: $('st-fps')
+};
+/* The jukebox's parts (section 11b): a deck, a request column, a transport. */
+dom.juke = {
+  root:   $('juke'),
+  list:   $('juke-list'),
+  title:  $('juke-title'),
+  tag:    $('juke-tag'),
+  side:   $('juke-side'),
+  bpm:    $('juke-bpm'),
+  vu:     $('juke-vu'),
+  play:   $('juke-play'),
+  prev:   $('juke-prev'),
+  next:   $('juke-next'),
+  vol:    $('juke-vol'),
+  close:  $('juke-close')
 };
 dom.stats = $('stats');
 dom.statValues = {

@@ -89,6 +89,37 @@ body.dragging #stage canvas{cursor:grabbing}
   40%{transform:translate(3%,-2%)} 60%{transform:translate(-2%,-4%)}
   80%{transform:translate(4%,2%)}  100%{transform:translate(0,0)}
 }
+/* scanlines: the faint raster of a projection room, one line every third pixel */
+#scanlines{
+  position:fixed;inset:0;z-index:4;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(180deg,
+    rgba(255,255,255,.032) 0 1px, transparent 1px 3px);
+  animation:raster 24s linear infinite;
+}
+@keyframes raster{to{background-position:0 120px}}
+
+/* ── hud furniture: corner ticks and a horizon rule ─────────────────────── */
+/* Small L-shaped marks at the corners of the floating panels: the language of
+   an instrument readout rather than a web card. One rule covers them all. */
+#plan::before,#caption::before,#juke .jk-head::after{
+  content:"";position:absolute;left:0;top:0;width:15px;height:15px;pointer-events:none;
+  border-top:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  border-left:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  opacity:.55;
+}
+#plan::after,#caption::after{
+  content:"";position:absolute;right:0;bottom:0;width:15px;height:15px;pointer-events:none;
+  border-bottom:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  border-right:1px solid color-mix(in srgb,var(--accent) 70%,transparent);
+  opacity:.55;
+}
+#juke .jk-head::after{left:auto;right:0;border-left:none;
+  border-top:1px solid color-mix(in srgb,var(--gold) 60%,transparent)}
+#topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(108,140,255,.34) 22%,
+    rgba(34,211,238,.3) 50%,rgba(108,140,255,.34) 78%,transparent);
+}
 
 /* ── chrome: loading curtain ───────────────────────────────────────────── */
 #curtain{
@@ -128,8 +159,11 @@ body.dragging #stage canvas{cursor:grabbing}
 .brand .name{
   font-family:var(--display);font-size:14.5px;font-weight:600;
   letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;
+  background:linear-gradient(180deg,#ffffff 12%,#cfe0ff 46%,#6f8cc9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 12px rgba(108,140,255,.35));
 }
-.brand .meta{margin-top:3px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.brand .meta{margin-top:3px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
 .brand .meta b{color:var(--gold);font-weight:600}
 
 /* search */
@@ -352,6 +386,7 @@ body.mode-catalogue #catalogue{display:block}
 }
 #help.open{display:grid}
 .sheet{
+  position:relative;
   width:min(880px,100%);max-height:86vh;overflow-y:auto;border-radius:var(--r-lg);
   background:linear-gradient(180deg,#15172a,#0b0c15);border:1px solid var(--line-strong);
   box-shadow:var(--shadow);
@@ -392,6 +427,95 @@ body.mode-catalogue #catalogue{display:block}
 #caption .nm{display:block;font-family:var(--display);font-size:19px;font-weight:600;margin-top:5px;line-height:1.25}
 #caption .d{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.55}
 
+/* ── the jukebox: a fly-out deck on the left wall ─────────────────────── */
+/* An eighties machine in chrome and neon: a spinning record, a level meter,
+   a request column and a transport bar. It slides in from the left wall so
+   it never competes with the exhibit drawer on the right. */
+#juke{
+  position:fixed;left:22px;top:50%;z-index:18;width:322px;
+  transform:translateY(-50%) translateX(-118%);
+  background:linear-gradient(168deg,#1b1e33,#0c0d18 58%,#12141f);
+  border:1px solid var(--line-strong);border-radius:var(--r-lg);
+  box-shadow:var(--shadow),0 0 34px rgba(108,140,255,.12);
+  backdrop-filter:blur(14px);overflow:hidden;
+  transition:transform .5s var(--ease),opacity .3s ease;
+}
+#juke.open{transform:translateY(-50%) translateX(0)}
+body.mode-catalogue #juke{opacity:0;pointer-events:none}
+#juke::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),transparent 22%)}
+.jk-head{position:relative;display:flex;align-items:center;gap:9px;padding:13px 15px 11px;
+  background:linear-gradient(180deg,rgba(108,140,255,.16),transparent);
+  border-bottom:1px solid var(--line)}
+.jk-head h2{font-family:var(--display);font-size:13px;font-weight:600;
+  letter-spacing:.26em;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff,#9fc0ff 60%,#5f7bbf);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.jk-bulb{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink-faint);
+  transition:background .3s,box-shadow .3s}
+#juke.playing .jk-bulb{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.jk-side{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.jk-x{width:24px;height:24px;border-radius:6px;color:var(--ink-faint);font-size:12px}
+.jk-x:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+.jk-deck{display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:center;
+  padding:14px 15px;border-bottom:1px solid var(--line);
+  background:radial-gradient(circle at 18% 50%,color-mix(in srgb,var(--tune,var(--accent)) 16%,transparent),transparent 62%)}
+.jk-disc{position:relative;width:58px;height:58px;border-radius:50%;flex:none;
+  background:
+    repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,.055) 0 1px,transparent 1px 3px),
+    radial-gradient(circle at 50% 50%,#2a2e46 0 26%,#14161f 27%,#0a0b12 74%,#1a1d2b 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 6px 18px rgba(0,0,0,.5);
+  animation:spin 1.7s linear infinite;animation-play-state:paused}
+#juke.playing .jk-disc{animation-play-state:running}
+.jk-disc i{position:absolute;inset:34%;border-radius:50%;
+  background:radial-gradient(circle,var(--tune,var(--accent)) 0 45%,rgba(255,255,255,.25) 46%,transparent 70%)}
+.jk-disc::after{content:"";position:absolute;left:50%;top:6%;width:2px;height:22%;
+  margin-left:-1px;background:rgba(255,255,255,.35);border-radius:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.jk-lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint)}
+.jk-marquee{overflow:hidden;white-space:nowrap;margin:3px 0 2px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 82%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 6%,#000 82%,transparent)}
+.jk-marquee span{display:inline-block;font-family:var(--display);font-size:16px;font-weight:600;
+  letter-spacing:.02em;color:var(--ink);padding-right:34px}
+#juke.playing .jk-marquee span{animation:slide 13s linear infinite}
+@keyframes slide{from{transform:translateX(4%)}to{transform:translateX(-104%)}}
+.jk-tag{font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em}
+.jk-vu{display:flex;gap:2px;align-items:flex-end;height:16px;margin-top:8px}
+.jk-vu i{flex:1;height:2px;border-radius:1px;background:var(--tune,var(--accent));
+  opacity:.35;transition:height .09s linear,opacity .09s linear}
+#juke.playing .jk-vu i{opacity:.9}
+
+.jk-list{list-style:none;max-height:212px;overflow-y:auto;overscroll-behavior:contain;
+  padding:5px 0;border-bottom:1px solid var(--line)}
+.jk-list::-webkit-scrollbar{width:6px}
+.jk-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px}
+.jk-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  width:100%;padding:8px 15px;text-align:left;border-left:2px solid transparent;
+  transition:background .16s,border-color .16s}
+.jk-row:hover{background:rgba(255,255,255,.05)}
+.jk-row .no{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint)}
+.jk-row .nm{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jk-row .nm em{display:block;font-style:normal;font-size:9.5px;font-weight:400;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
+.jk-row .bp{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint)}
+.jk-row[aria-current="true"]{border-left-color:var(--tune,var(--accent));background:color-mix(in srgb,var(--tune,var(--accent)) 13%,transparent)}
+.jk-row[aria-current="true"] .nm{color:#fff}
+
+.jk-transport{display:flex;align-items:center;gap:8px;padding:12px 15px}
+.jk-transport button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);color:var(--ink-soft);font-size:12px;
+  display:grid;place-items:center;transition:all .18s}
+.jk-transport button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.07)}
+#juke-play{width:38px;height:38px;border-color:color-mix(in srgb,var(--accent) 55%,transparent);
+  color:#fff;background:rgba(108,140,255,.18);box-shadow:0 0 16px rgba(108,140,255,.25)}
+.jk-transport input[type=range]{flex:1;min-width:44px;height:16px;accent-color:var(--accent);background:none}
+.jk-bpm{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);white-space:nowrap}
+.jk-note{padding:0 15px 13px;font-size:10px;line-height:1.6;color:var(--ink-faint);letter-spacing:.02em}
+body.juke-on #caption{left:370px;max-width:min(360px,44vw)}
+
 /* ── responsive ───────────────────────────────────────────────────────── */
 @media (max-width:1080px){ #plan{display:none} }
 @media (max-width:860px){
@@ -407,6 +531,9 @@ body.mode-catalogue #catalogue{display:block}
   #hints{display:none}
   #catalogue{padding:92px 16px 110px}
   .ex-title{font-size:23px}
+  #juke{left:12px;right:12px;width:auto;top:auto;bottom:12px;transform:translateY(130%)}
+  #juke.open{transform:translateY(0)}
+  .jk-list{max-height:148px}
 }
 @media (max-width:560px){
   .icon-btn{width:34px;height:34px}
@@ -418,6 +545,7 @@ body.mode-catalogue #catalogue{display:block}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.1s!important}
   #grain{display:none}
+  #scanlines{display:none}
 }
 </style>
 </head>
@@ -428,6 +556,7 @@ body.mode-catalogue #catalogue{display:block}
 <div id="bloom" aria-hidden="true"></div>
 <div id="vignette" aria-hidden="true"></div>
 <div id="grain" aria-hidden="true"></div>
+<div id="scanlines" aria-hidden="true"></div>
 
 <!-- ── loading curtain ──────────────────────────────────────────────────── -->
 <div id="curtain">
@@ -462,6 +591,7 @@ body.mode-catalogue #catalogue{display:block}
     <button class="icon-btn" id="btn-tour"  aria-pressed="false" title="Guided tour (T)" aria-label="Guided tour"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v2M12 18.4v2M3.6 12h2M18.4 12h2"/></svg></button>
     <button class="icon-btn" id="btn-random" title="Surprise me — random exhibit (S)" aria-label="Random exhibit"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none"/></svg></button>
     <button class="icon-btn" id="btn-catalogue" aria-pressed="false" title="Catalogue view (C)" aria-label="Catalogue view"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></button>
+    <button class="icon-btn" id="btn-juke" aria-pressed="false" title="Jukebox (J)" aria-label="Jukebox"><svg viewBox="0 0 24 24"><path d="M5.4 19.6V10.8a6.6 6.6 0 0 1 13.2 0v8.8z"/><path d="M8.4 13.2h7.2M8.4 16h7.2"/><circle cx="12" cy="9.4" r="1.4"/></svg></button>
     <button class="icon-btn" id="btn-sound" aria-pressed="false" title="Ambient sound (M)" aria-label="Ambient sound"><svg viewBox="0 0 24 24"><path d="M5 9.5h2.6L12 5.6v12.8L7.6 14.5H5z"/><path d="M15.8 9.2a4 4 0 0 1 0 5.6"/></svg></button>
     <button class="icon-btn" id="btn-reset" title="Reset view (R)" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M19.8 4.6v4.2h-4.2"/></svg></button>
     <button class="icon-btn" id="btn-help" title="About & shortcuts (?)" aria-label="About and shortcuts"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.1.9-1.1 1.8"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg></button>
@@ -486,6 +616,34 @@ body.mode-catalogue #catalogue{display:block}
   <span><kbd>T</kbd> tour</span>
   <span><kbd>C</kbd> catalogue</span>
 </div>
+
+<aside id="juke" role="dialog" aria-label="Jukebox" aria-hidden="true">
+  <div class="jk-head">
+    <span class="jk-bulb" aria-hidden="true"></span>
+    <h2>Jukebox</h2>
+    <span class="jk-side" id="juke-side">side a</span>
+    <button class="jk-x" id="juke-close" aria-label="Close jukebox">✕</button>
+  </div>
+  <div class="jk-deck">
+    <div class="jk-disc" id="juke-disc" aria-hidden="true"><i></i></div>
+    <div>
+      <div class="jk-lbl">Now playing</div>
+      <div class="jk-marquee"><span id="juke-title">pick a tune</span></div>
+      <div class="jk-tag" id="juke-tag">original chiptune · synthesised live</div>
+      <div class="jk-vu" id="juke-vu" aria-hidden="true"></div>
+    </div>
+  </div>
+  <ol class="jk-list" id="juke-list"></ol>
+  <div class="jk-transport">
+    <button id="juke-prev" aria-label="Previous tune">◀◀</button>
+    <button id="juke-play" aria-pressed="false" aria-label="Play the jukebox">▶</button>
+    <button id="juke-next" aria-label="Next tune">▶▶</button>
+    <input id="juke-vol" type="range" min="0" max="100" value="55" aria-label="Jukebox volume">
+    <span class="jk-bpm" id="juke-bpm">– bpm</span>
+  </div>
+  <p class="jk-note">Nothing is downloaded and nothing is a cover: a small step sequencer
+     writes every note in your browser. The titles point at a genre, not at a track.</p>
+</aside>
 
 <aside id="exhibit" role="dialog" aria-label="Exhibit details" aria-hidden="true">
   <div class="ex-rule"></div>
@@ -544,15 +702,19 @@ body.mode-catalogue #catalogue{display:block}
           <dt>Scroll / pinch</dt><dd>Dolly in and out</dd>
           <dt>Click</dt><dd>Open an exhibit and walk the camera to it</dd>
           <dt>← →</dt><dd>Previous / next exhibit in the current selection</dd>
+          <dt>↑ ↓</dt><dd>Step the camera closer or further away</dd>
+          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
           <dt>/</dt><dd>Jump to the search field</dd>
           <dt>T</dt><dd>Guided tour — the camera walks the wings for you</dd>
           <dt>S</dt><dd>Surprise me with a random exhibit</dd>
           <dt>C</dt><dd>Catalogue view (the same collection as cards)</dd>
           <dt>F</dt><dd>Favourite the open exhibit</dd>
-          <dt>M</dt><dd>Ambient room tone on / off</dd>
+          <dt>M</dt><dd>Show only the exhibits you have favourited</dd>
+          <dt>J</dt><dd>The jukebox — original chiptune, written live in your browser</dd>
+          <dt>Space</dt><dd>Play or pause the record on the deck</dd>
           <dt>R</dt><dd>Return to the centre of the rotunda</dd>
-          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
           <dt>V</dt><dd>Performance readout — draw calls and frame rate</dd>
+          <dt>? H</dt><dd>These notes</dd>
           <dt>Esc</dt><dd>Close whatever is open</dd>
         </dl>
       </div>
@@ -561,9 +723,11 @@ body.mode-catalogue #catalogue{display:block}
         <div class="legend" id="help-legend"></div>
         <h4 style="margin-top:22px">How it is built</h4>
         <p>One HTML file, no build step, no tracking. Three.js draws all 88 plaques,
-           frames, plinths and floor lights in a handful of instanced draw calls, and the
-           renderer sleeps whenever the room is still — the plan view below mirrors the
-           exact geometry the GPU sees.</p>
+           frames, plinths, the twelve hall backdrops and the star field above them in
+           about fifty instanced draw calls, and the renderer sleeps whenever the room is
+           still — the plan view below mirrors the exact geometry the GPU sees. Each wing
+           is its own hall: a lit backdrop in its own colour, a name plate on the dado,
+           partitions on either side and a constellation running through its plaques.</p>
         <p>The plan view is clickable: pick a wing to send the camera there. Favourites
            live in this browser only (localStorage), nothing leaves the page.</p>
       </div>
