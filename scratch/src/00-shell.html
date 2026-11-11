@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A rotunda of curated, genuinely useful links — walk the wings in 3D or browse the catalogue.">
+<meta name="theme-color" content="#07070e">
+<title>Museum of Useful Links</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236c8cff'/%3E%3Cpath d='M16 7l9 5v8l-9 5-9-5v-8z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   MUSEUM OF USEFUL LINKS — stylesheet
+   Organised as: tokens · reset · atmosphere · chrome · controls · exhibit
+   panel · catalogue (2D) · help · toast/stats · responsive · reduced motion.
+   Every colour that belongs to a wing is injected as an inline --wing custom
+   property, so one palette definition drives the 3D scene, the chips, the map
+   and the catalogue cards.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── tokens ─────────────────────────────────────────────────────────────── */
+:root{
+  --void:#07070e;
+  --void-soft:#0b0b16;
+  --panel:rgba(15,16,28,.78);
+  --panel-solid:#0e0f1a;
+  --panel-raise:#141626;
+  --line:rgba(255,255,255,.085);
+  --line-strong:rgba(255,255,255,.19);
+  --ink:#f2f4fa;
+  --ink-soft:#a7adc2;
+  --ink-faint:#5e6480;
+  --accent:#6c8cff;
+  --accent-2:#22d3ee;
+  --gold:#f5d08a;
+  --grad:linear-gradient(135deg,var(--accent),var(--accent-2));
+  --sans:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --display:'Bahnschrift','Segoe UI Semibold','Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','JetBrains Mono','SF Mono',Consolas,monospace;
+  --r-sm:8px; --r-md:12px; --r-lg:18px;
+  --shadow:0 22px 60px rgba(0,0,0,.55);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:14px;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.is-catalogue{overflow:auto}
+button,input{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(108,140,255,.35)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ── atmosphere: canvas, bloom, vignette, grain ─────────────────────────── */
+#stage{position:fixed;inset:0;z-index:0}
+#stage canvas{display:block;touch-action:none;cursor:grab}
+#stage.pointing canvas{cursor:pointer}
+body.dragging #stage canvas{cursor:grabbing}
+#bloom{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;
+  mix-blend-mode:screen;transition:opacity .5s ease;
+  background:radial-gradient(circle 240px at var(--bx,50%) var(--by,50%),
+    var(--bloom,rgba(108,140,255,.55)) 0%, rgba(108,140,255,.14) 38%, transparent 72%);
+}
+#bloom.on{opacity:.85}
+#vignette{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:
+    radial-gradient(ellipse 78% 68% at 50% 46%, transparent 52%, rgba(4,5,11,.72) 100%),
+    linear-gradient(180deg, rgba(7,7,14,.55) 0%, transparent 16%),
+    linear-gradient(0deg, rgba(7,7,14,.5) 0%, transparent 22%);
+}
+#grain{
+  position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 7s steps(6) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}   20%{transform:translate(-4%,3%)}
+  40%{transform:translate(3%,-2%)} 60%{transform:translate(-2%,-4%)}
+  80%{transform:translate(4%,2%)}  100%{transform:translate(0,0)}
+}
+
+/* ── chrome: loading curtain ───────────────────────────────────────────── */
+#curtain{
+  position:fixed;inset:0;z-index:200;display:grid;place-items:center;
+  background:radial-gradient(ellipse at 50% 40%, #0d0e1c, #05050b 70%);
+  transition:opacity .9s var(--ease), visibility .9s;
+}
+#curtain.lift{opacity:0;visibility:hidden}
+.curtain-in{display:grid;justify-items:center;gap:20px;text-align:center;padding:0 24px}
+.curtain-in .mark{
+  width:64px;height:64px;border-radius:18px;background:var(--grad);
+  display:grid;place-items:center;font-size:28px;color:#fff;
+  box-shadow:0 0 46px rgba(108,140,255,.5);animation:breathe 3.4s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(6deg)}}
+.curtain-in h1{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.34em;text-transform:uppercase}
+.curtain-in .tag{color:var(--ink-faint);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;max-width:34ch;line-height:1.9}
+#curtain .bar{width:210px;height:2px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
+#curtain .bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:99px;transition:width .45s var(--ease)}
+#curtain .step{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);letter-spacing:.06em;min-height:1.2em}
+#curtain.failed .mark{background:#2a2136;box-shadow:none;animation:none}
+
+/* ── chrome: top bar ───────────────────────────────────────────────────── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:center;gap:16px;padding:16px 22px;
+  background:linear-gradient(180deg,rgba(6,7,14,.9),rgba(6,7,14,0));
+  pointer-events:none;transition:opacity .4s ease;
+}
+#topbar>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.brand .mark{
+  width:36px;height:36px;flex:none;border-radius:11px;background:var(--grad);
+  display:grid;place-items:center;font-size:16px;color:#fff;
+  box-shadow:0 0 22px rgba(108,140,255,.4);
+}
+.brand .name{
+  font-family:var(--display);font-size:14.5px;font-weight:600;
+  letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;
+}
+.brand .meta{margin-top:3px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.brand .meta b{color:var(--gold);font-weight:600}
+
+/* search */
+.search{position:relative;flex:1;max-width:480px;margin-left:auto}
+.search input{
+  width:100%;padding:11px 34px 11px 38px;border-radius:var(--r-md);
+  background:var(--panel);border:1px solid var(--line);
+  font-size:13.5px;letter-spacing:.01em;outline:none;
+  backdrop-filter:blur(16px);transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.search input::placeholder{color:var(--ink-faint)}
+.search input:focus{border-color:var(--accent);background:rgba(108,140,255,.08);box-shadow:0 0 0 3px rgba(108,140,255,.16)}
+.search .glyph{position:absolute;left:13px;top:11px;color:var(--ink-faint);font-size:14px;pointer-events:none}
+.search .clear{position:absolute;right:8px;top:7px;width:26px;height:26px;border-radius:7px;color:var(--ink-faint);display:none;place-items:center}
+.search .clear.show{display:grid}
+.search .clear:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+.results{
+  position:absolute;top:calc(100% + 9px);left:0;right:0;
+  background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:var(--r-md);
+  box-shadow:var(--shadow);max-height:min(58vh,380px);overflow-y:auto;
+  display:none;overscroll-behavior:contain;
+}
+.results.open{display:block}
+.result{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.result:last-child{border-bottom:none}
+.result .dot{width:8px;height:8px;border-radius:50%;background:var(--wing,var(--accent))}
+.result .nm{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.result .nm mark{background:rgba(108,140,255,.32);color:#fff;border-radius:3px;padding:0 2px}
+.result .wing{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint)}
+.result:hover,.result.cursor{background:rgba(108,140,255,.14)}
+.results .none{padding:18px;text-align:center;color:var(--ink-faint);font-size:12.5px}
+
+/* icon buttons */
+.actions{display:flex;gap:7px}
+.icon-btn{
+  width:38px;height:38px;border-radius:var(--r-md);border:1px solid var(--line);
+  background:var(--panel);color:var(--ink-soft);display:grid;place-items:center;
+  font-size:15px;backdrop-filter:blur(16px);
+  transition:color .18s,border-color .18s,transform .18s,background .18s;
+}
+.icon-btn:hover{color:#fff;border-color:var(--line-strong);transform:translateY(-1px);background:rgba(255,255,255,.05)}
+.icon-btn[aria-pressed="true"]{color:#fff;border-color:var(--accent);background:rgba(108,140,255,.2);box-shadow:0 0 18px rgba(108,140,255,.28)}
+.icon-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── controls: wing chips ─────────────────────────────────────────────── */
+#chips{
+  position:fixed;left:22px;right:22px;bottom:78px;z-index:14;
+  display:flex;gap:8px;overflow-x:auto;padding:6px 2px;scrollbar-width:none;
+  transition:right .3s var(--ease),opacity .3s ease;
+}
+#chips::-webkit-scrollbar{display:none}
+body.docked #chips{right:calc(392px + 22px)}
+body.mode-catalogue #chips{opacity:0;pointer-events:none}
+.chip{
+  flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;
+  background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);
+  font-size:11.5px;font-weight:600;letter-spacing:.05em;backdrop-filter:blur(16px);
+  transition:color .16s,border-color .16s,background .16s,transform .16s;
+}
+.chip:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--wing,var(--accent));box-shadow:0 0 8px var(--wing,rgba(108,140,255,.7))}
+.chip .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.chip[aria-pressed="true"]{
+  color:#fff;border-color:color-mix(in srgb,var(--wing,var(--accent)) 60%,transparent);
+  background:color-mix(in srgb,var(--wing,var(--accent)) 22%,transparent);
+  box-shadow:0 0 18px color-mix(in srgb,var(--wing,var(--accent)) 34%,transparent);
+}
+.chip[aria-pressed="true"] .n{color:rgba(255,255,255,.72)}
+.chip.empty{opacity:.35}
+
+/* ── controls: hint bar ───────────────────────────────────────────────── */
+#hints{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:14;
+  display:flex;gap:15px;align-items:center;padding:9px 18px;border-radius:99px;
+  background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(16px);
+  font-size:10.5px;letter-spacing:.05em;color:var(--ink-faint);white-space:nowrap;
+  transition:transform .3s var(--ease),opacity .3s ease;
+}
+body.docked #hints{transform:translateX(calc(-50% - 196px))}
+body.mode-catalogue #hints{opacity:0;pointer-events:none}
+#hints kbd{font-family:var(--mono);font-size:9.5px;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);color:var(--ink-soft)}
+
+/* ── exhibit panel ────────────────────────────────────────────────────── */
+#exhibit{
+  position:fixed;top:0;right:0;bottom:0;z-index:24;width:392px;
+  display:flex;flex-direction:column;
+  background:linear-gradient(200deg,rgba(20,21,36,.96),rgba(9,10,17,.985));
+  border-left:1px solid var(--line-strong);
+  backdrop-filter:blur(24px);
+  transform:translateX(104%);transition:transform .42s var(--ease);
+  box-shadow:-30px 0 70px rgba(0,0,0,.5);
+}
+#exhibit.open{transform:translateX(0)}
+.ex-rule{height:3px;background:var(--wing,var(--accent))}
+.ex-head{display:flex;gap:14px;align-items:flex-start;padding:22px 24px 18px}
+.ex-close{width:32px;height:32px;flex:none;margin-left:auto;border-radius:9px;border:1px solid var(--line);color:var(--ink-soft);display:grid;place-items:center;font-size:13px;transition:all .18s}
+.ex-close:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.06)}
+.ex-wing{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-soft)}
+.ex-wing .dot{width:9px;height:9px;border-radius:50%;background:var(--wing);box-shadow:0 0 10px var(--wing)}
+.ex-wing .no{font-family:var(--mono);color:var(--ink-faint);letter-spacing:.08em}
+.ex-title{font-family:var(--display);font-size:27px;line-height:1.18;font-weight:600;margin-top:11px;letter-spacing:-.01em}
+.ex-body{flex:1;overflow-y:auto;padding:6px 24px 22px}
+.ex-desc{font-size:14.5px;line-height:1.75;color:var(--ink-soft)}
+.ex-facts{margin-top:22px;display:grid;gap:9px}
+.fact{display:flex;justify-content:space-between;gap:14px;padding:10px 12px;border-radius:var(--r-sm);background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.fact dt{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.fact dd{font-size:12.5px;font-weight:600;text-align:right}
+.ex-url{
+  display:block;margin-top:18px;padding:12px 13px;border-radius:var(--r-sm);
+  font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--accent-2);
+  background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);
+  word-break:break-all;cursor:pointer;transition:background .18s,border-color .18s;
+}
+.ex-url:hover{background:rgba(34,211,238,.13);border-color:rgba(34,211,238,.4)}
+.ex-cta{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+.btn-visit{
+  display:grid;place-items:center;padding:14px;border-radius:var(--r-md);
+  background:var(--grad);color:#fff;font-size:13.5px;font-weight:700;letter-spacing:.05em;
+  box-shadow:0 10px 28px rgba(108,140,255,.34);transition:transform .16s,box-shadow .16s;
+}
+.btn-visit:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(108,140,255,.5)}
+.btn-star{
+  width:48px;border-radius:var(--r-md);border:1px solid var(--line);color:var(--ink-faint);
+  display:grid;place-items:center;font-size:17px;transition:all .18s;
+}
+.btn-star:hover{color:var(--gold);border-color:rgba(245,208,138,.4)}
+.btn-star[aria-pressed="true"]{color:var(--gold);border-color:rgba(245,208,138,.55);background:rgba(245,208,138,.12);box-shadow:0 0 18px rgba(245,208,138,.22)}
+.ex-foot{display:flex;align-items:center;gap:10px;padding:14px 24px;border-top:1px solid var(--line)}
+.ex-foot button{flex:1;padding:11px;border-radius:var(--r-sm);border:1px solid var(--line);color:var(--ink-soft);font-size:11.5px;font-weight:600;letter-spacing:.04em;transition:all .18s}
+.ex-foot button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.05)}
+.ex-foot .count{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+
+/* ── 3D hover tooltip ─────────────────────────────────────────────────── */
+#tip{
+  position:fixed;left:0;top:0;z-index:30;pointer-events:none;opacity:0;
+  transform:translate(-50%,-140%);transition:opacity .14s ease;
+  padding:8px 13px;border-radius:10px;background:rgba(9,10,18,.93);
+  border:1px solid color-mix(in srgb,var(--wing,var(--accent)) 55%,transparent);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);backdrop-filter:blur(10px);white-space:nowrap;
+}
+#tip.on{opacity:1}
+#tip .wing{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--wing,var(--accent));margin-bottom:3px;font-weight:700}
+#tip .nm{display:block;font-size:13.5px;font-weight:600}
+
+/* ── plan view (minimap) ──────────────────────────────────────────────── */
+#plan{
+  position:fixed;right:22px;bottom:20px;z-index:15;width:172px;
+  padding:11px;border-radius:var(--r-lg);background:var(--panel);
+  border:1px solid var(--line);backdrop-filter:blur(16px);
+  transition:right .3s var(--ease),opacity .3s ease;
+}
+body.docked #plan{right:calc(392px + 22px)}
+body.mode-catalogue #plan{opacity:0;pointer-events:none}
+#plan svg{display:block;width:100%;height:auto;cursor:crosshair}
+#plan .cap{display:flex;justify-content:space-between;margin-bottom:7px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint)}
+#plan .wedge-hit{fill:transparent;cursor:pointer}
+#plan .wedge-hit:hover{fill:rgba(255,255,255,.06)}
+#plan .dot{transition:opacity .4s ease}
+#plan .you{fill:var(--accent);opacity:.9}
+#plan .beam{fill:var(--accent);opacity:.13}
+
+/* ── stats readout ────────────────────────────────────────────────────── */
+#stats{
+  position:fixed;left:22px;bottom:20px;z-index:15;display:none;gap:16px;
+  padding:9px 15px;border-radius:99px;background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(16px);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);
+}
+#stats.on{display:flex}
+#stats b{color:var(--ink-soft);font-weight:600}
+body.mode-catalogue #stats{opacity:0;pointer-events:none}
+
+/* ── catalogue (2D mode) ──────────────────────────────────────────────── */
+#catalogue{
+  position:fixed;inset:0;z-index:12;overflow-y:auto;overscroll-behavior:contain;
+  padding:104px 30px 120px;display:none;
+  background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(108,140,255,.07),transparent 60%),var(--void);
+}
+body.mode-catalogue #catalogue{display:block}
+.cat-intro{max-width:1180px;margin:0 auto 34px;padding:26px 28px;border-radius:var(--r-lg);background:linear-gradient(120deg,rgba(108,140,255,.1),rgba(34,211,238,.05));border:1px solid var(--line)}
+.cat-intro h2{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.01em}
+.cat-intro p{margin-top:9px;max-width:66ch;color:var(--ink-soft);line-height:1.75;font-size:13.5px}
+.cat-intro .keys{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.cat-intro .keys span{font-size:10.5px;letter-spacing:.06em;color:var(--ink-faint);padding:5px 10px;border-radius:99px;border:1px solid var(--line)}
+.wing-block{max-width:1180px;margin:0 auto 40px}
+.wing-head{display:flex;align-items:baseline;gap:12px;padding-bottom:12px;margin-bottom:18px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.wing-block.dimmed .wing-head,.wing-block.dimmed .grid{filter:grayscale(.75);opacity:.5;transition:.3s}
+.wing-head .dot{width:11px;height:11px;border-radius:50%;background:var(--wing);box-shadow:0 0 12px var(--wing)}
+.wing-head h3{font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:.02em}
+.wing-head .sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.wing-head .jump{margin-left:auto;font-size:11px;color:var(--ink-soft);padding:7px 12px;border-radius:99px;border:1px solid var(--line);transition:all .18s}
+.wing-head .jump:hover{color:#fff;border-color:var(--wing);background:color-mix(in srgb,var(--wing) 16%,transparent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:14px}
+.card{
+  position:relative;display:flex;flex-direction:column;gap:9px;padding:17px 17px 15px;
+  border-radius:var(--r-md);background:var(--panel-solid);border:1px solid var(--line);
+  transition:transform .2s var(--ease),border-color .2s,box-shadow .2s,background .2s;
+}
+.card::before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:2px;background:var(--wing);opacity:.75;border-radius:var(--r-md) var(--r-md) 0 0}
+.card:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--wing) 45%,transparent);box-shadow:0 18px 42px rgba(0,0,0,.45);background:var(--panel-raise)}
+.card.hit{border-color:color-mix(in srgb,var(--wing) 60%,transparent);background:color-mix(in srgb,var(--wing) 10%,var(--panel-raise))}
+.card .top{display:flex;align-items:center;gap:9px}
+.card .no{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.card .nm{font-size:15px;font-weight:600;line-height:1.3;flex:1}
+.card .fav{color:var(--ink-faint);font-size:14px;transition:color .18s}
+.card .fav:hover{color:var(--gold)}
+.card[aria-fav="true"] .fav{color:var(--gold)}
+.card .d{font-size:12.5px;line-height:1.65;color:var(--ink-soft);flex:1}
+.card .u{font-family:var(--mono);font-size:10.5px;color:var(--accent-2);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .row{display:flex;gap:8px;margin-top:2px}
+.card .row button,.card .row a{font-size:11px;font-weight:600;letter-spacing:.04em;padding:8px 12px;border-radius:8px;border:1px solid var(--line);color:var(--ink-soft);transition:all .18s}
+.card .row a:hover{color:#fff;border-color:var(--wing);background:color-mix(in srgb,var(--wing) 16%,transparent)}
+.card .row button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.05)}
+.cat-empty{max-width:1180px;margin:0 auto;padding:60px 20px;text-align:center;color:var(--ink-faint)}
+.cat-empty b{display:block;font-size:16px;color:var(--ink-soft);margin-bottom:8px}
+
+/* ── help / about dialog ─────────────────────────────────────────────── */
+#help{
+  position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:26px;
+  background:rgba(4,5,11,.72);backdrop-filter:blur(7px);
+}
+#help.open{display:grid}
+.sheet{
+  width:min(880px,100%);max-height:86vh;overflow-y:auto;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,#15172a,#0b0c15);border:1px solid var(--line-strong);
+  box-shadow:var(--shadow);
+}
+.sheet header{display:flex;align-items:center;gap:14px;padding:22px 26px;border-bottom:1px solid var(--line)}
+.sheet header h2{font-family:var(--display);font-size:19px;letter-spacing:.12em;text-transform:uppercase}
+.sheet .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px;padding:24px 26px}
+.sheet h4{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.keys-row{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;align-items:baseline}
+.keys-row dt{font-family:var(--mono);font-size:10.5px;color:var(--ink);padding:3px 7px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid var(--line);justify-self:start}
+.keys-row dd{font-size:12.5px;color:var(--ink-soft)}
+.sheet p{font-size:12.5px;line-height:1.75;color:var(--ink-soft)}
+.sheet p+p{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:7px}
+.legend i{display:flex;align-items:center;gap:6px;font-style:normal;font-size:11px;color:var(--ink-soft);padding:5px 9px;border-radius:99px;border:1px solid var(--line)}
+.legend i s{width:8px;height:8px;border-radius:50%;background:var(--wing)}
+.legend i em{font-family:var(--mono);font-style:normal;font-size:10px;color:var(--ink-faint)}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:70px;left:50%;z-index:70;transform:translate(-50%,16px);
+  padding:11px 19px;border-radius:var(--r-md);background:var(--panel-solid);
+  border:1px solid var(--line-strong);font-size:12.5px;opacity:0;pointer-events:none;
+  box-shadow:var(--shadow);transition:opacity .28s,transform .28s var(--ease);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ── tour caption ─────────────────────────────────────────────────────── */
+#caption{
+  position:fixed;left:22px;bottom:112px;z-index:16;max-width:min(420px,60vw);
+  padding:13px 17px;border-radius:var(--r-lg);opacity:0;transform:translateY(10px);
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--wing,var(--accent));
+  backdrop-filter:blur(16px);transition:opacity .35s var(--ease),transform .35s var(--ease);
+  pointer-events:none;
+}
+#caption.on{opacity:1;transform:translateY(0)}
+#caption .wing{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--wing,var(--accent));font-weight:700}
+#caption .nm{display:block;font-family:var(--display);font-size:19px;font-weight:600;margin-top:5px;line-height:1.25}
+#caption .d{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.55}
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+@media (max-width:1080px){ #plan{display:none} }
+@media (max-width:860px){
+  #topbar{padding:12px 14px;gap:10px}
+  #caption{display:none}
+  .brand .name{font-size:12px;letter-spacing:.14em}
+  .brand .meta{display:none}
+  .search{max-width:none}
+  #exhibit{width:100%;top:auto;height:74vh;border-left:none;border-top:1px solid var(--line-strong)}
+  #exhibit.open ~ #chips{opacity:0}
+  body.docked #chips{right:22px}
+  body.docked #hints{transform:translateX(-50%)}
+  #hints{display:none}
+  #catalogue{padding:92px 16px 110px}
+  .ex-title{font-size:23px}
+}
+@media (max-width:560px){
+  .icon-btn{width:34px;height:34px}
+  #chips{bottom:66px}
+  .grid{grid-template-columns:1fr}
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.1s!important}
+  #grain{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── 3D stage ─────────────────────────────────────────────────────────── -->
+<div id="stage" aria-hidden="true"></div>
+<div id="bloom" aria-hidden="true"></div>
+<div id="vignette" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- ── loading curtain ──────────────────────────────────────────────────── -->
+<div id="curtain">
+  <div class="curtain-in">
+    <div class="mark">◆</div>
+    <h1 id="curtain-title">Museum of Useful Links</h1>
+    <div class="tag" id="curtain-tag">Twelve wings · Eighty-eight exhibits · One rotunda</div>
+    <div class="bar"><i id="curtain-bar"></i></div>
+    <div class="step" id="curtain-step">unrolling the floor plan…</div>
+  </div>
+</div>
+
+<!-- ── chrome ───────────────────────────────────────────────────────────── -->
+<header id="topbar">
+  <div class="brand">
+    <div class="mark" aria-hidden="true">◆</div>
+    <div>
+      <div class="name">Museum of Useful Links</div>
+      <div class="meta" id="brand-meta">loading…</div>
+    </div>
+  </div>
+
+  <div class="search" role="search">
+    <span class="glyph" aria-hidden="true">⌕</span>
+    <input id="search" type="search" placeholder="Search the collection…" autocomplete="off" spellcheck="false"
+           aria-label="Search links by name, description or wing" aria-controls="results" aria-expanded="false">
+    <button class="clear" id="search-clear" aria-label="Clear search">✕</button>
+    <div class="results" id="results" role="listbox" aria-label="Search results"></div>
+  </div>
+
+  <div class="actions">
+    <button class="icon-btn" id="btn-tour"  aria-pressed="false" title="Guided tour (T)" aria-label="Guided tour"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v2M12 18.4v2M3.6 12h2M18.4 12h2"/></svg></button>
+    <button class="icon-btn" id="btn-random" title="Surprise me — random exhibit (S)" aria-label="Random exhibit"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none"/></svg></button>
+    <button class="icon-btn" id="btn-catalogue" aria-pressed="false" title="Catalogue view (C)" aria-label="Catalogue view"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></button>
+    <button class="icon-btn" id="btn-sound" aria-pressed="false" title="Ambient sound (M)" aria-label="Ambient sound"><svg viewBox="0 0 24 24"><path d="M5 9.5h2.6L12 5.6v12.8L7.6 14.5H5z"/><path d="M15.8 9.2a4 4 0 0 1 0 5.6"/></svg></button>
+    <button class="icon-btn" id="btn-reset" title="Reset view (R)" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M19.8 4.6v4.2h-4.2"/></svg></button>
+    <button class="icon-btn" id="btn-help" title="About & shortcuts (?)" aria-label="About and shortcuts"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.1.9-1.1 1.8"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg></button>
+  </div>
+</header>
+
+<nav id="chips" aria-label="Filter by wing"></nav>
+
+<div id="tip" aria-hidden="true"><span class="wing"></span><span class="nm"></span></div>
+
+<div id="caption" aria-hidden="true">
+  <span class="wing"></span>
+  <span class="nm"></span>
+  <span class="d"></span>
+</div>
+
+<div id="hints">
+  <span><kbd>Drag</kbd> orbit</span>
+  <span><kbd>Scroll</kbd> dolly</span>
+  <span><kbd>Click</kbd> exhibit</span>
+  <span><kbd>←/→</kbd> next</span>
+  <span><kbd>T</kbd> tour</span>
+  <span><kbd>C</kbd> catalogue</span>
+</div>
+
+<aside id="exhibit" role="dialog" aria-label="Exhibit details" aria-hidden="true">
+  <div class="ex-rule"></div>
+  <div class="ex-head">
+    <div>
+      <div class="ex-wing"><span class="dot"></span><span id="ex-wing-name">wing</span><span class="no" id="ex-no"></span></div>
+      <div class="ex-title" id="ex-title"></div>
+    </div>
+    <button class="ex-close" id="ex-close" aria-label="Close exhibit">✕</button>
+  </div>
+  <div class="ex-body">
+    <p class="ex-desc" id="ex-desc"></p>
+    <dl class="ex-facts">
+      <div class="fact"><dt>Wing</dt><dd id="f-wing"></dd></div>
+      <div class="fact"><dt>Domain</dt><dd id="f-domain"></dd></div>
+      <div class="fact"><dt>Added by</dt><dd>you, curated by hand</dd></div>
+    </dl>
+    <div class="ex-url" id="ex-url" role="button" tabindex="0" title="Copy URL"></div>
+    <div class="ex-cta">
+      <a class="btn-visit" id="ex-visit" target="_blank" rel="noopener noreferrer">Open exhibit ↗</a>
+      <button class="btn-star" id="ex-star" aria-pressed="false" title="Save to favourites (F)">★</button>
+    </div>
+  </div>
+  <div class="ex-foot">
+    <button id="ex-prev">← Prev</button>
+    <span class="count" id="ex-count"></span>
+    <button id="ex-next">Next →</button>
+  </div>
+</aside>
+
+<section id="catalogue" aria-label="Catalogue of links"></section>
+
+<div id="plan" aria-hidden="true">
+  <div class="cap"><span>Plan view</span><span id="plan-note">click a wing</span></div>
+  <svg id="plan-svg" viewBox="-52 -52 104 104"></svg>
+</div>
+
+<div id="stats" aria-hidden="true">
+  <span><b id="st-fps">–</b> fps</span>
+  <span><b id="st-calls">–</b> draws</span>
+  <span><b id="st-tris">–</b> tris</span>
+  <span><b id="st-vis">–</b> on view</span>
+</div>
+
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="sheet">
+    <header>
+      <h2 id="help-title">Visiting notes</h2>
+      <button class="ex-close" id="help-close" aria-label="Close">✕</button>
+    </header>
+    <div class="cols">
+      <div>
+        <h4>Moving through the rotunda</h4>
+        <dl class="keys-row">
+          <dt>Drag</dt><dd>Orbit around the centrepiece</dd>
+          <dt>Scroll / pinch</dt><dd>Dolly in and out</dd>
+          <dt>Click</dt><dd>Open an exhibit and walk the camera to it</dd>
+          <dt>← →</dt><dd>Previous / next exhibit in the current selection</dd>
+          <dt>/</dt><dd>Jump to the search field</dd>
+          <dt>T</dt><dd>Guided tour — the camera walks the wings for you</dd>
+          <dt>S</dt><dd>Surprise me with a random exhibit</dd>
+          <dt>C</dt><dd>Catalogue view (the same collection as cards)</dd>
+          <dt>F</dt><dd>Favourite the open exhibit</dd>
+          <dt>M</dt><dd>Ambient room tone on / off</dd>
+          <dt>R</dt><dd>Return to the centre of the rotunda</dd>
+          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
+          <dt>V</dt><dd>Performance readout — draw calls and frame rate</dd>
+          <dt>Esc</dt><dd>Close whatever is open</dd>
+        </dl>
+      </div>
+      <div>
+        <h4>The twelve wings</h4>
+        <div class="legend" id="help-legend"></div>
+        <h4 style="margin-top:22px">How it is built</h4>
+        <p>One HTML file, no build step, no tracking. Three.js draws all 88 plaques,
+           frames, plinths and floor lights in a handful of instanced draw calls, and the
+           renderer sleeps whenever the room is still — the plan view below mirrors the
+           exact geometry the GPU sees.</p>
+        <p>The plan view is clickable: pick a wing to send the camera there. Favourites
+           live in this browser only (localStorage), nothing leaves the page.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="a11y-status" role="status" aria-live="polite"></div>

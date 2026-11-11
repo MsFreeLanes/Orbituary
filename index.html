@@ -1,0 +1,3641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A rotunda of curated, genuinely useful links — walk the wings in 3D or browse the catalogue.">
+<meta name="theme-color" content="#07070e">
+<title>Museum of Useful Links</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236c8cff'/%3E%3Cpath d='M16 7l9 5v8l-9 5-9-5v-8z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   MUSEUM OF USEFUL LINKS — stylesheet
+   Organised as: tokens · reset · atmosphere · chrome · controls · exhibit
+   panel · catalogue (2D) · help · toast/stats · responsive · reduced motion.
+   Every colour that belongs to a wing is injected as an inline --wing custom
+   property, so one palette definition drives the 3D scene, the chips, the map
+   and the catalogue cards.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── tokens ─────────────────────────────────────────────────────────────── */
+:root{
+  --void:#07070e;
+  --void-soft:#0b0b16;
+  --panel:rgba(15,16,28,.78);
+  --panel-solid:#0e0f1a;
+  --panel-raise:#141626;
+  --line:rgba(255,255,255,.085);
+  --line-strong:rgba(255,255,255,.19);
+  --ink:#f2f4fa;
+  --ink-soft:#a7adc2;
+  --ink-faint:#5e6480;
+  --accent:#6c8cff;
+  --accent-2:#22d3ee;
+  --gold:#f5d08a;
+  --grad:linear-gradient(135deg,var(--accent),var(--accent-2));
+  --sans:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --display:'Bahnschrift','Segoe UI Semibold','Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','JetBrains Mono','SF Mono',Consolas,monospace;
+  --r-sm:8px; --r-md:12px; --r-lg:18px;
+  --shadow:0 22px 60px rgba(0,0,0,.55);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:14px;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.is-catalogue{overflow:auto}
+button,input{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(108,140,255,.35)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ── atmosphere: canvas, bloom, vignette, grain ─────────────────────────── */
+#stage{position:fixed;inset:0;z-index:0}
+#stage canvas{display:block;touch-action:none;cursor:grab}
+#stage.pointing canvas{cursor:pointer}
+body.dragging #stage canvas{cursor:grabbing}
+#bloom{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;
+  mix-blend-mode:screen;transition:opacity .5s ease;
+  background:radial-gradient(circle 240px at var(--bx,50%) var(--by,50%),
+    var(--bloom,rgba(108,140,255,.55)) 0%, rgba(108,140,255,.14) 38%, transparent 72%);
+}
+#bloom.on{opacity:.85}
+#vignette{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:
+    radial-gradient(ellipse 78% 68% at 50% 46%, transparent 52%, rgba(4,5,11,.72) 100%),
+    linear-gradient(180deg, rgba(7,7,14,.55) 0%, transparent 16%),
+    linear-gradient(0deg, rgba(7,7,14,.5) 0%, transparent 22%);
+}
+#grain{
+  position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 7s steps(6) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}   20%{transform:translate(-4%,3%)}
+  40%{transform:translate(3%,-2%)} 60%{transform:translate(-2%,-4%)}
+  80%{transform:translate(4%,2%)}  100%{transform:translate(0,0)}
+}
+
+/* ── chrome: loading curtain ───────────────────────────────────────────── */
+#curtain{
+  position:fixed;inset:0;z-index:200;display:grid;place-items:center;
+  background:radial-gradient(ellipse at 50% 40%, #0d0e1c, #05050b 70%);
+  transition:opacity .9s var(--ease), visibility .9s;
+}
+#curtain.lift{opacity:0;visibility:hidden}
+.curtain-in{display:grid;justify-items:center;gap:20px;text-align:center;padding:0 24px}
+.curtain-in .mark{
+  width:64px;height:64px;border-radius:18px;background:var(--grad);
+  display:grid;place-items:center;font-size:28px;color:#fff;
+  box-shadow:0 0 46px rgba(108,140,255,.5);animation:breathe 3.4s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(6deg)}}
+.curtain-in h1{font-family:var(--display);font-size:17px;font-weight:600;letter-spacing:.34em;text-transform:uppercase}
+.curtain-in .tag{color:var(--ink-faint);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;max-width:34ch;line-height:1.9}
+#curtain .bar{width:210px;height:2px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
+#curtain .bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:99px;transition:width .45s var(--ease)}
+#curtain .step{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);letter-spacing:.06em;min-height:1.2em}
+#curtain.failed .mark{background:#2a2136;box-shadow:none;animation:none}
+
+/* ── chrome: top bar ───────────────────────────────────────────────────── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:center;gap:16px;padding:16px 22px;
+  background:linear-gradient(180deg,rgba(6,7,14,.9),rgba(6,7,14,0));
+  pointer-events:none;transition:opacity .4s ease;
+}
+#topbar>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.brand .mark{
+  width:36px;height:36px;flex:none;border-radius:11px;background:var(--grad);
+  display:grid;place-items:center;font-size:16px;color:#fff;
+  box-shadow:0 0 22px rgba(108,140,255,.4);
+}
+.brand .name{
+  font-family:var(--display);font-size:14.5px;font-weight:600;
+  letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;
+}
+.brand .meta{margin-top:3px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.brand .meta b{color:var(--gold);font-weight:600}
+
+/* search */
+.search{position:relative;flex:1;max-width:480px;margin-left:auto}
+.search input{
+  width:100%;padding:11px 34px 11px 38px;border-radius:var(--r-md);
+  background:var(--panel);border:1px solid var(--line);
+  font-size:13.5px;letter-spacing:.01em;outline:none;
+  backdrop-filter:blur(16px);transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.search input::placeholder{color:var(--ink-faint)}
+.search input:focus{border-color:var(--accent);background:rgba(108,140,255,.08);box-shadow:0 0 0 3px rgba(108,140,255,.16)}
+.search .glyph{position:absolute;left:13px;top:11px;color:var(--ink-faint);font-size:14px;pointer-events:none}
+.search .clear{position:absolute;right:8px;top:7px;width:26px;height:26px;border-radius:7px;color:var(--ink-faint);display:none;place-items:center}
+.search .clear.show{display:grid}
+.search .clear:hover{color:var(--ink);background:rgba(255,255,255,.07)}
+.results{
+  position:absolute;top:calc(100% + 9px);left:0;right:0;
+  background:var(--panel-solid);border:1px solid var(--line-strong);border-radius:var(--r-md);
+  box-shadow:var(--shadow);max-height:min(58vh,380px);overflow-y:auto;
+  display:none;overscroll-behavior:contain;
+}
+.results.open{display:block}
+.result{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.result:last-child{border-bottom:none}
+.result .dot{width:8px;height:8px;border-radius:50%;background:var(--wing,var(--accent))}
+.result .nm{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.result .nm mark{background:rgba(108,140,255,.32);color:#fff;border-radius:3px;padding:0 2px}
+.result .wing{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint)}
+.result:hover,.result.cursor{background:rgba(108,140,255,.14)}
+.results .none{padding:18px;text-align:center;color:var(--ink-faint);font-size:12.5px}
+
+/* icon buttons */
+.actions{display:flex;gap:7px}
+.icon-btn{
+  width:38px;height:38px;border-radius:var(--r-md);border:1px solid var(--line);
+  background:var(--panel);color:var(--ink-soft);display:grid;place-items:center;
+  font-size:15px;backdrop-filter:blur(16px);
+  transition:color .18s,border-color .18s,transform .18s,background .18s;
+}
+.icon-btn:hover{color:#fff;border-color:var(--line-strong);transform:translateY(-1px);background:rgba(255,255,255,.05)}
+.icon-btn[aria-pressed="true"]{color:#fff;border-color:var(--accent);background:rgba(108,140,255,.2);box-shadow:0 0 18px rgba(108,140,255,.28)}
+.icon-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── controls: wing chips ─────────────────────────────────────────────── */
+#chips{
+  position:fixed;left:22px;right:22px;bottom:78px;z-index:14;
+  display:flex;gap:8px;overflow-x:auto;padding:6px 2px;scrollbar-width:none;
+  transition:right .3s var(--ease),opacity .3s ease;
+}
+#chips::-webkit-scrollbar{display:none}
+body.docked #chips{right:calc(392px + 22px)}
+body.mode-catalogue #chips{opacity:0;pointer-events:none}
+.chip{
+  flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;
+  background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);
+  font-size:11.5px;font-weight:600;letter-spacing:.05em;backdrop-filter:blur(16px);
+  transition:color .16s,border-color .16s,background .16s,transform .16s;
+}
+.chip:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--wing,var(--accent));box-shadow:0 0 8px var(--wing,rgba(108,140,255,.7))}
+.chip .n{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.chip[aria-pressed="true"]{
+  color:#fff;border-color:color-mix(in srgb,var(--wing,var(--accent)) 60%,transparent);
+  background:color-mix(in srgb,var(--wing,var(--accent)) 22%,transparent);
+  box-shadow:0 0 18px color-mix(in srgb,var(--wing,var(--accent)) 34%,transparent);
+}
+.chip[aria-pressed="true"] .n{color:rgba(255,255,255,.72)}
+.chip.empty{opacity:.35}
+
+/* ── controls: hint bar ───────────────────────────────────────────────── */
+#hints{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:14;
+  display:flex;gap:15px;align-items:center;padding:9px 18px;border-radius:99px;
+  background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(16px);
+  font-size:10.5px;letter-spacing:.05em;color:var(--ink-faint);white-space:nowrap;
+  transition:transform .3s var(--ease),opacity .3s ease;
+}
+body.docked #hints{transform:translateX(calc(-50% - 196px))}
+body.mode-catalogue #hints{opacity:0;pointer-events:none}
+#hints kbd{font-family:var(--mono);font-size:9.5px;padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);color:var(--ink-soft)}
+
+/* ── exhibit panel ────────────────────────────────────────────────────── */
+#exhibit{
+  position:fixed;top:0;right:0;bottom:0;z-index:24;width:392px;
+  display:flex;flex-direction:column;
+  background:linear-gradient(200deg,rgba(20,21,36,.96),rgba(9,10,17,.985));
+  border-left:1px solid var(--line-strong);
+  backdrop-filter:blur(24px);
+  transform:translateX(104%);transition:transform .42s var(--ease);
+  box-shadow:-30px 0 70px rgba(0,0,0,.5);
+}
+#exhibit.open{transform:translateX(0)}
+.ex-rule{height:3px;background:var(--wing,var(--accent))}
+.ex-head{display:flex;gap:14px;align-items:flex-start;padding:22px 24px 18px}
+.ex-close{width:32px;height:32px;flex:none;margin-left:auto;border-radius:9px;border:1px solid var(--line);color:var(--ink-soft);display:grid;place-items:center;font-size:13px;transition:all .18s}
+.ex-close:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.06)}
+.ex-wing{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-soft)}
+.ex-wing .dot{width:9px;height:9px;border-radius:50%;background:var(--wing);box-shadow:0 0 10px var(--wing)}
+.ex-wing .no{font-family:var(--mono);color:var(--ink-faint);letter-spacing:.08em}
+.ex-title{font-family:var(--display);font-size:27px;line-height:1.18;font-weight:600;margin-top:11px;letter-spacing:-.01em}
+.ex-body{flex:1;overflow-y:auto;padding:6px 24px 22px}
+.ex-desc{font-size:14.5px;line-height:1.75;color:var(--ink-soft)}
+.ex-facts{margin-top:22px;display:grid;gap:9px}
+.fact{display:flex;justify-content:space-between;gap:14px;padding:10px 12px;border-radius:var(--r-sm);background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.fact dt{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.fact dd{font-size:12.5px;font-weight:600;text-align:right}
+.ex-url{
+  display:block;margin-top:18px;padding:12px 13px;border-radius:var(--r-sm);
+  font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--accent-2);
+  background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.18);
+  word-break:break-all;cursor:pointer;transition:background .18s,border-color .18s;
+}
+.ex-url:hover{background:rgba(34,211,238,.13);border-color:rgba(34,211,238,.4)}
+.ex-cta{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+.btn-visit{
+  display:grid;place-items:center;padding:14px;border-radius:var(--r-md);
+  background:var(--grad);color:#fff;font-size:13.5px;font-weight:700;letter-spacing:.05em;
+  box-shadow:0 10px 28px rgba(108,140,255,.34);transition:transform .16s,box-shadow .16s;
+}
+.btn-visit:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(108,140,255,.5)}
+.btn-star{
+  width:48px;border-radius:var(--r-md);border:1px solid var(--line);color:var(--ink-faint);
+  display:grid;place-items:center;font-size:17px;transition:all .18s;
+}
+.btn-star:hover{color:var(--gold);border-color:rgba(245,208,138,.4)}
+.btn-star[aria-pressed="true"]{color:var(--gold);border-color:rgba(245,208,138,.55);background:rgba(245,208,138,.12);box-shadow:0 0 18px rgba(245,208,138,.22)}
+.ex-foot{display:flex;align-items:center;gap:10px;padding:14px 24px;border-top:1px solid var(--line)}
+.ex-foot button{flex:1;padding:11px;border-radius:var(--r-sm);border:1px solid var(--line);color:var(--ink-soft);font-size:11.5px;font-weight:600;letter-spacing:.04em;transition:all .18s}
+.ex-foot button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.05)}
+.ex-foot .count{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+
+/* ── 3D hover tooltip ─────────────────────────────────────────────────── */
+#tip{
+  position:fixed;left:0;top:0;z-index:30;pointer-events:none;opacity:0;
+  transform:translate(-50%,-140%);transition:opacity .14s ease;
+  padding:8px 13px;border-radius:10px;background:rgba(9,10,18,.93);
+  border:1px solid color-mix(in srgb,var(--wing,var(--accent)) 55%,transparent);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);backdrop-filter:blur(10px);white-space:nowrap;
+}
+#tip.on{opacity:1}
+#tip .wing{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--wing,var(--accent));margin-bottom:3px;font-weight:700}
+#tip .nm{display:block;font-size:13.5px;font-weight:600}
+
+/* ── plan view (minimap) ──────────────────────────────────────────────── */
+#plan{
+  position:fixed;right:22px;bottom:20px;z-index:15;width:172px;
+  padding:11px;border-radius:var(--r-lg);background:var(--panel);
+  border:1px solid var(--line);backdrop-filter:blur(16px);
+  transition:right .3s var(--ease),opacity .3s ease;
+}
+body.docked #plan{right:calc(392px + 22px)}
+body.mode-catalogue #plan{opacity:0;pointer-events:none}
+#plan svg{display:block;width:100%;height:auto;cursor:crosshair}
+#plan .cap{display:flex;justify-content:space-between;margin-bottom:7px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint)}
+#plan .wedge-hit{fill:transparent;cursor:pointer}
+#plan .wedge-hit:hover{fill:rgba(255,255,255,.06)}
+#plan .dot{transition:opacity .4s ease}
+#plan .you{fill:var(--accent);opacity:.9}
+#plan .beam{fill:var(--accent);opacity:.13}
+
+/* ── stats readout ────────────────────────────────────────────────────── */
+#stats{
+  position:fixed;left:22px;bottom:20px;z-index:15;display:none;gap:16px;
+  padding:9px 15px;border-radius:99px;background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(16px);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);
+}
+#stats.on{display:flex}
+#stats b{color:var(--ink-soft);font-weight:600}
+body.mode-catalogue #stats{opacity:0;pointer-events:none}
+
+/* ── catalogue (2D mode) ──────────────────────────────────────────────── */
+#catalogue{
+  position:fixed;inset:0;z-index:12;overflow-y:auto;overscroll-behavior:contain;
+  padding:104px 30px 120px;display:none;
+  background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(108,140,255,.07),transparent 60%),var(--void);
+}
+body.mode-catalogue #catalogue{display:block}
+.cat-intro{max-width:1180px;margin:0 auto 34px;padding:26px 28px;border-radius:var(--r-lg);background:linear-gradient(120deg,rgba(108,140,255,.1),rgba(34,211,238,.05));border:1px solid var(--line)}
+.cat-intro h2{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.01em}
+.cat-intro p{margin-top:9px;max-width:66ch;color:var(--ink-soft);line-height:1.75;font-size:13.5px}
+.cat-intro .keys{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.cat-intro .keys span{font-size:10.5px;letter-spacing:.06em;color:var(--ink-faint);padding:5px 10px;border-radius:99px;border:1px solid var(--line)}
+.wing-block{max-width:1180px;margin:0 auto 40px}
+.wing-head{display:flex;align-items:baseline;gap:12px;padding-bottom:12px;margin-bottom:18px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.wing-block.dimmed .wing-head,.wing-block.dimmed .grid{filter:grayscale(.75);opacity:.5;transition:.3s}
+.wing-head .dot{width:11px;height:11px;border-radius:50%;background:var(--wing);box-shadow:0 0 12px var(--wing)}
+.wing-head h3{font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:.02em}
+.wing-head .sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.wing-head .jump{margin-left:auto;font-size:11px;color:var(--ink-soft);padding:7px 12px;border-radius:99px;border:1px solid var(--line);transition:all .18s}
+.wing-head .jump:hover{color:#fff;border-color:var(--wing);background:color-mix(in srgb,var(--wing) 16%,transparent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:14px}
+.card{
+  position:relative;display:flex;flex-direction:column;gap:9px;padding:17px 17px 15px;
+  border-radius:var(--r-md);background:var(--panel-solid);border:1px solid var(--line);
+  transition:transform .2s var(--ease),border-color .2s,box-shadow .2s,background .2s;
+}
+.card::before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:2px;background:var(--wing);opacity:.75;border-radius:var(--r-md) var(--r-md) 0 0}
+.card:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--wing) 45%,transparent);box-shadow:0 18px 42px rgba(0,0,0,.45);background:var(--panel-raise)}
+.card.hit{border-color:color-mix(in srgb,var(--wing) 60%,transparent);background:color-mix(in srgb,var(--wing) 10%,var(--panel-raise))}
+.card .top{display:flex;align-items:center;gap:9px}
+.card .no{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.card .nm{font-size:15px;font-weight:600;line-height:1.3;flex:1}
+.card .fav{color:var(--ink-faint);font-size:14px;transition:color .18s}
+.card .fav:hover{color:var(--gold)}
+.card[aria-fav="true"] .fav{color:var(--gold)}
+.card .d{font-size:12.5px;line-height:1.65;color:var(--ink-soft);flex:1}
+.card .u{font-family:var(--mono);font-size:10.5px;color:var(--accent-2);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .row{display:flex;gap:8px;margin-top:2px}
+.card .row button,.card .row a{font-size:11px;font-weight:600;letter-spacing:.04em;padding:8px 12px;border-radius:8px;border:1px solid var(--line);color:var(--ink-soft);transition:all .18s}
+.card .row a:hover{color:#fff;border-color:var(--wing);background:color-mix(in srgb,var(--wing) 16%,transparent)}
+.card .row button:hover{color:#fff;border-color:var(--line-strong);background:rgba(255,255,255,.05)}
+.cat-empty{max-width:1180px;margin:0 auto;padding:60px 20px;text-align:center;color:var(--ink-faint)}
+.cat-empty b{display:block;font-size:16px;color:var(--ink-soft);margin-bottom:8px}
+
+/* ── help / about dialog ─────────────────────────────────────────────── */
+#help{
+  position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:26px;
+  background:rgba(4,5,11,.72);backdrop-filter:blur(7px);
+}
+#help.open{display:grid}
+.sheet{
+  width:min(880px,100%);max-height:86vh;overflow-y:auto;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,#15172a,#0b0c15);border:1px solid var(--line-strong);
+  box-shadow:var(--shadow);
+}
+.sheet header{display:flex;align-items:center;gap:14px;padding:22px 26px;border-bottom:1px solid var(--line)}
+.sheet header h2{font-family:var(--display);font-size:19px;letter-spacing:.12em;text-transform:uppercase}
+.sheet .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px;padding:24px 26px}
+.sheet h4{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.keys-row{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;align-items:baseline}
+.keys-row dt{font-family:var(--mono);font-size:10.5px;color:var(--ink);padding:3px 7px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid var(--line);justify-self:start}
+.keys-row dd{font-size:12.5px;color:var(--ink-soft)}
+.sheet p{font-size:12.5px;line-height:1.75;color:var(--ink-soft)}
+.sheet p+p{margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:7px}
+.legend i{display:flex;align-items:center;gap:6px;font-style:normal;font-size:11px;color:var(--ink-soft);padding:5px 9px;border-radius:99px;border:1px solid var(--line)}
+.legend i s{width:8px;height:8px;border-radius:50%;background:var(--wing)}
+.legend i em{font-family:var(--mono);font-style:normal;font-size:10px;color:var(--ink-faint)}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:70px;left:50%;z-index:70;transform:translate(-50%,16px);
+  padding:11px 19px;border-radius:var(--r-md);background:var(--panel-solid);
+  border:1px solid var(--line-strong);font-size:12.5px;opacity:0;pointer-events:none;
+  box-shadow:var(--shadow);transition:opacity .28s,transform .28s var(--ease);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ── tour caption ─────────────────────────────────────────────────────── */
+#caption{
+  position:fixed;left:22px;bottom:112px;z-index:16;max-width:min(420px,60vw);
+  padding:13px 17px;border-radius:var(--r-lg);opacity:0;transform:translateY(10px);
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--wing,var(--accent));
+  backdrop-filter:blur(16px);transition:opacity .35s var(--ease),transform .35s var(--ease);
+  pointer-events:none;
+}
+#caption.on{opacity:1;transform:translateY(0)}
+#caption .wing{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--wing,var(--accent));font-weight:700}
+#caption .nm{display:block;font-family:var(--display);font-size:19px;font-weight:600;margin-top:5px;line-height:1.25}
+#caption .d{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.55}
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+@media (max-width:1080px){ #plan{display:none} }
+@media (max-width:860px){
+  #topbar{padding:12px 14px;gap:10px}
+  #caption{display:none}
+  .brand .name{font-size:12px;letter-spacing:.14em}
+  .brand .meta{display:none}
+  .search{max-width:none}
+  #exhibit{width:100%;top:auto;height:74vh;border-left:none;border-top:1px solid var(--line-strong)}
+  #exhibit.open ~ #chips{opacity:0}
+  body.docked #chips{right:22px}
+  body.docked #hints{transform:translateX(-50%)}
+  #hints{display:none}
+  #catalogue{padding:92px 16px 110px}
+  .ex-title{font-size:23px}
+}
+@media (max-width:560px){
+  .icon-btn{width:34px;height:34px}
+  #chips{bottom:66px}
+  .grid{grid-template-columns:1fr}
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.1s!important}
+  #grain{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── 3D stage ─────────────────────────────────────────────────────────── -->
+<div id="stage" aria-hidden="true"></div>
+<div id="bloom" aria-hidden="true"></div>
+<div id="vignette" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- ── loading curtain ──────────────────────────────────────────────────── -->
+<div id="curtain">
+  <div class="curtain-in">
+    <div class="mark">◆</div>
+    <h1 id="curtain-title">Museum of Useful Links</h1>
+    <div class="tag" id="curtain-tag">Twelve wings · Eighty-eight exhibits · One rotunda</div>
+    <div class="bar"><i id="curtain-bar"></i></div>
+    <div class="step" id="curtain-step">unrolling the floor plan…</div>
+  </div>
+</div>
+
+<!-- ── chrome ───────────────────────────────────────────────────────────── -->
+<header id="topbar">
+  <div class="brand">
+    <div class="mark" aria-hidden="true">◆</div>
+    <div>
+      <div class="name">Museum of Useful Links</div>
+      <div class="meta" id="brand-meta">loading…</div>
+    </div>
+  </div>
+
+  <div class="search" role="search">
+    <span class="glyph" aria-hidden="true">⌕</span>
+    <input id="search" type="search" placeholder="Search the collection…" autocomplete="off" spellcheck="false"
+           aria-label="Search links by name, description or wing" aria-controls="results" aria-expanded="false">
+    <button class="clear" id="search-clear" aria-label="Clear search">✕</button>
+    <div class="results" id="results" role="listbox" aria-label="Search results"></div>
+  </div>
+
+  <div class="actions">
+    <button class="icon-btn" id="btn-tour"  aria-pressed="false" title="Guided tour (T)" aria-label="Guided tour"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v2M12 18.4v2M3.6 12h2M18.4 12h2"/></svg></button>
+    <button class="icon-btn" id="btn-random" title="Surprise me — random exhibit (S)" aria-label="Random exhibit"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none"/></svg></button>
+    <button class="icon-btn" id="btn-catalogue" aria-pressed="false" title="Catalogue view (C)" aria-label="Catalogue view"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg></button>
+    <button class="icon-btn" id="btn-sound" aria-pressed="false" title="Ambient sound (M)" aria-label="Ambient sound"><svg viewBox="0 0 24 24"><path d="M5 9.5h2.6L12 5.6v12.8L7.6 14.5H5z"/><path d="M15.8 9.2a4 4 0 0 1 0 5.6"/></svg></button>
+    <button class="icon-btn" id="btn-reset" title="Reset view (R)" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/><path d="M19.8 4.6v4.2h-4.2"/></svg></button>
+    <button class="icon-btn" id="btn-help" title="About & shortcuts (?)" aria-label="About and shortcuts"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.1.9-1.1 1.8"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/></svg></button>
+  </div>
+</header>
+
+<nav id="chips" aria-label="Filter by wing"></nav>
+
+<div id="tip" aria-hidden="true"><span class="wing"></span><span class="nm"></span></div>
+
+<div id="caption" aria-hidden="true">
+  <span class="wing"></span>
+  <span class="nm"></span>
+  <span class="d"></span>
+</div>
+
+<div id="hints">
+  <span><kbd>Drag</kbd> orbit</span>
+  <span><kbd>Scroll</kbd> dolly</span>
+  <span><kbd>Click</kbd> exhibit</span>
+  <span><kbd>←/→</kbd> next</span>
+  <span><kbd>T</kbd> tour</span>
+  <span><kbd>C</kbd> catalogue</span>
+</div>
+
+<aside id="exhibit" role="dialog" aria-label="Exhibit details" aria-hidden="true">
+  <div class="ex-rule"></div>
+  <div class="ex-head">
+    <div>
+      <div class="ex-wing"><span class="dot"></span><span id="ex-wing-name">wing</span><span class="no" id="ex-no"></span></div>
+      <div class="ex-title" id="ex-title"></div>
+    </div>
+    <button class="ex-close" id="ex-close" aria-label="Close exhibit">✕</button>
+  </div>
+  <div class="ex-body">
+    <p class="ex-desc" id="ex-desc"></p>
+    <dl class="ex-facts">
+      <div class="fact"><dt>Wing</dt><dd id="f-wing"></dd></div>
+      <div class="fact"><dt>Domain</dt><dd id="f-domain"></dd></div>
+      <div class="fact"><dt>Added by</dt><dd>you, curated by hand</dd></div>
+    </dl>
+    <div class="ex-url" id="ex-url" role="button" tabindex="0" title="Copy URL"></div>
+    <div class="ex-cta">
+      <a class="btn-visit" id="ex-visit" target="_blank" rel="noopener noreferrer">Open exhibit ↗</a>
+      <button class="btn-star" id="ex-star" aria-pressed="false" title="Save to favourites (F)">★</button>
+    </div>
+  </div>
+  <div class="ex-foot">
+    <button id="ex-prev">← Prev</button>
+    <span class="count" id="ex-count"></span>
+    <button id="ex-next">Next →</button>
+  </div>
+</aside>
+
+<section id="catalogue" aria-label="Catalogue of links"></section>
+
+<div id="plan" aria-hidden="true">
+  <div class="cap"><span>Plan view</span><span id="plan-note">click a wing</span></div>
+  <svg id="plan-svg" viewBox="-52 -52 104 104"></svg>
+</div>
+
+<div id="stats" aria-hidden="true">
+  <span><b id="st-fps">–</b> fps</span>
+  <span><b id="st-calls">–</b> draws</span>
+  <span><b id="st-tris">–</b> tris</span>
+  <span><b id="st-vis">–</b> on view</span>
+</div>
+
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="sheet">
+    <header>
+      <h2 id="help-title">Visiting notes</h2>
+      <button class="ex-close" id="help-close" aria-label="Close">✕</button>
+    </header>
+    <div class="cols">
+      <div>
+        <h4>Moving through the rotunda</h4>
+        <dl class="keys-row">
+          <dt>Drag</dt><dd>Orbit around the centrepiece</dd>
+          <dt>Scroll / pinch</dt><dd>Dolly in and out</dd>
+          <dt>Click</dt><dd>Open an exhibit and walk the camera to it</dd>
+          <dt>← →</dt><dd>Previous / next exhibit in the current selection</dd>
+          <dt>/</dt><dd>Jump to the search field</dd>
+          <dt>T</dt><dd>Guided tour — the camera walks the wings for you</dd>
+          <dt>S</dt><dd>Surprise me with a random exhibit</dd>
+          <dt>C</dt><dd>Catalogue view (the same collection as cards)</dd>
+          <dt>F</dt><dd>Favourite the open exhibit</dd>
+          <dt>M</dt><dd>Ambient room tone on / off</dd>
+          <dt>R</dt><dd>Return to the centre of the rotunda</dd>
+          <dt>A D</dt><dd>Orbit left / right, hands off the mouse</dd>
+          <dt>V</dt><dd>Performance readout — draw calls and frame rate</dd>
+          <dt>Esc</dt><dd>Close whatever is open</dd>
+        </dl>
+      </div>
+      <div>
+        <h4>The twelve wings</h4>
+        <div class="legend" id="help-legend"></div>
+        <h4 style="margin-top:22px">How it is built</h4>
+        <p>One HTML file, no build step, no tracking. Three.js draws all 88 plaques,
+           frames, plinths and floor lights in a handful of instanced draw calls, and the
+           renderer sleeps whenever the room is still — the plan view below mirrors the
+           exact geometry the GPU sees.</p>
+        <p>The plan view is clickable: pick a wing to send the camera there. Favourites
+           live in this browser only (localStorage), nothing leaves the page.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="a11y-status" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   THE CODE — one IIFE, fifteen numbered sections, read top to bottom:
+
+     01 open        bootstrap guard, config, state, DOM handles
+     02 utils       small maths / string helpers
+     03 data        the collection itself
+     04 layout      floor plan: turns 88 links into 12 wings of tiered arcs
+     05 stage       the room: floor, wall, centrepiece, dust, lights
+     06 plaques     the atlas (one texture for every piece of text in the room)
+     07 exhibits    the 88 exhibits as instanced meshes + the panel shader
+     08 camera      the orbit rig, cinematic flights, pinch zoom
+     09 picking     raycasting, hover, selection, spotlight
+     10 motion     fade / stagger transitions
+     11 ui          chips, search, exhibit panel, favourites
+     12 catalogue  the 2D view of the same collection
+     13 plan        the clickable SVG floor plan
+     14 tour        the guided tour
+     15 loop/boot  the render loop, audio, boot sequence
+
+   Performance contract, so the behaviour is legible rather than surprising:
+     · every plaque, frame, plinth and floor light is an InstancedMesh — the
+       88 exhibits cost four draw calls, not 352.
+     · all text in the room comes from ONE canvas atlas (plus one for the wing
+       banners), so there is one texture bind instead of 100.
+     · the renderer sleeps when the room is still: a dirty flag drives
+       rendering, an idle heartbeat keeps the centrepiece turning at 12 fps,
+       and anything that moves wakes it to full rate.
+     · device pixel ratio is capped at 2 and there are no shadow maps — the
+       pools of light under each exhibit are additive discs, which are
+       indistinguishable at this scale and cost nothing.
+     · nothing is fetched at run time except three.js itself; the collection is
+       bundled below, and the only typed input (search) is escaped before it
+       touches the DOM.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+'use strict';
+
+/* ── 01 · config ─────────────────────────────────────────────────────────
+   Every number that shapes the room lives here. The layout solver reads these
+   and derives the radii, so changing the scale of the museum is a one-line
+   edit rather than a hunt through the file. */
+const CFG = {
+  /* floor plan */
+  pitch:        3.95,  // arc length each exhibit gets along its arc (world units)
+  gapItems:     0.95,  // breathing room between wings, expressed in exhibits
+  rowGap:       6.5,   // minimum radial distance between two rows of one wing
+  maxRows:      3,     // a wing never stacks higher than three rows
+  perRowCap:    7,     // ...nor wider than seven exhibits
+  yBase:        4.4,   // plaque height of the innermost row
+  ySlope:       0.34,  // plaques rise with radius: stadium seating, no occlusion
+
+  /* furniture */
+  plaque:       { w: 2.9, h: 2.9 },
+  frame:        { w: 3.14, h: 3.16, d: 0.18 },
+  plinthW:      2.0,
+  puckRadius:   2.2,
+  banner:       { w: 8.2, h: 2.05 },
+  bannerLift:   2.6,   // banners float this far above their wing's outer row
+  columnLift:   3.4,   // wall columns stand this far outside the outer row
+  columnHeight: 20,
+
+  /* the room */
+  wallPad:      9,     // wall stands this far behind the outermost row
+  floorPad:     12,
+  ceilingY:     25,
+  fogColor:     0x07070e,
+  fogDensity:   0.0125,
+  dustCount:    1300,
+
+  /* camera */
+  camFov:       56,
+  camRadius:    17.5,  // opening dolly distance once the intro flight lands
+  camPhi:       1.10,
+  camMin:       6,
+  exhibitRange: 14.5,  // how far the camera stands back from a single plaque
+  exhibitSwing: 0.12,  // and how far around the circle, so the row reads in depth
+  exhibitEyeLift: 3.6, // camera height above the plaque centre
+  wingEyeY:     9.5,   // eye height when a whole wing is framed
+  wingSwing:    0.75,  // how far around from the hall's centre line to stand
+  camTargetY:   5.6,
+  introFrom:    { radius: 96, phi: 0.42, angle: -0.7 },
+
+  /* atlases */
+  tilePx:       320,
+  atlasCols:    10,
+  atlasRows:    9,     // 90 tiles — room for 88 exhibits and two spares
+  bannerCols:   4,
+  bannerRows:   3,
+  bannerTile:   { w: 640, h: 160 },
+
+  /* feel */
+  flySeconds:   1.15,
+  tourSeconds:  3.0,
+  heartbeat:    5,     // frames between renders while the room is idle
+  maxDpr:       2
+};
+
+const TAU = Math.PI * 2;
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Single mutable state bag. Anything the room remembers lives here, so it is
+   obvious what a function may read and what it may change. */
+const state = {
+  mode: 'rotunda',            // 'rotunda' | 'catalogue'
+  webgl: true,
+  wingsOn: new Set(),         // wings currently lit (filter)
+  query: '',                  // search text
+  favs: new Set(),            // favourite urls (localStorage)
+  visible: [],                // indices passing the current filter, in plan order
+  visibleSet: new Set(),
+  selected: -1,
+  hovered: -1,
+  tour: false,
+  tourStep: 0,
+  tourClock: 0,
+  dirty: true,                // render-on-demand flag
+  busy: false,                // something is animating → full frame rate
+  sound: false,
+  stats: false,
+  favouritesOnly: false,      // M key: narrow the room to saved exhibits
+  results: [],                // search hits shown under the search bar
+  cursor: -1                  // keyboard cursor inside those hits
+};
+
+/* DOM handles, resolved once. */
+const $ = (id) => document.getElementById(id);
+const dom = {
+  stage:      $('stage'),
+  bloom:      $('bloom'),
+  curtain:    $('curtain'),
+  curtainBar: $('curtain-bar'),
+  curtainStep:$('curtain-step'),
+  curtainTag: $('curtain-tag'),
+  search:     $('search'),
+  searchClear:$('search-clear'),
+  results:    $('results'),
+  chips:      $('chips'),
+  tip:        $('tip'),
+  exhibit:    $('exhibit'),
+  catalogue:  $('catalogue'),
+  plan:       $('plan'),          // the framed map in the corner
+  planSvg:    $('plan-svg'),      // the SVG drawn inside it
+  planNote:   $('plan-note'),
+  stats:      $('stats'),
+  help:       $('help'),
+  helpLegend: $('help-legend'),
+  toast:      $('toast'),
+  caption:    $('caption'),
+  a11y:       $('a11y-status'),
+  meta:       $('brand-meta')
+};
+/* The exhibit label's fields, looked up once — the panel is written to on
+   every selection, so the handles are worth naming. */
+dom.panel = {
+  root:   dom.exhibit,
+  wing:   $('ex-wing-name'),
+  no:     $('ex-no'),
+  title:  $('ex-title'),
+  close:  $('ex-close'),
+  desc:   $('ex-desc'),
+  factWing:   $('f-wing'),
+  factDomain: $('f-domain'),
+  url:    $('ex-url'),
+  visit:  $('ex-visit'),
+  star:   $('ex-star'),
+  prev:   $('ex-prev'),
+  count:  $('ex-count'),
+  next:   $('ex-next')
+};
+dom.buttons = {
+  tour: $('btn-tour'), random: $('btn-random'), catalogue: $('btn-catalogue'),
+  sound: $('btn-sound'), reset: $('btn-reset'), help: $('btn-help'),
+  helpClose: $('help-close'), stats: $('st-fps')
+};
+dom.stats = $('stats');
+dom.statValues = {
+  fps: $('st-fps'), calls: $('st-calls'), tris: $('st-tris'), vis: $('st-vis')
+};
+
+/* ── 02 · utils ────────────────────────────────────────────────────────── */
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+/* Slow-in / slow-out — the curve every camera flight and transition rides. */
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const pad2 = (n) => String(n).padStart(2, '0');
+/* Deterministic jitter from an integer: same exhibit, same wobble, every load. */
+const hash01 = (n) => {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
+const hostOf = (url) => {
+  try { return new URL(url).hostname.replace(/^www\./, ''); }
+  catch (err) { return url.slice(0, 40); }
+};
+/* The only user-typed string in the app is the search term, and it only ever
+   reaches innerHTML through here. */
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+function highlight(name, query) {
+  if (!query) return esc(name);
+  const i = name.toLowerCase().indexOf(query.toLowerCase());
+  if (i < 0) return esc(name);
+  return esc(name.slice(0, i)) + '<mark>' + esc(name.slice(i, i + query.length)) +
+         '</mark>' + esc(name.slice(i + query.length));
+}
+const polarX = (a, r) => Math.sin(a) * r;
+const polarZ = (a, r) => Math.cos(a) * r;
+/* three's ring/cylinder arcs start at +X and sweep to +Y; our polar angles
+   start at +Z and sweep to +X. One offset reconciles them, everywhere. */
+const arcTheta = (a) => a - Math.PI / 2;
+
+/* localStorage, wrapped so private-mode failures can never break a visit. */
+const store = {
+  read(key, fallback) {
+    try {
+      const raw = localStorage.getItem('museum.' + key);
+      return raw === null ? fallback : JSON.parse(raw);
+    } catch (err) { return fallback; }
+  },
+  write(key, value) {
+    try { localStorage.setItem('museum.' + key, JSON.stringify(value)); } catch (err) { /* ignore */ }
+  }
+};
+
+let toastTimer = 0;
+function toast(message) {
+  dom.toast.textContent = message;
+  dom.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => dom.toast.classList.remove('show'), 2600);
+}
+function announce(message) { dom.a11y.textContent = message; }
+
+function curtain(progress, step) {
+  dom.curtainBar.style.width = Math.round(progress * 100) + '%';
+  if (step) dom.curtainStep.textContent = step;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   02 · DATA
+   The collection. Curated by hand, bundled locally — nothing here is fetched
+   at runtime, so the page works offline and nothing the visitor types can
+   reach it. `n` name · `u` url · `c` category (wing) · `d` wall-label text.
+   ───────────────────────────────────────────────────────────────────────── */
+const LINKS = [
+  { n: 'Pirate Ship',            u: 'https://www.pirateship.com/',                                   c: 'Shopping', d: 'Free UPS and USPS-certified shipping software with pre-negotiated discounts.' },
+  { n: 'Grayjay',                u: 'https://grayjay.app/',                                          c: 'Media',    d: 'YouTube, Twitch and more, all in one place.' },
+  { n: 'Stremio',                u: 'https://www.stremio.com/',                                      c: 'Media',    d: 'Watch videos, movies, TV series and TV channels instantly.' },
+  { n: 'Morphe',                 u: 'https://morphe.software/',                                      c: 'Android',  d: 'Android client for YouTube, YouTube Music and Reddit with pro features.' },
+  { n: 'uBlock Origin',          u: 'https://ublockorigin.com/',                                     c: 'Privacy',  d: 'Free, open-source ad blocker. Use this on your phones and computers, dear god.' },
+  { n: 'Lain Animated Theme',    u: 'https://addons.mozilla.org/en-US/firefox/addon/lain-animated-theme/', c: 'Privacy', d: "Cool theme for Firefox, Waterfox, Floorp and LibreWolf. Let's all love Lain!" },
+  { n: 'Waterfox',               u: 'https://www.waterfox.com/',                                     c: 'Privacy',  d: 'Open source web browser that respects your privacy.' },
+  { n: 'Proton VPN',             u: 'https://protonvpn.com/',                                        c: 'Privacy',  d: 'Free VPN for torrents. Fast, secure, 120+ countries.' },
+  { n: 'Bitwarden',              u: 'https://bitwarden.com/',                                        c: 'Privacy',  d: 'Password manager. Open source, free tier, works everywhere.' },
+  { n: 'APKMirror',              u: 'https://www.apkmirror.com/',                                    c: 'Android',  d: 'Get most pro/paid apps free on Android — no Play Store needed.' },
+  { n: 'microG GmsCore',         u: 'https://github.com/microg/GmsCore/releases/tag/v0.3.12.250932',  c: 'Android',  d: 'For people who hate Google Play Services.' },
+  { n: 'Bazzite',                u: 'https://bazzite.gg/',                                           c: 'Linux',    d: 'Gaming OS — performs way better than Windows. Desktop, handheld and HTPC.' },
+  { n: 'EndeavourOS',            u: 'https://endeavouros.com/',                                      c: 'Linux',    d: 'Traditional desktop workspace OS — lightweight Arch-based, terminal centric.' },
+  { n: 'Obsidian',               u: 'https://obsidian.md/',                                          c: 'Creative', d: 'One of my writing tools. Local-first markdown notes that link together.' },
+  { n: 'Standard Notes',         u: 'https://standardnotes.com/',                                    c: 'Creative', d: 'Encrypted notes, end to end.' },
+  { n: 'LibreOffice',            u: 'https://www.libreoffice.org/',                                  c: 'Creative', d: 'No more Google Docs or paying for Word.' },
+  { n: 'Photopea',               u: 'https://www.photopea.com/',                                     c: 'Creative', d: 'Photoshop, in the browser. Opens PSDs, free, no install.' },
+  { n: 'Kdenlive',               u: 'https://kdenlive.org/',                                         c: 'Creative', d: "Open source video editor, if you don't use DaVinci." },
+  { n: 'remove.bg',              u: 'https://www.remove.bg/upload',                                  c: 'Creative', d: 'Removes image backgrounds automatically in 5 seconds. My secret weapon.' },
+  { n: 'MakeAGif',               u: 'https://makeagif.com/youtube-to-gif',                           c: 'Creative', d: 'YouTube to GIF, quick and painless.' },
+  { n: 'ytmp3',                  u: 'https://ytmp3.ai/',                                             c: 'Media',    d: 'I use this to download music.' },
+  { n: 'Salt Player',            u: 'https://github.com/Moriafly/SaltPlayerSource',                  c: 'Android',  d: 'FOSS local music player for Android with lots of features. Works well.' },
+  { n: 'projectM',               u: 'https://projectm-visualizer.org/',                              c: 'Media',    d: 'Miss the days of Xbox music players and PS2 visualizers? Tons of presets, MilkDrop compatible.' },
+  { n: 'Tuta',                   u: 'https://mail.tutanota.com/',                                    c: 'Privacy',  d: 'End-to-end encrypted email and calendar.' },
+  { n: 'OsmAnd',                 u: 'https://osmand.net/',                                           c: 'Privacy',  d: 'Offline maps and navigation. Stored on your phone, not the cloud.' },
+  { n: 'Fossify Messages',       u: 'https://f-droid.org/packages/org.fossify.messages/',            c: 'Android',  d: 'Open-source, ad-free SMS/MMS app. Get away from big tech.' },
+  { n: 'Aurora Store',           u: 'https://store.auroraoss.com/',                                  c: 'Android',  d: 'My main app store alongside F-Droid. Play Store without the Play Store.' },
+  { n: 'Sunshine',               u: 'https://github.com/LizardByte/Sunshine',                        c: 'Gaming',   d: 'Have a good host PC? Stream games to other devices and play in bed on your phone or tablet.' },
+  { n: 'Moonlight',              u: 'https://moonlight-stream.org/',                                 c: 'Gaming',   d: 'Companion for Sunshine — install on the device you want to play on.' },
+  { n: "Anna's Archive",         u: 'https://annas-archive.li/',                                     c: 'Reading',  d: "Free books and music. Great for books you can't find on sale, manga, comics." },
+  { n: 'Discuit',                u: 'https://discuit.org/',                                          c: 'Media',    d: 'Reddit alternative with about 10k people. Making discussions better.' },
+  { n: 'Jellyfin',               u: 'https://jellyfin.org/',                                         c: 'Media',    d: 'Like Plex but less shitty — think Netflix at home, self-hosted.' },
+  { n: '9Anime',                 u: 'https://9anime.za.com/',                                        c: 'Media',    d: 'ANIME.' },
+  { n: 'Globe TV',               u: 'https://globetv.app/',                                          c: 'Media',    d: 'Free live TV worldwide. No account, no tracking.' },
+  { n: 'Streameast',             u: 'https://www.istreameast.is/',                                   c: 'Media',    d: 'Live sports streaming — NFL, NBA, MLB, UFC, soccer and more.' },
+  { n: 'r/roms',                 u: 'https://r-roms.github.io/',                                     c: 'Gaming',   d: 'Get games for your emulator here.' },
+  { n: 'Anime Planet',           u: 'https://www.anime-planet.com/anime/watch-online/',              c: 'Media',    d: 'Another anime source, with a solid catalogue and watch lists.' },
+  { n: 'PriceLasso',             u: 'https://pricelasso.com/app/',                                   c: 'Shopping', d: 'Price tracking and extension — see history before you buy.' },
+  { n: 'SteamDB',                u: 'https://steamdb.info/',                                         c: 'Shopping', d: "See if you're actually getting a deal. Extension too." },
+  { n: 'Koofr',                  u: 'https://koofr.eu/',                                             c: 'Tools',    d: 'European cloud storage that respects privacy. Get away from Google Storage.' },
+  { n: 'Parsec',                 u: 'https://parsec.app/downloads',                                  c: 'Gaming',   d: 'Share your desktop with a friend — great for playing games together or collabing.' },
+  { n: 'Let your chat bully you', u: 'https://remasuri3.itch.io/tits',                               c: 'Gaming',   d: 'Tool I use to throw shit at me on stream.' },
+  { n: 'EmuDeck',                u: 'https://www.emudeck.com/',                                      c: 'Gaming',   d: 'Easy all-in-one emulator setup for SteamOS, Steam Deck and ROG Ally.' },
+  { n: 'Aegis',                  u: 'https://getaegis.app/',                                         c: 'Privacy',  d: '2FA authenticator — the alternative to Authy.' },
+  { n: 'Useful Steam apps',      u: 'https://imgur.com/a/ba1NqR8',                                   c: 'Gaming',   d: 'An imgur album of Steam apps that are actually useful.' },
+  { n: 'Firefox Relay',          u: 'https://relay.firefox.com/',                                    c: 'Privacy',  d: 'Mask your email and phone number when signing up for things.' },
+  { n: 'n-Track Studio',         u: 'https://ntrack.com/download.php',                               c: 'Creative', d: 'Make music. Full recording studio on Windows, Mac and mobile.' },
+  { n: 'ScienceOpen',            u: 'https://www.scienceopen.com/',                                  c: 'Reading',  d: 'Free academic papers.' },
+  { n: 'Audion',                 u: 'https://www.audionplayer.com/',                                 c: 'Media',    d: 'Like Stremio but for music. Modern local player with synced lyrics and plugins.' },
+  { n: 'Awesome Piracy',         u: 'https://shakil-shahadat.github.io/awesome-piracy/',             c: 'Reading',  d: 'A guide to the good life on the internet.' },
+  { n: 'LumpySoft',              u: 'https://lumpysoft.com/',                                        c: 'Tools',    d: 'Alternate to Google search.' },
+  { n: 'Google DeepMind',        u: 'https://deepmind.google/',                                      c: 'AI',       d: "Google's AI research lab. Behind Gemini, AlphaFold, and much of Google's AI stack." },
+  { n: 'DeepSeek',               u: 'https://www.deepseek.com/',                                     c: 'AI',       d: 'Chinese open-weight LLM family. Strong coding and reasoning, free chat, cheap API.' },
+  { n: 'DeepL',                  u: 'https://www.deepl.com/',                                        c: 'AI',       d: 'AI translator that consistently beats Google Translate for natural phrasing.' },
+  { n: 'Hugging Face',           u: 'https://huggingface.co/',                                       c: 'AI',       d: 'The GitHub of AI — millions of open models, datasets and browser-run demo apps.' },
+  { n: 'Antstream Arcade',       u: 'https://www.antstream.com/gameslist',                           c: 'Gaming',   d: 'Cloud-stream 1,300+ licensed retro games. Subscription, no downloads.' },
+  { n: 'ASCII Paste Builder',    u: 'https://amwhoi.github.io/ascii-bin/builder.html',               c: 'Creative', d: 'Build and copy ASCII art bins for pasting into forums, chat, or comments.' },
+  { n: 'GDQ Donation Generator', u: 'http://taskinoz.com/gdq/',                                      c: 'Tools',    d: 'Generates fake meme Games Done Quick donation comments.' },
+  { n: 'GrapheneOS',             u: 'https://grapheneos.org/',                                       c: 'Privacy',  d: 'Hardened, de-Googled Android OS for Pixel devices. Sandboxed apps, no Play Services.' },
+  { n: 'UEVR',                   u: 'https://github.com/praydog/UEVR',                               c: 'Gaming',   d: "Praydog's Universal Unreal Engine VR injector. Adds VR to UE4/5 games." },
+  { n: 'Fanatical',              u: 'https://www.fanatical.com/',                                    c: 'Shopping', d: 'Official game key store (formerly Bundle Stars). Keys direct from publishers.' },
+  { n: 'Liquipedia',             u: 'https://liquipedia.net/',                                       c: 'Gaming',   d: "Team Liquid's community esports wiki. 60+ games, match histories." },
+  { n: 'Nexus Mods',             u: 'https://www.nexusmods.com/',                                    c: 'Gaming',   d: 'Largest game mod repository: 750k+ mods across 2,500+ games. Home of Vortex.' },
+  { n: 'Game Compressor',        u: 'https://store.steampowered.com/app/4339880/',                   c: 'Gaming',   d: 'Steam utility that uses Windows LZX to shrink installed games by up to 50%.' },
+  { n: '3D Controller Overlay',  u: 'https://store.steampowered.com/app/1951950/',                   c: 'Gaming',   d: 'Live 3D model of your controller, keyboard, and mouse for streams.' },
+  { n: 'Lossless Scaling',       u: 'https://store.steampowered.com/app/993090/',                    c: 'Gaming',   d: 'Steam tool that adds frame generation and upscaling to almost any game.' },
+  { n: 'Vortex',                 u: 'https://www.nexusmods.com/about/vortex/',                       c: 'Gaming',   d: "Nexus Mods' official mod manager. One-click installs, conflict resolution, profiles." },
+  { n: 'Wallpaper Engine',       u: 'https://store.steampowered.com/app/431960/',                    c: 'Creative', d: 'Steam app for animated/live wallpapers. Import videos or websites.' },
+  { n: 'PNGTuber Plus',          u: 'https://store.steampowered.com/app/2596880/',                   c: 'Creative', d: '2D PNGTuber software with sine-wave motion, sprite parenting.' },
+  { n: '3tene',                  u: 'https://3tene.com/',                                            c: 'Creative', d: 'Real-time VRM/Live2D avatar app for VTubing. Webcam face tracking.' },
+  { n: 'Aseprite',               u: 'https://www.aseprite.org/',                                     c: 'Creative', d: 'Pixel-art and animated sprite editor. Layers, frames, onion skinning, tilemaps.' },
+  { n: 'WordPress',              u: 'https://wordpress.org/',                                        c: 'Dev',      d: 'Open-source CMS powering ~43% of the web. Blogs to stores.' },
+  { n: 'Docker',                 u: 'https://www.docker.com/',                                       c: 'Dev',      d: 'Container platform for building and running apps consistently anywhere.' },
+  { n: 'Astro',                  u: 'https://astro.build/',                                          c: 'Dev',      d: 'Content-focused web framework. Islands architecture ships zero JS by default.' },
+  { n: 'OpenCCTV',               u: 'https://opencctv.org/',                                         c: 'Dev',      d: 'Open-source CCTV video analytics platform. Middleware + web app.' },
+  { n: 'Android Developer Roadmap', u: 'https://github.com/skydoves/android-developer-roadmap',      c: 'Dev',      d: 'Community-maintained roadmap for learning Android dev: Kotlin, Compose.' },
+  { n: 'Awesome C++',            u: 'https://github.com/fffaraz/awesome-cpp',                        c: 'Dev',      d: 'Curated list of C/C++ frameworks, libraries, and resources.' },
+  { n: 'Awesome Creative Coding', u: 'https://github.com/terkelg/awesome-creative-coding',           c: 'Dev',      d: 'Curated resources for generative art, data visualization, and interaction design.' },
+  { n: 'SpriteFusion',           u: 'https://www.spritefusion.com/editor',                           c: 'Creative', d: 'Browser pixel-art generator and editor. Exports Phaser-compatible spritesheets.' },
+  { n: 'CPU-Z',                  u: 'https://www.cpuid.com/softwares/cpu-z.html',                     c: 'Tools',    d: 'Free system profiler: CPU name/codename/voltage, motherboard, RAM timings.' },
+  { n: 'GPU-Z',                  u: 'https://www.techpowerup.com/gpuz/',                             c: 'Tools',    d: 'Lightweight GPU info utility: clocks, temps, fan speed, BIOS backup.' },
+  { n: 'MSI Afterburner',        u: 'https://www.msi.com/Landing/afterburner/graphics-cards',        c: 'Tools',    d: 'Free GPU overclocking and monitoring tool. OC Scanner for one-click overclocking.' },
+  { n: 'HWiNFO',                 u: 'https://www.hwinfo.com/',                                       c: 'Tools',    d: 'Deep hardware inventory and real-time sensor monitoring.' },
+  { n: 'Linktree',               u: 'https://linktr.ee/',                                            c: 'Tools',    d: 'Link-in-bio page that bundles all your links into one URL.' },
+  { n: 'Neal.fun',               u: 'https://neal.fun/',                                             c: 'Fun',      d: "Neal Agarwal's collection of 40+ free browser toys: The Password Game, Asteroid Launcher." },
+  { n: 'PointlessSites',         u: 'https://www.pointlesssites.com/',                               c: 'Fun',      d: 'Curated directory of deliberately useless websites since 2002.' },
+  { n: 'Rocket League Tracker',  u: 'https://overwolf.com/app/tracker_network-rocket_league_tracker', c: 'Gaming',  d: "Live match overlay showing every player's rank and MMR. Runs on Overwolf." },
+  { n: 'Loaded',                 u: 'https://www.loaded.com/',                                       c: 'Shopping', d: 'CDKeys rebranded to Loaded in Sept 2025. Digital game keys for PC and consoles.' }
+];
+
+/* Wings — one per category. Colour does the work of a label: the same hex
+   appears on the plaque border, the frame, the floor puck, the chip, the
+   banner, the minimap dot and the 2D card, so a wing is recognisable
+   everywhere at a glance. */
+const WINGS = {
+  Shopping: { hex: '#ffb84d' },
+  Media:    { hex: '#5e9bff' },
+  Android:  { hex: '#3ddc84' },
+  Privacy:  { hex: '#22d3ee' },
+  Linux:    { hex: '#ff8a3d' },
+  Creative: { hex: '#ff6ec7' },
+  Reading:  { hex: '#c084fc' },
+  Tools:    { hex: '#94a3b8' },
+  AI:       { hex: '#34d399' },
+  Gaming:   { hex: '#ff5d7a' },
+  Dev:      { hex: '#60a5fa' },
+  Fun:      { hex: '#facc15' }
+};
+const WING_NAMES = Object.keys(WINGS);
+const WING_COLOR = {};
+const WING_HEX = {};
+WING_NAMES.forEach((name, i) => {
+  WING_HEX[name] = WINGS[name].hex;
+  WING_COLOR[name] = parseInt(WINGS[name].hex.slice(1), 16);
+});
+
+/* ── 04 · layout ─────────────────────────────────────────────────────────
+   The floor plan. A single ring of 88 exhibits overlaps itself (88 plinths
+   need ~350 world units of circumference, a comfortable ring offers ~150), so
+   the collection is arranged the way a real museum arranges a crowded annexe:
+
+     · each wing owns a wedge of the rotunda, sized to its own width;
+     · a wing's exhibits sit on 1–3 concentric arcs, widest arc outermost;
+     · plaques rise with radius (CFG.ySlope), so the rows in front of you are
+       always lower than the rows behind them — stadium seating, no occlusion.
+
+   Wedges are allocated proportionally to (exhibits in the widest row + a gap
+   allowance), which makes every wing's outer arc land at roughly the same
+   radius while narrow wings recede into alcoves. Every number downstream —
+   camera limits, wall, plan view, tour — is derived from this result.
+   ───────────────────────────────────────────────────────────────────────── */
+const plan = { wings: [], rMax: 0, rMin: 0, wallR: 0, floorR: 0 };
+
+function buildFloorPlan() {
+  const grouped = new Map();
+  LINKS.forEach((link, i) => {
+    if (!grouped.has(link.c)) grouped.set(link.c, []);
+    grouped.get(link.c).push(i);
+  });
+
+  /* 1 · slice each wing into rows: never more than perRowCap wide, never more
+        than maxRows deep, and always widest-row-first (outermost). */
+  const wings = WING_NAMES.filter((name) => grouped.has(name)).map((name) => {
+    const items = grouped.get(name);
+    const depth = clamp(Math.ceil(items.length / CFG.perRowCap), 1, CFG.maxRows);
+    const perRow = Math.ceil(items.length / depth);
+    const rows = [];
+    for (let start = 0; start < items.length; start += perRow) {
+      rows.push(items.slice(start, start + perRow));
+    }
+    rows.sort((a, b) => b.length - a.length);
+    return {
+      name, hex: WING_HEX[name], color: WING_COLOR[name],
+      _id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),   // stable slug for DOM ids
+      items, rows, count: items.length, widest: rows[0].length
+    };
+  });
+
+  /* 2 · allocate wedges. The gap allowance (gapItems, expressed in exhibits)
+        is what keeps wings from grinding against each other. */
+  let footprint = 0;
+  wings.forEach((w) => { footprint += w.widest + CFG.gapItems; });
+  const scale = TAU / footprint;
+  let cursor = 0;
+  wings.forEach((wing) => {
+    wing.wedge = (wing.widest + CFG.gapItems) * scale;
+    wing.aCenter = cursor + wing.wedge / 2;
+    cursor += wing.wedge;
+  });
+
+  /* 3 · radii. A row of n exhibits needs n * pitch of arc, so the smallest
+        radius it can sit at without spilling out of its wedge is
+        n * pitch / wedge. Rows are then packed inward at rowGap spacing, and
+        where that would squeeze a row past its wedge the row is allowed to
+        lean into the gap between wings instead — radial neighbours are 6.5
+        units apart, wider than any plaque, so leaning never collides. */
+  wings.forEach((wing) => {
+    wing.rows.forEach((row, depth) => {
+      const tightest = (row.length * CFG.pitch) / wing.wedge;
+      if (depth === 0) { row._r = tightest; return; }
+      const outer = wing.rows[depth - 1]._r;
+      row._r = clamp(tightest, outer - 2 * CFG.rowGap, outer - CFG.rowGap);
+    });
+    wing.rMax = wing.rows[0]._r;
+    wing.rMin = wing.rows[wing.rows.length - 1]._r;
+    wing.midR = (wing.rMax + wing.rMin) / 2;
+  });
+
+  plan.wings = wings;
+  plan.rMax = Math.max(...wings.map((w) => w.rMax));
+  plan.rMin = Math.min(...wings.map((w) => w.rMin));
+  plan.wallR = plan.rMax + CFG.wallPad;
+  plan.floorR = plan.rMax + CFG.floorPad;
+  plan.camMax = Math.min(24, plan.rMin - 1.5);
+
+  /* 4 · bake every exhibit's position into the link record. Depth 0 is the
+        outer row, so `depth` counts down as the radius shrinks. */
+  wings.forEach((wing) => {
+    wing.rows.forEach((row, depth) => {
+      row._y = CFG.yBase + (row._r - plan.rMin) * CFG.ySlope;
+      const step = CFG.pitch / row._r;                       // constant world spacing
+      row.forEach((linkIndex, k) => {
+        const angle = wing.aCenter + (k - (row.length - 1) / 2) * step;
+        const link = LINKS[linkIndex];
+        link._i = linkIndex;
+        link._wing = wing;
+        link._r = row._r;
+        link._y = row._y;
+        link._depth = depth;
+        link._a = angle;
+        link._x = polarX(angle, row._r);
+        link._z = polarZ(angle, row._r);
+        link._plaque = { x: link._x, y: row._y, z: link._z };
+      });
+    });
+    wing.midY = CFG.yBase + (wing.midR - plan.rMin) * CFG.ySlope;
+    /* the floor footprint of the whole wing, used by the dais and plan view */
+    wing.aSpan = wing.wedge * 0.94;
+    wing.aStart = wing.aCenter - wing.aSpan / 2;
+  });
+
+  /* plaques stand just inside their frame; the frame's outer shell is what the
+     lights catch, so the two are offset by a hair rather than coplanar. */
+  LINKS.forEach((link) => {
+    link._plate = { x: polarX(link._a, link._r - 0.14), y: link._y, z: polarZ(link._a, link._r - 0.14) };
+  });
+}
+
+/* Camera limits depend on the solved plan, so they are finalised after it. */
+function applyCameraLimits() {
+  CFG.camRadius = clamp(CFG.camRadius, CFG.camMin + 3, plan.camMax);
+}
+
+/* ── 05 · stage ──────────────────────────────────────────────────────────
+   The building: floor, wall, ceiling, the oculus column in the middle of the
+   rotunda, dust in the air, and the lights that make it worth walking into.
+   Every texture here is drawn on a canvas at boot, so the file stays
+   self-contained and there is nothing to download. */
+const world = {
+  core: null, shaft: null, medallion: null, dust: null,
+  daises: [], rims: [], columns: null, columnGlow: null,
+  pool: null, poolRing: null, beam: null, selectionLight: null,
+  ambientLights: []
+};
+
+let renderer, scene, camera, clock;
+
+/* — procedural textures —————————————————————————————————──────────────── */
+function canvas2d(size, height) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = height || size;
+  return { c, x: c.getContext('2d') };
+}
+function textureFrom(canvas, wrap) {
+  const t = new THREE.CanvasTexture(canvas);
+  if (wrap) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+/* Terrazzo-ish floor: speckle, a few broad veins, concentric rings that echo
+   the arcs the exhibits stand on. */
+function floorTexture(radius) {
+  const { c, x } = canvas2d(1024);
+  const half = 512;
+  x.fillStyle = '#0a0b13';
+  x.fillRect(0, 0, 1024, 1024);
+  const glow = x.createRadialGradient(half, half, 40, half, half, half);
+  glow.addColorStop(0, 'rgba(70,86,140,0.34)');
+  glow.addColorStop(0.45, 'rgba(30,34,58,0.16)');
+  glow.addColorStop(1, 'rgba(4,4,10,0)');
+  x.fillStyle = glow;
+  x.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 2600; i++) {
+    const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * half;
+    const px = half + Math.cos(a) * d, py = half + Math.sin(a) * d;
+    const shade = 120 + Math.random() * 110;
+    x.fillStyle = 'rgba(' + shade + ',' + (shade * 1.05) + ',' + (shade * 1.4) + ',' +
+                  (0.05 + Math.random() * 0.16) + ')';
+    const s = 0.6 + Math.random() * 2.4;
+    x.fillRect(px, py, s, s);
+  }
+  for (let ring = 1; ring <= 9; ring++) {
+    const r = (ring / 9.6) * half;
+    x.beginPath(); x.arc(half, half, r, 0, TAU);
+    x.strokeStyle = 'rgba(150,175,255,' + (ring % 3 === 0 ? 0.09 : 0.04) + ')';
+    x.lineWidth = ring % 3 === 0 ? 2.4 : 1.2;
+    x.stroke();
+  }
+  x.save();
+  x.translate(half, half);
+  for (let spoke = 0; spoke < 48; spoke++) {
+    x.rotate(TAU / 48);
+    x.beginPath(); x.moveTo(60, 0); x.lineTo(half, 0);
+    x.strokeStyle = 'rgba(140,165,255,0.025)';
+    x.lineWidth = 1;
+    x.stroke();
+  }
+  x.restore();
+  void radius;
+  return textureFrom(c);
+}
+
+/* Wall: darkest at eye level, a cool wash above where the cove light lands. */
+function wallTexture() {
+  const { c, x } = canvas2d(512, 256);
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0.00, '#252d4a');
+  g.addColorStop(0.28, '#161a2b');
+  g.addColorStop(0.62, '#0a0b12');
+  g.addColorStop(1.00, '#05060c');
+  x.fillStyle = g; x.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 900; i++) {
+    x.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.03) + ')';
+    x.fillRect(Math.random() * 512, Math.random() * 256, 1.5, 1.5);
+  }
+  const t = textureFrom(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.repeat.set(6, 1);
+  return t;
+}
+
+/* The inlaid medallion under the oculus: rings, ticks, and a compass rose. */
+function medallionTexture() {
+  const { c, x } = canvas2d(512);
+  const half = 256;
+  x.clearRect(0, 0, 512, 512);
+  x.translate(half, half);
+  x.strokeStyle = 'rgba(190,205,255,0.55)';
+  [0.98, 0.72, 0.44, 0.2].forEach((f, i) => {
+    x.beginPath(); x.arc(0, 0, f * half, 0, TAU);
+    x.lineWidth = i === 0 ? 3 : 1.4;
+    x.stroke();
+  });
+  x.strokeStyle = 'rgba(150,170,230,0.35)';
+  for (let tick = 0; tick < 72; tick++) {
+    x.save(); x.rotate(tick * TAU / 72);
+    x.beginPath(); x.moveTo(0, -0.98 * half); x.lineTo(0, -(tick % 6 === 0 ? 0.86 : 0.93) * half);
+    x.lineWidth = tick % 6 === 0 ? 2 : 1;
+    x.stroke(); x.restore();
+  }
+  for (let petal = 0; petal < 8; petal++) {
+    x.save(); x.rotate(petal * TAU / 8);
+    x.beginPath();
+    x.moveTo(0, -0.7 * half); x.lineTo(0.09 * half, 0); x.lineTo(0, 0.7 * half); x.lineTo(-0.09 * half, 0);
+    x.closePath();
+    x.fillStyle = petal % 2 ? 'rgba(120,150,255,0.13)' : 'rgba(210,225,255,0.10)';
+    x.fill();
+    x.restore();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+/* A soft round falloff — used for floor pools of light and the fake bloom. */
+function radialFade(inner, outer) {
+  const { c, x } = canvas2d(256);
+  const g = x.createRadialGradient(128, 128, 4, 128, 128, 128);
+  g.addColorStop(0, inner);
+  g.addColorStop(1, outer);
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+/* — the room —————————————————————————————————————————————————──────────── */
+function createStage() {
+  clock = new THREE.Clock();
+  renderer = new THREE.WebGLRenderer({
+    antialias: true, powerPreference: 'high-performance', alpha: false
+  });
+  renderer.domElement.id = 'view';
+  dom.stage.appendChild(renderer.domElement);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CFG.maxDpr));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  renderer.setClearColor(CFG.fogColor, 1);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(CFG.fogColor, CFG.fogDensity);
+
+  camera = new THREE.PerspectiveCamera(CFG.camFov, window.innerWidth / window.innerHeight, 0.1, 260);
+
+  /* Light: a cool wash from above, warm bounce from the floor, and a bright
+     core that reads as the building's own source of light. */
+  scene.add(new THREE.HemisphereLight(0x33415f, 0x06070d, 0.75));
+  scene.add(new THREE.AmbientLight(0x2a3050, 0.30));
+
+  const moon = new THREE.DirectionalLight(0xa9c4ff, 0.55);
+  moon.position.set(14, 34, 10);
+  scene.add(moon);
+
+  const rim = new THREE.DirectionalLight(0xff9a5c, 0.28);
+  rim.position.set(-22, 8, -18);
+  scene.add(rim);
+
+  const coreLight = new THREE.PointLight(0x93b4ff, 1.2, 90, 2);
+  coreLight.position.set(0, 14.5, 0);
+  scene.add(coreLight);
+  world.ambientLights.push(coreLight);
+
+  const ember = new THREE.PointLight(0xffb066, 1.1, 62, 2);
+  ember.position.set(6, 4, 6);
+  scene.add(ember);
+  world.ambientLights.push(ember);
+
+  world.selectionLight = new THREE.PointLight(0xffffff, 0, 26, 2);
+  world.selectionLight.position.set(0, 6, 0);
+  scene.add(world.selectionLight);
+
+  /* floor */
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(plan.floorR, 128),
+    new THREE.MeshStandardMaterial({
+      map: floorTexture(plan.floorR), color: 0x8f9dc4,
+      roughness: 0.62, metalness: 0.42
+    })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  const medallion = new THREE.Mesh(
+    new THREE.CircleGeometry(5.4, 96),
+    new THREE.MeshBasicMaterial({ map: medallionTexture(), transparent: true, opacity: 0.5, depthWrite: false })
+  );
+  medallion.rotation.x = -Math.PI / 2;
+  medallion.position.y = 0.02;
+  scene.add(medallion);
+  world.medallion = medallion;
+
+  /* wall + ceiling */
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(plan.wallR, plan.wallR, CFG.ceilingY + 6, 128, 1, true),
+    new THREE.MeshStandardMaterial({
+      map: wallTexture(), color: 0xffffff, roughness: 0.95, metalness: 0.05,
+      side: THREE.BackSide
+    })
+  );
+  wall.position.y = (CFG.ceilingY + 6) / 2 - 1;
+  scene.add(wall);
+
+  const cove = new THREE.Mesh(
+    new THREE.CylinderGeometry(plan.wallR - 0.15, plan.wallR - 0.15, 1.1, 128, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x6f8cff, transparent: true, opacity: 0.35,
+      side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false
+    })
+  );
+  cove.position.y = CFG.ceilingY - 1.6;
+  scene.add(cove);
+
+  const ceiling = new THREE.Mesh(
+    new THREE.CircleGeometry(plan.floorR, 96),
+    new THREE.MeshStandardMaterial({ color: 0x0b0d16, roughness: 1, metalness: 0, side: THREE.DoubleSide })
+  );
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = CFG.ceilingY;
+  scene.add(ceiling);
+
+  buildCore();
+  buildWingFloors();
+  buildColumns();
+  buildDust();
+  buildSelectionFixtures();
+}
+
+/* The oculus: a shaft of light with a slowly turning armature inside it. */
+function buildCore() {
+  world.core = new THREE.Group();
+
+  /* A shaft of light from the oculus: brightest where the sky is, thinning as
+     it falls. Additive, depth-write off, so it never occludes an exhibit. */
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.0, 2.6, CFG.ceilingY, 48, 1, true),
+    new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uTime: { value: 0 }, uHigh: { value: new THREE.Color(0xa8c6ff) },
+                  uLow: { value: new THREE.Color(0x16213f) } },
+      vertexShader: [
+        'varying float vH;',
+        'void main(){',
+        '  vH = uv.y;',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+        '}'
+      ].join('\n'),
+      fragmentShader: [
+        'uniform vec3 uHigh; uniform vec3 uLow; uniform float uTime;',
+        'varying float vH;',
+        'void main(){',
+        '  float grad = pow(vH, 1.7);',                        // light enters at the top
+        '  float band = 0.88 + 0.12 * sin(uTime * 1.4 + vH * 9.0);',
+        '  vec3 col = mix(uLow, uHigh, grad);',
+        '  gl_FragColor = vec4(col * band, grad * 0.22);',
+        '}'
+      ].join('\n')
+    })
+  );
+  shaft.position.y = CFG.ceilingY / 2;
+  world.core.add(shaft);
+  world.shaft = shaft;
+
+  /* The museum's "heart": a slow stone satellite with a wire armature and three
+     rings, lit by the core lamp. Small on purpose — it is a landmark, not a sun. */
+  const heartGlow = 0.35;
+  const heart = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.5, 1),
+    new THREE.MeshStandardMaterial({
+      color: 0x0b1020, emissive: 0x1b2f66, emissiveIntensity: heartGlow,
+      roughness: 0.9, metalness: 0.05, flatShading: true
+    })
+  );
+  heart.position.y = 10.2;
+  heart.userData.baseGlow = heartGlow;
+  world.core.add(heart);
+  world.heart = heart;
+
+  const cage = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.9, 1),
+    new THREE.MeshBasicMaterial({ color: 0x89a8ff, wireframe: true, transparent: true, opacity: 0.13 })
+  );
+  cage.position.y = 10.2;
+  world.core.add(cage);
+  world.cage = cage;
+
+  world.torii = [];
+  [[2.2, 0.05, 1.0, 0.35], [2.8, 0.035, -0.6, 0.9], [3.4, 0.03, 0.4, -1.3]].forEach((spec, i) => {
+    const torus = new THREE.Mesh(
+      new THREE.TorusGeometry(spec[0], spec[1], 8, 120),
+      new THREE.MeshBasicMaterial({
+        color: i === 1 ? 0xffc98a : 0x8fb0ff, transparent: true, opacity: 0.2,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      })
+    );
+    torus.position.y = 10.2;
+    torus.rotation.x = Math.PI / 2 + (i - 1) * 0.5;
+    torus.userData.spin = spec[2] * 0.16;
+    torus.userData.tilt = spec[3] * 0.1;
+    world.core.add(torus);
+    world.torii.push(torus);
+  });
+
+  scene.add(world.core);
+}
+
+/* A dais and a lit lip for every wing: the plan becomes legible from the
+   floor as well as from the plan view. */
+function buildWingFloors() {
+  const daisMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1d2e, roughness: 0.42, metalness: 0.55
+  });
+  plan.wings.forEach((wing) => {
+    const theta = arcTheta(wing.aCenter);
+    const dais = new THREE.Mesh(
+      new THREE.RingGeometry(wing.rMin - 2.0, wing.rMax + 2.2, 64, 1, theta, wing.aSpan),
+      daisMaterial
+    );
+    dais.rotation.x = -Math.PI / 2;
+    dais.position.y = 0.035;
+    scene.add(dais);
+    world.daises.push(dais);
+
+    const lip = new THREE.Mesh(
+      new THREE.RingGeometry(wing.rMax + 2.2, wing.rMax + 2.7, 64, 1, theta, wing.aSpan),
+      new THREE.MeshBasicMaterial({
+        color: wing.color, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    lip.rotation.x = -Math.PI / 2;
+    lip.position.y = 0.05;
+    scene.add(lip);
+    world.rims.push(lip);
+
+    const inner = new THREE.Mesh(
+      new THREE.RingGeometry(wing.rMin - 2.5, wing.rMin - 2.0, 64, 1, theta, wing.aSpan),
+      new THREE.MeshBasicMaterial({
+        color: wing.color, transparent: true, opacity: 0.18,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+      })
+    );
+    inner.rotation.x = -Math.PI / 2;
+    inner.position.y = 0.05;
+    scene.add(inner);
+    world.rims.push(inner);
+  });
+}
+
+/* A colonnade stands behind the wings: one engaged column per wing centre,
+   with a thin lit strip that takes the wing's colour. */
+function buildColumns() {
+  const count = plan.wings.length;
+  const r = plan.wallR - 1.4;
+  const geometry = new THREE.CylinderGeometry(0.62, 0.78, CFG.columnHeight, 16, 1, false);
+  world.columns = new THREE.InstancedMesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color: 0x191d2c, roughness: 0.55, metalness: 0.35 }),
+    count
+  );
+  world.columnGlow = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.16, CFG.columnHeight * 0.72, 0.16),
+    new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false
+    }),
+    count
+  );
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3(1, 1, 1);
+  const pos = new THREE.Vector3();
+  plan.wings.forEach((wing, i) => {
+    const x = polarX(wing.aCenter, r), z = polarZ(wing.aCenter, r);
+    pos.set(x, CFG.columnHeight / 2, z);
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), wing.aCenter);
+    m.compose(pos, q, s);
+    world.columns.setMatrixAt(i, m);
+    world.columnGlow.setMatrixAt(i, m);
+    world.columnGlow.setColorAt(i, new THREE.Color(wing.color));
+  });
+  world.columns.instanceMatrix.needsUpdate = true;
+  world.columnGlow.instanceMatrix.needsUpdate = true;
+  if (world.columnGlow.instanceColor) world.columnGlow.instanceColor.needsUpdate = true;
+  scene.add(world.columns);
+  scene.add(world.columnGlow);
+}
+
+/* Dust, in the shader: it rises, drifts, wraps, and costs one draw call. */
+function buildDust() {
+  const count = CFG.dustCount;
+  const positions = new Float32Array(count * 3);
+  const seeds = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const a = hash01(i * 3 + 1) * TAU;
+    const r = 3 + hash01(i * 3 + 2) * (plan.floorR - 6);
+    positions[i * 3] = polarX(a, r);
+    positions[i * 3 + 1] = hash01(i * 3 + 3) * 22;
+    positions[i * 3 + 2] = polarZ(a, r);
+    seeds[i] = hash01(i) * 100;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  world.dust = new THREE.Points(geometry, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uFade: { value: 1 } },
+    vertexShader: [
+      'attribute float aSeed;',
+      'uniform float uTime;',
+      'varying float vAlpha;',
+      'void main(){',
+      '  vec3 p = position;',
+      '  float rise = mod(p.y + uTime * (0.25 + fract(aSeed) * 0.5), 22.0);',
+      '  p.y = rise;',
+      '  p.x += sin(uTime * 0.35 + aSeed) * 1.4;',
+      '  p.z += cos(uTime * 0.3 + aSeed * 1.7) * 1.4;',
+      '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
+      '  float depth = -mv.z;',
+      '  vAlpha = smoothstep(4.0, 16.0, depth) * (1.0 - smoothstep(70.0, 150.0, depth)) * 0.5;',
+      '  gl_PointSize = (26.0 / depth) * (0.6 + fract(aSeed * 3.1));',
+      '  gl_Position = projectionMatrix * mv;',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'uniform float uFade;',
+      'varying float vAlpha;',
+      'void main(){',
+      '  float d = length(gl_PointCoord - 0.5);',
+      '  float soft = smoothstep(0.5, 0.0, d);',
+      '  gl_FragColor = vec4(vec3(0.72, 0.80, 1.0), soft * vAlpha * uFade);',
+      '}'
+    ].join('\n')
+  }));
+  scene.add(world.dust);
+}
+
+/* Fixtures that mark whichever exhibit is currently in hand. */
+function buildSelectionFixtures() {
+  const pool = new THREE.Mesh(
+    new THREE.CircleGeometry(4.2, 64),
+    new THREE.MeshBasicMaterial({
+      map: radialFade('rgba(255,255,255,0.85)', 'rgba(255,255,255,0)'),
+      color: 0xffffff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
+  );
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = 0.06;
+  scene.add(pool);
+  world.pool = pool;
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(2.5, 2.8, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.08;
+  scene.add(ring);
+  world.poolRing = ring;
+
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 3.1, 14, 32, 1, true),
+    new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      uniforms: { uOpacity: { value: 0 }, uTint: { value: new THREE.Color(0xffffff) } },
+      vertexShader: 'varying float vH;\nvoid main(){ vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: [
+        'uniform float uOpacity; uniform vec3 uTint; varying float vH;',
+        'void main(){',
+        '  float grad = pow(vH, 1.6) * 0.75;',
+        '  gl_FragColor = vec4(uTint, grad * uOpacity);',
+        '}'
+      ].join('\n')
+    })
+  );
+  scene.add(beam);
+  world.beam = beam;
+}
+
+/* Per-frame business for the room: turning rings, breathing light, dust. */
+function updateStage(elapsed, delta) {
+  if (world.shaft) world.shaft.material.uniforms.uTime.value = elapsed;
+  if (world.dust) world.dust.material.uniforms.uTime.value = elapsed;
+  if (world.heart) {
+    world.heart.rotation.y += delta * 0.18;
+    world.heart.rotation.x += delta * 0.06;
+    /* the heart breathes, gently, around its own base glow */
+    const base = world.heart.userData.baseGlow;
+    world.heart.material.emissiveIntensity = base + Math.sin(elapsed * 1.2) * base * 0.35;
+  }
+  if (world.cage) {
+    world.cage.rotation.y -= delta * 0.1;
+    world.cage.rotation.z += delta * 0.04;
+  }
+  world.torii.forEach((torus) => {
+    torus.rotation.z += delta * torus.userData.spin;
+    torus.rotation.x += delta * torus.userData.tilt * 0.2;
+  });
+  if (world.medallion) world.medallion.rotation.z += delta * 0.02;
+  world.ambientLights[1].position.x = Math.cos(elapsed * 0.13) * 12;
+  world.ambientLights[1].position.z = Math.sin(elapsed * 0.13) * 12;
+}
+
+/* ── 06 · labels ─────────────────────────────────────────────────────────
+   Every word that appears inside the 3D room is drawn once into one canvas
+   atlas — 88 plaques and 12 wing banners, two texture binds in total. The
+   plaques share a single InstancedMesh; a custom shader picks the right tile
+   per instance and paints the reverse side in the wing's colour, so the room
+   still reads beautifully from above and from outside. */
+const FONTS = {
+  display: "600 {size}px 'Bahnschrift', 'Segoe UI Semibold', 'Segoe UI', system-ui, sans-serif",
+  body: "{weight} {size}px 'Segoe UI', system-ui, sans-serif",
+  mono: "{weight} {size}px 'Cascadia Code', Consolas, monospace"
+};
+const font = (kind, size, weight) => FONTS[kind]
+  .replace('{size}', size)
+  .replace('{weight}', weight || '400');
+
+function roundRect(ctx, px, py, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(px + r, py);
+  ctx.arcTo(px + w, py, px + w, py + h, r);
+  ctx.arcTo(px + w, py + h, px, py + h, r);
+  ctx.arcTo(px, py + h, px, py, r);
+  ctx.arcTo(px, py, px + w, py, r);
+  ctx.closePath();
+}
+
+/* Word wrap that never pretends a hyphenated remainder is a whole word. */
+function wrapLines(ctx, text, maxWidth, maxLines) {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (let i = 0; i < words.length; i++) {
+    const attempt = line ? line + ' ' + words[i] : words[i];
+    if (ctx.measureText(attempt).width > maxWidth && line) {
+      lines.push(line);
+      line = words[i];
+      if (lines.length === maxLines) break;
+    } else {
+      line = attempt;
+    }
+  }
+  if (lines.length < maxLines && line) lines.push(line);
+  if (lines.length === maxLines) {
+    const last = lines[maxLines - 1];
+    if (ctx.measureText(last).width > maxWidth) {
+      let trimmed = last;
+      while (trimmed.length > 4 && ctx.measureText(trimmed + '…').width > maxWidth) {
+        trimmed = trimmed.slice(0, -1);
+      }
+      lines[maxLines - 1] = trimmed.replace(/[\s,;:]+$/, '') + '…';
+    }
+  }
+  return lines;
+}
+
+/* Letterspacing, since canvas has no tracking property and museum labels live
+   and die by their tracking. */
+function drawTracked(ctx, text, x, y, tracking) {
+  let cursor = x;
+  for (const ch of String(text)) {
+    ctx.fillText(ch, cursor, y);
+    cursor += ctx.measureText(ch).width + tracking;
+  }
+  return cursor - x - tracking;
+}
+function measureTracked(ctx, text, tracking) {
+  let w = 0;
+  for (const ch of String(text)) w += ctx.measureText(ch).width + tracking;
+  return w - tracking;
+}
+function rightTracked(ctx, text, right, y, tracking) {
+  drawTracked(ctx, text, right - measureTracked(ctx, text, tracking), y, tracking);
+}
+
+/* One plaque tile: an acrylic label with a coloured rule, an accession number,
+   the exhibit's name, what it is, and where it lives. */
+function drawPlaqueTile(ctx, px, py, link, number) {
+  const S = CFG.tilePx;
+  const hex = WING_HEX[link.c];
+  const pad = Math.round(S * 0.105);
+  const inner = S - pad * 2;
+
+  ctx.save();
+  roundRect(ctx, px + 3, py + 3, S - 6, S - 6, Math.round(S * 0.09));
+  const panel = ctx.createLinearGradient(px, py, px, py + S);
+  panel.addColorStop(0, 'rgba(24,27,41,0.97)');
+  panel.addColorStop(0.55, 'rgba(15,17,27,0.97)');
+  panel.addColorStop(1, 'rgba(9,10,18,0.97)');
+  ctx.fillStyle = panel;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, S * 0.006);
+  ctx.strokeStyle = hex + '55';
+  ctx.stroke();
+  ctx.clip();
+
+  /* sheen: a soft light from the upper left, like a spotlight on acrylic */
+  const sheen = ctx.createLinearGradient(px, py, px + S, py + S);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.075)');
+  sheen.addColorStop(0.42, 'rgba(255,255,255,0.012)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(px, py, S, S);
+
+  /* accession number, top right, in the wing's colour */
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.font = font('mono', Math.round(S * 0.062), '600');
+  ctx.fillStyle = hex + 'cc';
+  drawTracked(ctx, pad2(number), px + S - pad - Math.round(S * 0.10), py + pad + Math.round(S * 0.075), S * 0.012);
+
+  /* wing, top left */
+  ctx.font = font('body', Math.round(S * 0.052), '700');
+  ctx.fillStyle = hex;
+  drawTracked(ctx, link.c.toUpperCase(), px + pad, py + pad + Math.round(S * 0.062), S * 0.022);
+
+  /* the rule */
+  ctx.fillStyle = hex + '66';
+  ctx.fillRect(px + pad, py + pad + Math.round(S * 0.10), inner, Math.max(1, S * 0.005));
+
+  /* name */
+  const nameSize = Math.round(S * (link.n.length > 18 ? 0.098 : 0.118));
+  ctx.font = font('display', nameSize);
+  const nameLines = wrapLines(ctx, link.n, inner, 3);
+  let cursorY = py + pad + Math.round(S * 0.235);
+  ctx.fillStyle = '#f2f5ff';
+  nameLines.forEach((line, i) => {
+    drawTracked(ctx, line, px + pad, cursorY + i * Math.round(nameSize * 1.14), S * 0.004);
+  });
+  cursorY += nameLines.length * Math.round(nameSize * 1.14);
+
+  /* what it is — as many lines as are left between the name and the footer */
+  ctx.font = font('body', Math.round(S * 0.062), '400');
+  ctx.fillStyle = 'rgba(190,199,226,0.86)';
+  const descTop = cursorY + Math.round(S * 0.075);
+  const descRoom = (py + S - pad - Math.round(S * 0.03)) - descTop;
+  const descLine = Math.round(S * 0.082);
+  const descLines = wrapLines(ctx, link.d, inner, Math.max(1, Math.floor(descRoom / descLine)));
+  descLines.forEach((line, i) => {
+    ctx.fillText(line, px + pad, descTop + i * descLine);
+  });
+
+  /* where it lives — truncated to whatever width is left beside the OPEN mark */
+  ctx.font = font('mono', Math.round(S * 0.052), '400');
+  ctx.fillStyle = 'rgba(122,133,166,0.9)';
+  const room = (S - pad * 2) - Math.round(S * 0.14);
+  let host = hostOf(link.u);
+  while (host.length > 4 && ctx.measureText(host + '…').width > room) host = host.slice(0, -1);
+  if (host !== hostOf(link.u)) host += '…';
+  ctx.fillText(host, px + pad, py + S - pad - Math.round(S * 0.02));
+  ctx.fillStyle = hex;
+  rightTracked(ctx, 'OPEN', px + S - pad - Math.round(S * 0.085), py + S - pad - Math.round(S * 0.02), S * 0.02);
+  ctx.textAlign = 'right';
+  ctx.font = font('body', Math.round(S * 0.058), '700');
+  ctx.fillText('↗', px + S - pad, py + S - pad - Math.round(S * 0.02));
+  ctx.textAlign = 'left';
+
+  ctx.restore();
+}
+
+/* One banner tile: the wing's name, hung above its hall. */
+function drawBannerTile(ctx, px, py, wing) {
+  const W = CFG.bannerTile.w, H = CFG.bannerTile.h;
+  ctx.save();
+  const bg = ctx.createLinearGradient(px, py, px, py + H);
+  bg.addColorStop(0, 'rgba(20,23,36,0.0)');
+  bg.addColorStop(0.5, 'rgba(16,18,30,0.85)');
+  bg.addColorStop(1, 'rgba(12,13,22,0.0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(px, py, W, H);
+  ctx.fillStyle = wing.hex;
+  ctx.fillRect(px + 18, py + H * 0.5 - 1, W - 36, 2);
+  ctx.font = font('display', 54);
+  ctx.fillStyle = '#f4f7ff';
+  const label = wing.name.toUpperCase();
+  const tracking = 8;
+  const w = measureTracked(ctx, label, tracking);
+  drawTracked(ctx, label, px + (W - w) / 2, py + H * 0.5 - 14, tracking);
+  ctx.font = font('mono', 22, '400');
+  ctx.fillStyle = wing.hex + 'dd';
+  const sub = wing.count + (wing.count === 1 ? ' EXHIBIT' : ' EXHIBITS');
+  const sw = measureTracked(ctx, sub, 4);
+  drawTracked(ctx, sub, px + (W - sw) / 2, py + H * 0.5 + 34, 4);
+  ctx.restore();
+}
+
+/* Build the two atlases and their textures. */
+const labels = { plaque: null, banner: null, plaqueTex: null, bannerTex: null };
+
+function buildAtlases() {
+  const P = CFG.tilePx;
+  const sheet = document.createElement('canvas');
+  sheet.width = CFG.atlasCols * P;
+  sheet.height = CFG.atlasRows * P;
+  const ctx = sheet.getContext('2d');
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  LINKS.forEach((link, i) => {
+    const col = i % CFG.atlasCols, row = Math.floor(i / CFG.atlasCols);
+    drawPlaqueTile(ctx, col * P, row * P, link, i + 1);
+  });
+  labels.plaque = sheet;
+  labels.plaqueTex = new THREE.CanvasTexture(sheet);
+  labels.plaqueTex.encoding = THREE.sRGBEncoding;
+  labels.plaqueTex.minFilter = THREE.LinearFilter;
+  labels.plaqueTex.magFilter = THREE.LinearFilter;
+  labels.plaqueTex.generateMipmaps = false;
+  labels.plaqueTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+
+  const BW = CFG.bannerTile.w, BH = CFG.bannerTile.h;
+  const cloth = document.createElement('canvas');
+  cloth.width = CFG.bannerCols * BW;
+  cloth.height = CFG.bannerRows * BH;
+  const bctx = cloth.getContext('2d');
+  bctx.textBaseline = 'alphabetic';
+  bctx.textAlign = 'left';
+  plan.wings.forEach((wing, i) => {
+    const col = i % CFG.bannerCols, row = Math.floor(i / CFG.bannerCols);
+    drawBannerTile(bctx, col * BW, row * BH, wing);
+  });
+  labels.banner = cloth;
+  labels.bannerTex = new THREE.CanvasTexture(cloth);
+  labels.bannerTex.encoding = THREE.sRGBEncoding;
+  labels.bannerTex.minFilter = THREE.LinearFilter;
+  labels.bannerTex.magFilter = THREE.LinearFilter;
+  labels.bannerTex.generateMipmaps = false;
+}
+
+/* Tile origin for an index in an atlas: canvas textures are flipped in v, so
+   the top row of the canvas sits at the top of the uv square. */
+function tileOrigin(index, cols, rows) {
+  const col = index % cols, row = Math.floor(index / cols);
+  return [col / cols, 1 - (row + 1) / rows];
+}
+
+/* The instanced panel material. One program serves plaques and banners:
+   the front shows its atlas tile, the reverse shows a coloured backing board,
+   and fog is applied by hand because this program opts out of three's chunks. */
+const PANEL_SHADER = {
+  vertex: [
+    'attribute vec2 aTile;',
+    'attribute float aAlpha;',
+    'attribute float aGlow;',
+    'attribute vec3 aWing;',
+    'uniform vec2 uTileSize;',
+    'varying vec2 vUv;',
+    'varying vec2 vLocal;',
+    'varying float vAlpha;',
+    'varying float vGlow;',
+    'varying vec3 vWing;',
+    'varying float vDepth;',
+    'void main(){',
+    '  vLocal = uv;',
+    '  vUv = aTile + uv * uTileSize;',
+    '  vAlpha = aAlpha;',
+    '  vGlow = aGlow;',
+    '  vWing = aWing;',
+    '  vec4 world = vec4(position, 1.0);',
+    '  #ifdef USE_INSTANCING',
+    '    world = instanceMatrix * world;',
+    '  #endif',
+    '  vec4 mv = modelViewMatrix * world;',
+    '  vDepth = -mv.z;',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'
+  ].join('\n'),
+  fragment: [
+    'uniform sampler2D uAtlas;',
+    'uniform vec3 uFogColor;',
+    'uniform float uFogDensity;',
+    'uniform float uBoost;',
+    'varying vec2 vUv;',
+    'varying vec2 vLocal;',
+    'varying float vAlpha;',
+    'varying float vGlow;',
+    'varying vec3 vWing;',
+    'varying float vDepth;',
+    'void main(){',
+    '  vec3 rgb;',
+    '  float alpha;',
+    '  if (gl_FrontFacing) {',
+    '    vec4 tex = texture2D(uAtlas, vUv);',
+    '    if (tex.a * vAlpha < 0.02) discard;',
+    '    float lift = 0.86 + 0.14 * vLocal.y;',                 // light falls from above
+    '    rgb = tex.rgb * lift * (1.0 + vGlow * 0.9);',
+    '    alpha = tex.a * vAlpha;',
+    '  } else {',
+    '    if (vAlpha < 0.02) discard;',
+    '    vec2 q = abs(vLocal - 0.5) * 2.0;',
+    '    float edge = max(q.x, q.y);',
+    '    float frame = smoothstep(0.72, 0.99, edge);',
+    '    float mark = 1.0 - smoothstep(0.04, 0.10, length(vLocal - 0.5));',
+    '    rgb = mix(vec3(0.035, 0.04, 0.075), vWing, frame * 0.7 + mark * 0.85) * (1.0 + vGlow * 0.5);',
+    '    alpha = vAlpha;',
+    '  }',
+    '  float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);',
+    '  rgb = mix(rgb, uFogColor, clamp(fog, 0.0, 1.0));',
+    '  gl_FragColor = vec4(rgb * uBoost, alpha);',
+    '}'
+  ].join('\n')
+};
+
+function panelMaterial(texture, cols, rows, opts) {
+  const options = opts || {};
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uAtlas: { value: texture },
+      uTileSize: { value: new THREE.Vector2(1 / cols, 1 / rows) },
+      uFogColor: { value: new THREE.Color(CFG.fogColor) },
+      uFogDensity: { value: CFG.fogDensity },
+      uBoost: { value: options.boost === undefined ? 1.0 : options.boost }
+    },
+    vertexShader: PANEL_SHADER.vertex,
+    fragmentShader: PANEL_SHADER.fragment,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: options.flat ? false : true
+  });
+}
+
+/* ── 07 · exhibits ───────────────────────────────────────────────────────
+   Eighty-eight exhibits, four draw calls. Each exhibit is a plinth, a frame,
+   a printed plaque and a pool of light on the floor; all four are instanced
+   meshes, and the exhibit's own fade/glow values ride along as per-instance
+   attributes. Everything the room does to an exhibit — filtering, hovering,
+   selecting, the guided tour — funnels through this module. */
+const room = {
+  plinth: null, frame: null, plaque: null, puck: null, banner: null,
+  plaqueMaterial: null, bannerMaterial: null,
+  attr: {}, count: 0, visibleCount: 0
+};
+
+/* Reused matrices: composing 88×5 transforms per change allocates nothing.
+   They are filled in by initThreeScratch() at boot, so a machine without
+   WebGL can still run the whole file — see 99-boot.js. */
+let _m, _q, _v, _s, _up, _flat;
+let raycaster, ndc, projected;
+function initThreeScratch() {
+  _m = new THREE.Matrix4();
+  _q = new THREE.Quaternion();
+  _v = new THREE.Vector3();
+  _s = new THREE.Vector3();
+  _up = new THREE.Vector3(0, 1, 0);
+  _flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  raycaster = new THREE.Raycaster();
+  ndc = new THREE.Vector2();
+  projected = new THREE.Vector3();
+  rig.target = new THREE.Vector3(0, CFG.camTargetY, 0);
+}
+
+/* A plaque's front normal is +Z, so spinning it to the wing's angle plus a
+   half turn points it straight at the middle of the rotunda. */
+const facing = (a) => a + Math.PI;
+
+function compose(mesh, index, x, y, z, rotY, scale) {
+  _v.set(x, y, z);
+  _q.setFromAxisAngle(_up, rotY);
+  _s.set(scale, scale, scale);
+  _m.compose(_v, _q, _s);
+  mesh.setMatrixAt(index, _m);
+}
+function composeBox(mesh, index, x, y, z, rotY, sx, sy, sz) {
+  _v.set(x, y, z);
+  _q.setFromAxisAngle(_up, rotY);
+  _s.set(sx, sy, sz);
+  _m.compose(_v, _q, _s);
+  mesh.setMatrixAt(index, _m);
+}
+function composeFlat(mesh, index, x, y, z, scale) {
+  _v.set(x, y, z);
+  _s.set(scale, scale, scale);
+  _m.compose(_v, _flat, _s);
+  mesh.setMatrixAt(index, _m);
+}
+
+function addPanelAttributes(mesh, count, cols, rows) {
+  const aTile = new THREE.InstancedBufferAttribute(new Float32Array(count * 2), 2);
+  const aAlpha = new THREE.InstancedBufferAttribute(new Float32Array(count).fill(1), 1);
+  const aGlow = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+  const aWing = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
+  mesh.geometry.setAttribute('aTile', aTile);
+  mesh.geometry.setAttribute('aAlpha', aAlpha);
+  mesh.geometry.setAttribute('aGlow', aGlow);
+  mesh.geometry.setAttribute('aWing', aWing);
+  return { aTile, aAlpha, aGlow, aWing, cols, rows };
+}
+function flushPanelAttributes(attr) {
+  attr.aTile.needsUpdate = true;
+  attr.aAlpha.needsUpdate = true;
+  attr.aGlow.needsUpdate = true;
+  attr.aWing.needsUpdate = true;
+}
+
+function buildExhibits() {
+  room.count = LINKS.length;
+
+  /* plinths: unit box stretched to the height each plaque needs */
+  room.plinth = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CFG.plinthW, 1, CFG.plinthW),
+    new THREE.MeshStandardMaterial({ color: 0x1b1f31, roughness: 0.52, metalness: 0.35 }),
+    room.count
+  );
+  /* frames: the mount the plaque sits on, tinted by wing */
+  room.frame = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(CFG.frame.w, CFG.frame.h, CFG.frame.d),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.65 }),
+    room.count
+  );
+  /* light pools */
+  room.puck = new THREE.InstancedMesh(
+    new THREE.CircleGeometry(CFG.puckRadius, 32),
+    new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false
+    }),
+    room.count
+  );
+  /* plaques: the only thing in the room that carries text */
+  const plaqueGeometry = new THREE.PlaneGeometry(CFG.plaque.w, CFG.plaque.h);
+  room.plaqueMaterial = panelMaterial(labels.plaqueTex, CFG.atlasCols, CFG.atlasRows, { boost: 1.06 });
+  room.plaque = new THREE.InstancedMesh(plaqueGeometry, room.plaqueMaterial, room.count);
+  room.plaque.frustumCulled = false;   // instanced bounds are cheap to get wrong, so skip it
+
+  room.attr.plaque = addPanelAttributes(room.plaque, room.count, CFG.atlasCols, CFG.atlasRows);
+
+  const color = new THREE.Color();
+  LINKS.forEach((link, i) => {
+    link._fade = 1;
+    link._glow = 0;
+    const bottom = link._y - CFG.plaque.h / 2;
+    composeBox(room.plinth, i, link._x, (bottom - 0.05) / 2, link._z, link._a, 1, bottom - 0.05, 1);
+    compose(room.frame, i, polarX(link._a, link._r + 0.09), link._y, polarZ(link._a, link._r + 0.09), facing(link._a), 1);
+    compose(room.plaque, i, link._plate.x, link._plate.y, link._plate.z, facing(link._a), 1);
+    composeFlat(room.puck, i, link._x, 0.04, link._z, 1);
+
+    color.setHex(link._wing.color);
+    room.frame.setColorAt(i, color);
+    room.puck.setColorAt(i, color);
+
+    const tile = tileOrigin(i, CFG.atlasCols, CFG.atlasRows);
+    room.attr.plaque.aTile.setXY(i, tile[0], tile[1]);
+    room.attr.plaque.aWing.setXYZ(i, color.r, color.g, color.b);
+    room.attr.plaque.aAlpha.setX(i, 1);
+  });
+
+  [room.plinth, room.frame, room.puck, room.plaque].forEach((mesh) => {
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    scene.add(mesh);
+  });
+  flushPanelAttributes(room.attr.plaque);
+
+  buildBanners();
+  room.visibleCount = room.count;
+}
+
+/* Banners hang above each wing's hall — the way a museum signs a gallery. */
+function buildBanners() {
+  const n = plan.wings.length;
+  const geometry = new THREE.PlaneGeometry(CFG.banner.w, CFG.banner.h);
+  room.bannerMaterial = panelMaterial(labels.bannerTex, CFG.bannerCols, CFG.bannerRows,
+    { boost: 1.0, flat: true });
+  room.banner = new THREE.InstancedMesh(geometry, room.bannerMaterial, n);
+  room.attr.banner = addPanelAttributes(room.banner, n, CFG.bannerCols, CFG.bannerRows);
+  const color = new THREE.Color();
+  plan.wings.forEach((wing, i) => {
+    wing._bannerR = wing.rMax + 4.4;
+    wing._bannerY = wing.rows[0]._y + CFG.bannerLift + CFG.banner.h * 0.5;
+    compose(room.banner, i, polarX(wing.aCenter, wing._bannerR), wing._bannerY,
+      polarZ(wing.aCenter, wing._bannerR), wing.aCenter + Math.PI, 1);
+    const tile = tileOrigin(i, CFG.bannerCols, CFG.bannerRows);
+    room.attr.banner.aTile.setXY(i, tile[0], tile[1]);
+    color.setHex(wing.color);
+    room.attr.banner.aWing.setXYZ(i, color.r, color.g, color.b);
+    room.attr.banner.aAlpha.setX(i, 1);
+    wing._fade = 1;
+  });
+  room.banner.instanceMatrix.needsUpdate = true;
+  scene.add(room.banner);
+}
+
+/* Write one exhibit's matrices for its current fade value. The plinth grows
+   out of the floor and the plaque shrinks into it, so filtering an exhibit
+   away reads as the room tidying itself up. */
+function applyExhibitTransform(i) {
+  const link = LINKS[i];
+  const fade = link._fade;
+  const bottom = link._y - CFG.plaque.h / 2;
+  const height = (bottom - 0.05) * fade;
+  const shrink = Math.max(0.001, fade);   // a filtered exhibit folds away entirely, frame included
+  composeBox(room.plinth, i, link._x, height / 2, link._z, link._a, shrink, Math.max(0.001, height), shrink);
+  compose(room.frame, i, polarX(link._a, link._r + 0.09), link._y, polarZ(link._a, link._r + 0.09),
+    facing(link._a), shrink);
+  compose(room.plaque, i, link._plate.x, link._plate.y, link._plate.z, facing(link._a), shrink);
+  composeFlat(room.puck, i, link._x, 0.04, link._z, fade);
+  room.attr.plaque.aAlpha.setX(i, fade);
+  room.attr.plaque.aGlow.setX(i, link._glow);
+}
+
+/* Called once per animating frame: flush whatever changed onto the GPU. */
+function flushExhibits() {
+  [room.plinth, room.frame, room.puck, room.plaque].forEach((mesh) => {
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+  room.attr.plaque.aAlpha.needsUpdate = true;
+  room.attr.plaque.aGlow.needsUpdate = true;
+}
+
+/* Selection fixtures: a pool of light, a ring on the floor, a beam from the
+   ceiling, and a real point light so the exhibit actually brightens. */
+const mark = { active: false, strength: 0, wing: 0xffffff };
+function moveSelectionMark(index) {
+  if (!state.webgl) return;
+  if (index < 0) { mark.active = false; return; }
+  const link = LINKS[index];
+  mark.active = true;
+  mark.wing = link._wing.color;
+  const tint = new THREE.Color(link._wing.color);
+  world.pool.material.color.copy(tint);
+  world.poolRing.material.color.copy(tint);
+  world.beam.material.uniforms.uTint.value.copy(tint);
+  world.pool.position.set(link._x, 0.06, link._z);
+  world.poolRing.position.set(link._x, 0.08, link._z);
+  world.poolRing.rotation.z = link._a;
+  const beamTop = link._y + 9;
+  world.beam.position.set(link._x, link._y + 4.5, link._z);
+  world.beam.scale.y = (beamTop - (link._y - 4.5)) / 14;
+  world.selectionLight.color.copy(tint);
+  world.selectionLight.position.set(
+    polarX(link._a, link._r - 2.4), link._y + 1.4, polarZ(link._a, link._r - 2.4)
+  );
+}
+function updateSelectionMark(delta) {
+  const target = mark.active ? 1 : 0;
+  if (Math.abs(mark.strength - target) < 0.004) return false;
+  mark.strength += (target - mark.strength) * Math.min(1, delta * 5.5);
+  world.pool.material.opacity = 0.5 * mark.strength;
+  world.poolRing.material.opacity = 0.75 * mark.strength;
+  world.beam.material.uniforms.uOpacity.value = 0.5 * mark.strength;
+  world.selectionLight.intensity = 3.2 * mark.strength;
+  world.pool.scale.setScalar(0.7 + 0.3 * mark.strength);
+  world.poolRing.scale.setScalar(0.86 + 0.14 * mark.strength);
+  return true;
+}
+
+/* ── 08 · camera ─────────────────────────────────────────────────────────
+   A hand-rolled orbit rig: spherical coordinates around a target that can
+   itself move. The museum is a rotunda, so the camera lives inside the ring —
+   plaques face inward, and being outside them means reading their backs. All
+   motion is damped and every jump is an eased flight, which is what makes the
+   difference between a viewer and a camera operator. */
+const rig = {
+  theta: 0,
+  phi: CFG.camPhi,
+  radius: CFG.camMax,
+  target: null,               // THREE.Vector3, filled in by initThreeScratch()
+  goal: null,
+  dragging: false,
+  velocity: { theta: 0, phi: 0 },
+  pan: null
+};
+
+/* Spherical rig: theta points from the target TOWARD the camera. The plaques
+   face the middle of the rotunda, so any pose that looks at something standing
+   at angle `a` puts the camera on the far side of it — hence facingFrom(). */
+const facingFrom = (a) => a + Math.PI;
+
+function rigReset(soft) {
+  flyTo({
+    theta: facingFrom(plan.wings[0].aCenter),
+    phi: CFG.camPhi,
+    radius: CFG.camRadius,
+    target: { x: 0, y: CFG.camTargetY, z: 0 },
+    seconds: soft ? 1.1 : 0.01
+  });
+  rig.goal = null;
+}
+
+/* Fly to a pose. `seconds` 0 snaps. `look` offsets the aim, so a selected
+   exhibit sits left of centre with the info panel breathing room. */
+function flyTo(options) {
+  if (!state.webgl) return;
+  const o = options || {};
+  const seconds = o.seconds === undefined ? CFG.flySeconds : o.seconds;
+  rig.goal = {
+    from: {
+      theta: rig.theta, phi: rig.phi, radius: rig.radius,
+      x: rig.target.x, y: rig.target.y, z: rig.target.z
+    },
+    to: {
+      theta: o.theta === undefined ? rig.theta : o.theta,
+      phi: clamp(o.phi === undefined ? rig.phi : o.phi, 0.18, 1.47),
+      radius: clamp(o.radius === undefined ? rig.radius : o.radius, CFG.camMin, CFG.camMax * 2.4),
+      x: o.target ? o.target.x : rig.target.x,
+      y: o.target ? o.target.y : rig.target.y,
+      z: o.target ? o.target.z : rig.target.z
+    },
+    start: performance.now(),
+    ms: Math.max(0.01, seconds) * 1000,
+    drift: o.drift === undefined ? 0 : o.drift
+  };
+  if (rig.goal.to.theta === undefined) rig.goal.to.theta = rig.theta;
+  state.busy = seconds > 0;
+  state.dirty = true;
+}
+
+/* Pose helper: say where the camera should stand and what it should look at,
+   and the spherical rig works out its own numbers. Far easier to aim a room
+   this way than by pushing theta/phi around. */
+function poseFor(eye, target, seconds) {
+  const dx = eye.x - target.x, dy = eye.y - target.y, dz = eye.z - target.z;
+  const radius = Math.max(CFG.camMin, Math.hypot(dx, dy, dz));
+  flyTo({
+    theta: Math.atan2(dx, dz),          // same polar convention the room uses
+    phi: clamp(Math.acos(clamp(dy / radius, -1, 1)), 0.18, 1.47),
+    radius: radius,
+    target: target,
+    seconds: seconds
+  });
+}
+
+/* Pose that shows one exhibit well: standing inside its arc, off to one side,
+   plaque left of centre so the info panel has room to breathe. */
+function flyToExhibit(index, seconds) {
+  const link = LINKS[index];
+  if (!link) return;
+  const eyeA = link._a + CFG.exhibitSwing;
+  const eyeR = Math.max(CFG.camMin, link._r - CFG.exhibitRange);
+  poseFor(
+    { x: polarX(eyeA, eyeR), y: link._y + CFG.exhibitEyeLift, z: polarZ(eyeA, eyeR) },
+    { x: link._x, y: link._y - 0.35, z: link._z },
+    seconds === undefined ? CFG.flySeconds : seconds
+  );
+}
+
+/* Pose that shows a whole wing: stand inside the ring, a little around from the
+   hall's centre line, and look across at it — the way a wing arrives when you
+   walk in. The oculus core stays out of the way, off the far shoulder. */
+function flyToWing(name, seconds) {
+  const wing = plan.wings.find((w) => w.name === name);
+  if (!wing) return;
+  const eyeA = wing.aCenter + CFG.wingSwing;
+  const eyeR = Math.min(plan.rMin - 6, wing.midR * 0.55);
+  poseFor(
+    { x: polarX(eyeA, eyeR), y: CFG.wingEyeY, z: polarZ(eyeA, eyeR) },
+    { x: polarX(wing.aCenter, wing.midR), y: wing.midY, z: polarZ(wing.aCenter, wing.midR) },
+    seconds === undefined ? 1.5 : seconds
+  );
+}
+
+function updateCamera(delta) {
+  if (rig.goal) {
+    const g = rig.goal;
+    const t = clamp((performance.now() - g.start) / g.ms, 0, 1);
+    const e = easeInOut(t);
+    rig.theta = lerp(g.from.theta, g.to.theta, e);
+    rig.phi = lerp(g.from.phi, g.to.phi, e);
+    rig.radius = lerp(g.from.radius, g.to.radius, e);
+    rig.target.set(
+      lerp(g.from.x, g.to.x, e),
+      lerp(g.from.y, g.to.y, e),
+      lerp(g.from.z, g.to.z, e)
+    );
+    if (g.drift) rig.theta += g.drift * delta;
+    if (t >= 1) {
+      rig.goal = null;
+      state.busy = false;
+    }
+  } else {
+    /* inertia: keep drifting after a drag, settling within a couple of frames */
+    if (!rig.dragging && (Math.abs(rig.velocity.theta) > 1e-5 || Math.abs(rig.velocity.phi) > 1e-5)) {
+      rig.theta += rig.velocity.theta;
+      rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+      rig.velocity.theta *= 0.90;
+      rig.velocity.phi *= 0.90;
+      state.dirty = true;
+    }
+  }
+
+  const sinPhi = Math.sin(rig.phi);
+  camera.position.set(
+    rig.target.x + rig.radius * sinPhi * Math.sin(rig.theta),
+    rig.target.y + rig.radius * Math.cos(rig.phi),
+    rig.target.z + rig.radius * sinPhi * Math.cos(rig.theta)
+  );
+  /* Keep the camera off the floor and inside the innermost ring of exhibits:
+     the plaques face inward, so from outside them you would only ever see the
+     backs of the frames. This one clamp is what makes every pose readable. */
+  camera.position.y = Math.max(0.9, camera.position.y);
+  const worldRadius = Math.hypot(camera.position.x, camera.position.z);
+  const limit = plan.rMin - 2;
+  if (worldRadius > limit) {
+    const k = limit / worldRadius;
+    camera.position.x *= k;
+    camera.position.z *= k;
+  }
+  camera.lookAt(rig.target);
+}
+
+/* — input —————————————————————————————————————————————————──────────────── */
+function orbitBy(dx, dy) {
+  rig.goal = null;
+  rig.velocity.theta = -dx * 0.005;
+  rig.velocity.phi = -dy * 0.005;
+  rig.theta += rig.velocity.theta;
+  rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+  state.dirty = true;
+}
+function zoomBy(factor) {
+  rig.goal = null;
+  rig.radius = clamp(rig.radius * factor, CFG.camMin, CFG.camMax);
+  state.dirty = true;
+}
+
+/* Pointer: drag to orbit, wheel to dolly. A click that barely moved is a pick. */
+function bindStageInput() {
+  const canvas = dom.stage;
+  let last = null, moved = 0, pointerId = null;
+  const pinch = { distance: 0, active: false };
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 && event.pointerType === 'mouse') return;
+    pointerId = event.pointerId;
+    rig.dragging = true;
+    moved = 0;
+    last = { x: event.clientX, y: event.clientY };
+    rig.velocity.theta = rig.velocity.phi = 0;
+    canvas.setPointerCapture(pointerId);
+    document.body.classList.add('dragging');
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (event.pointerType === 'mouse' && !rig.dragging) pickAt(event.clientX, event.clientY, true);
+    if (!rig.dragging || event.pointerId !== pointerId) return;
+    const dx = event.clientX - last.x, dy = event.clientY - last.y;
+    moved += Math.abs(dx) + Math.abs(dy);
+    last = { x: event.clientX, y: event.clientY };
+    orbitBy(dx, dy);
+  });
+  const release = (event) => {
+    if (!rig.dragging) return;
+    rig.dragging = false;
+    document.body.classList.remove('dragging');
+    if (moved < 6) pickAt(event.clientX, event.clientY, false);
+    else announce('Moved the camera.');
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', () => {
+    rig.dragging = false;
+    document.body.classList.remove('dragging');
+  });
+
+  canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoomBy(event.deltaY > 0 ? 1.09 : 0.92);
+  }, { passive: false });
+
+  /* pinch to dolly, two fingers */
+  const pointers = new Map();
+  canvas.addEventListener('pointerdown', (event) => pointers.set(event.pointerId, event));
+  canvas.addEventListener('pointermove', (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, event);
+    if (pointers.size === 2) {
+      const list = Array.from(pointers.values());
+      const distance = Math.hypot(list[0].clientX - list[1].clientX, list[0].clientY - list[1].clientY);
+      if (pinch.distance) zoomBy(pinch.distance / distance);
+      pinch.distance = distance;
+      rig.dragging = false;
+    }
+  });
+  const forget = (event) => { pointers.delete(event.pointerId); pinch.distance = 0; };
+  canvas.addEventListener('pointerup', forget);
+  canvas.addEventListener('pointercancel', forget);
+  canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+}
+
+/* ── 09 · picking ────────────────────────────────────────────────────────
+   Raycasting one InstancedMesh returns the instance id, so hit-testing 88
+   exhibits costs a single ray. Hover lights the plaque and shows a chip; a
+   click selects — the room lights up around the exhibit, the camera walks over
+   and the label opens. Clicking an exhibit that is already open is the gesture
+   for "take me there", so there is no tiny button hiding in the 3D view. */
+/* raycaster, ndc and projected are the shared THREE scratch objects, created
+   by initThreeScratch() in section 07. */
+
+function pickAt(clientX, clientY, hoverOnly) {
+  if (!state.webgl || state.mode !== 'rotunda') return;
+  ndc.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  if (!state.visible.length) { if (hoverOnly) setHover(-1); return; }
+
+  /* Only the plaques are hit-testable: they are the visible face of an
+     exhibit, they are all one mesh, and the instance id is the exhibit id. */
+  const hits = raycaster.intersectObject(room.plaque, false);
+  let found = -1;
+  for (let i = 0; i < hits.length; i++) {
+    const id = hits[i].instanceId;
+    if (id === undefined || id === null) continue;
+    if (!state.visibleSet.has(id)) continue;
+    found = id;
+    break;
+  }
+  if (hoverOnly) { setHover(found, clientX, clientY); return; }
+  if (found >= 0) {
+    if (found === state.selected) openLink(found);
+    else selectExhibit(found, true);
+  } else {
+    closeLabel();
+  }
+}
+
+function setHover(index, clientX, clientY) {
+  if (index !== state.hovered) {
+    /* The glow value is integrated in section 10, so hover, selection and the
+       guided tour cannot end up fighting over the same attribute. */
+    state.hovered = index;
+    if (index >= 0) {
+      const link = LINKS[index];
+      dom.tip.querySelector('.wing').textContent = link.c;
+      dom.tip.querySelector('.nm').textContent = link.n;
+      dom.tip.style.setProperty('--wing', link._wing.hex);
+      dom.tip.classList.add('on');
+      dom.stage.classList.add('pointing');
+      if (state.sound) blip(720, 0.05, 0.025);
+    } else {
+      dom.tip.classList.remove('on');
+      dom.stage.classList.remove('pointing');
+    }
+    state.dirty = true;
+  }
+  if (index >= 0 && clientX !== undefined) moveTip(clientX, clientY);
+}
+
+function moveTip(clientX, clientY) {
+  const w = dom.tip.offsetWidth || 180, h = dom.tip.offsetHeight || 34;
+  dom.tip.style.left = Math.round(clamp(clientX - w / 2, 10, window.innerWidth - w - 10)) + 'px';
+  dom.tip.style.top = Math.round(clamp(clientY - h - 16, 70, window.innerHeight - h - 10)) + 'px';
+}
+
+/* — selection —————————————————————————————————————————————————──────────── */
+function selectExhibit(index, fly) {
+  const link = LINKS[index];
+  if (!link || !state.visibleSet.has(index)) return;
+  state.selected = index;
+  moveSelectionMark(index);
+  paintLabel(link, index);
+  dom.exhibit.classList.add('open');
+  dom.exhibit.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('docked');
+  dom.bloom.classList.add('on');
+  hideCaption();
+  highlightPlan(index);
+  if (fly) flyToExhibit(index);
+  if (state.sound) chime(index);
+  announce('Exhibit ' + (index + 1) + ' of ' + LINKS.length + ': ' + link.n + ', ' + link.c + ' wing.');
+  state.dirty = true;
+}
+
+function paintLabel(link, index) {
+  dom.exhibit.style.setProperty('--wing', link._wing.hex);
+  dom.panel.wing.textContent = link.c;
+  dom.panel.no.textContent = '#' + pad2(index + 1) + ' / ' + LINKS.length;
+  dom.panel.title.textContent = link.n;
+  dom.panel.desc.textContent = link.d;
+  dom.panel.url.textContent = link.u;
+  dom.panel.visit.href = link.u;
+  dom.panel.factWing.textContent = link.c;
+  dom.panel.factDomain.textContent = hostOf(link.u);
+  const favourite = state.favs.has(link.u);
+  dom.panel.star.setAttribute('aria-pressed', favourite ? 'true' : 'false');
+  dom.panel.star.title = favourite ? 'Remove from favourites (F)' : 'Save to favourites (F)';
+  const rank = state.visible.indexOf(index);
+  dom.panel.count.textContent = state.visible.length
+    ? (rank + 1) + ' / ' + state.visible.length
+    : 'none in view';
+  dom.panel.prev.disabled = state.visible.length < 2;
+  dom.panel.next.disabled = state.visible.length < 2;
+}
+
+function closeLabel() {
+  if (state.selected < 0 && !dom.exhibit.classList.contains('open')) return;
+  if (state.tour) stopTour();
+  state.selected = -1;
+  moveSelectionMark(-1);
+  dom.exhibit.classList.remove('open');
+  dom.exhibit.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('docked');
+  dom.bloom.classList.remove('on');
+  highlightPlan(-1);
+  state.dirty = true;
+}
+
+function openLink(index) {
+  const link = LINKS[index];
+  if (!link) return;
+  window.open(link.u, '_blank', 'noopener');
+  if (state.sound) blip(880, 0.07, 0.04);
+  toast('Opened ' + hostOf(link.u));
+  announce('Opened ' + link.n + ' in a new tab.');
+}
+
+/* Step through the room in plan order — arrow keys and the panel's arrows.
+   Wrapping is deliberate: a rotunda has no end. */
+function stepExhibit(delta) {
+  const list = state.visible;
+  if (!list.length) return;
+  const at = list.indexOf(state.selected);
+  const next = at < 0
+    ? (delta > 0 ? list[0] : list[list.length - 1])
+    : list[(at + delta + list.length) % list.length];
+  selectExhibit(next, true);
+}
+
+/* A wing chip can also mean "show me this wing": if nothing from it is on
+   view, fly to the hall itself instead of selecting nothing. */
+function selectNearestInWing(name) {
+  const candidate = state.visible.find((i) => LINKS[i].c === name);
+  if (candidate !== undefined) selectExhibit(candidate, true);
+  else flyToWing(name);
+}
+
+/* Fake bloom: a CSS radial gradient parked over the selected exhibit's
+   projected screen position — light bleed without a post-processing pass. */
+function updateBloom() {
+  if (state.selected < 0) return;
+  const link = LINKS[state.selected];
+  projected.set(link._plate.x, link._plate.y + 0.2, link._plate.z).project(camera);
+  if (projected.z > 1) return;
+  dom.bloom.style.setProperty('--bx', ((projected.x * 0.5 + 0.5) * window.innerWidth).toFixed(1) + 'px');
+  dom.bloom.style.setProperty('--by', ((-projected.y * 0.5 + 0.5) * window.innerHeight).toFixed(1) + 'px');
+  dom.bloom.style.setProperty('--bloom', link._wing.hex + '88');
+}
+
+/* ── 10 · transitions ────────────────────────────────────────────────────
+   Filtering the collection is not a boolean in this room: exhibits rise out of
+   the floor and sink back into it, in a stagger that runs along the arc, so
+   the eye can follow what went where. One target value per exhibit, one
+   integrator per frame. */
+const FADE_SPEED = 3.2;          // per second
+const STAGGER = 0.028;           // seconds between neighbours
+
+function matchesQuery(link, query) {
+  if (!query) return true;
+  return (link.n + ' ' + link.d + ' ' + link.c + ' ' + link.u).toLowerCase().indexOf(query) >= 0;
+}
+
+/* One predicate for every filter — wings, text, favourites — so the 3D room,
+   the chips, the minimap and the catalogue can never disagree. */
+function exhibitIsVisible(link, query) {
+  return state.wingsOn.has(link.c) && passesFavourites(link) && matchesQuery(link, query);
+}
+
+function recomputeVisibility(options) {
+  const opts = options || {};
+  const query = state.query.trim().toLowerCase();
+  const order = [];
+  LINKS.forEach((link, i) => {
+    const keep = exhibitIsVisible(link, query);
+    link._target = keep ? 1 : 0;
+    if (keep) order.push(i);
+  });
+  state.visible = order;
+  state.visibleSet = new Set(order);
+
+  /* Stagger along the arc the camera is facing, so a filter change reads as a
+     wave crossing the room rather than a blink. (theta points from the target
+     to the camera, so the exhibits in view sit half a turn away from it.) */
+  const facingCamera = rig.theta + Math.PI;
+  order.sort((a, b) => angularDistance(LINKS[a]._a, facingCamera) - angularDistance(LINKS[b]._a, facingCamera));
+  order.forEach((i, rank) => { LINKS[i]._delay = rank * STAGGER; });
+  LINKS.forEach((link) => { link._delay = state.visibleSet.has(link._i) ? link._delay : 0; });
+
+  plan.wings.forEach((wing) => {
+    wing._target = state.wingsOn.has(wing.name) && countInWing(wing, query) > 0 ? 1 : 0;
+  });
+
+  if (state.selected >= 0 && !state.visibleSet.has(state.selected)) closeLabel();
+
+  /* Everything below this line talks to the room, which does not exist when
+     the machine fell back to the catalogue. */
+  if (state.webgl) {
+    room.visibleCount = state.visible.length;
+    syncPlanDots();
+    if (opts.instant) {
+      LINKS.forEach((link, i) => {
+        link._fade = link._target;
+        link._delay = 0;
+        applyExhibitTransform(i);
+      });
+      plan.wings.forEach((wing) => { wing._fade = wing._target; });
+      applyWingFades();
+      flushExhibits();
+    }
+  }
+  state.dirty = true;
+  state.busy = state.webgl;
+  dom.statValues.vis.textContent = state.visible.length + ' / ' + LINKS.length;
+  updateChips();
+  if (state.mode === 'catalogue') paintCatalogue();
+}
+
+function countInWing(wing, query) {
+  let shown = 0;
+  wing.items.forEach((i) => {
+    const link = LINKS[i];
+    if (passesFavourites(link) && matchesQuery(link, query)) shown++;
+  });
+  return shown;
+}
+
+function angularDistance(a, b) {
+  let d = Math.abs(a - b) % TAU;
+  return d > Math.PI ? TAU - d : d;
+}
+
+/* Returns true while anything is still moving — the render loop uses that to
+   decide whether to keep drawing every frame or drop back to a heartbeat. */
+function animateFades(delta, elapsed) {
+  let moving = false;
+  for (let i = 0; i < LINKS.length; i++) {
+    const link = LINKS[i];
+
+    /* light: the selected exhibit breathes, the hovered one lifts, the rest
+       sit neutral. Central here so hover, selection and the tour all agree. */
+    const glowGoal = state.selected === i
+      ? 0.52 + 0.14 * Math.sin(elapsed * 2.4)
+      : (state.hovered === i ? 0.85 : 0);
+    if (Math.abs(link._glow - glowGoal) > 0.006) {
+      link._glow += (glowGoal - link._glow) * Math.min(1, delta * 7);
+      room.attr.plaque.aGlow.setX(i, link._glow);
+      moving = true;
+    }
+
+    if (link._delay > 0) { link._delay -= delta; moving = true; continue; }
+    const gap = link._target - link._fade;
+    if (Math.abs(gap) > 0.003) {
+      link._fade += gap * Math.min(1, delta * FADE_SPEED);
+      applyExhibitTransform(i);
+      moving = true;
+    } else if (link._fade !== link._target) {
+      link._fade = link._target;
+      applyExhibitTransform(i);
+      moving = true;
+    }
+  }
+  plan.wings.forEach((wing) => {
+    const gap = wing._target - wing._fade;
+    if (Math.abs(gap) > 0.004) {
+      wing._fade += gap * Math.min(1, delta * FADE_SPEED);
+      moving = true;
+    } else if (wing._fade !== wing._target) wing._fade = wing._target;
+  });
+  if (moving) {
+    applyWingFades();
+    flushExhibits();
+  }
+  return moving;
+}
+
+/* A wing's banner and its lit lip ride along with its exhibits. */
+function applyWingFades() {
+  plan.wings.forEach((wing, i) => {
+    room.attr.banner.aAlpha.setX(i, wing._fade);
+    compose(room.banner, i,
+      polarX(wing.aCenter, wing._bannerR), wing._bannerY, polarZ(wing.aCenter, wing._bannerR),
+      wing.aCenter + Math.PI, 0.9 + 0.1 * wing._fade);
+    const rim = world.rims[i * 2], inner = world.rims[i * 2 + 1];
+    rim.material.opacity = 0.55 * wing._fade;
+    inner.material.opacity = 0.18 * wing._fade;
+    rim.visible = wing._fade > 0.02;
+    inner.visible = wing._fade > 0.02;
+  });
+  room.attr.banner.aAlpha.needsUpdate = true;
+  room.banner.instanceMatrix.needsUpdate = true;
+}
+
+/* Staggered opening: the room assembles itself wing by wing behind the
+   curtain, so the first thing you see is a building putting itself together. */
+function assembleRoom() {
+  const sorted = plan.wings.slice().sort((a, b) => a.aCenter - b.aCenter);
+  LINKS.forEach((link) => { link._fade = 0; link._target = 1; link._delay = 0; });
+  plan.wings.forEach((wing) => { wing._fade = 0; wing._target = 1; });
+  sorted.forEach((wing, order) => {
+    wing.items.forEach((i, k) => {
+      LINKS[i]._delay = REDUCED_MOTION ? 0 : order * 0.11 + k * 0.055;
+    });
+  });
+  applyWingFades();
+  flushExhibits();
+}
+
+/* ── 11 · interface ──────────────────────────────────────────────────────
+   Every control in the chrome, plus the keyboard map and the optional sound.
+   Nothing in this section touches geometry: the UI asks the room to do
+   something through the verbs defined earlier (selectExhibit, flyToWing,
+   recomputeVisibility), which keeps the 3D code readable on its own. */
+
+/* — sound —————————————————————————————————————————————————──────────────── */
+/* A few oscillators instead of samples: an ambient chord for the room and a
+   short pluck whose pitch is keyed to the exhibit's place in the collection.
+   Off by default, and the AudioContext is only created on a user gesture. */
+let audio = null;
+function ensureAudio() {
+  if (audio) return audio;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  audio = { ctx: new Ctx(), master: null, drone: null };
+  audio.master = audio.ctx.createGain();
+  audio.master.gain.value = 0.5;
+  audio.master.connect(audio.ctx.destination);
+  return audio;
+}
+
+function blip(frequency, duration, gain) {
+  if (!state.sound) return;
+  const a = ensureAudio();
+  if (!a) return;
+  const now = a.ctx.currentTime;
+  const osc = a.ctx.createOscillator();
+  const env = a.ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(frequency, now);
+  env.gain.setValueAtTime(0.0001, now);
+  env.gain.linearRampToValueAtTime(gain, now + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(env).connect(a.master);
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
+}
+
+const SCALE = [0, 3, 5, 7, 10, 12, 15];        // pentatonic: any two sound right together
+function chime(index) {
+  if (!state.sound) return;
+  const step = SCALE[index % SCALE.length] + 12 * (Math.floor(index / SCALE.length) % 2);
+  blip(392 * Math.pow(2, step / 12), 0.5, 0.05);
+  blip(196 * Math.pow(2, step / 12), 0.9, 0.028);
+}
+
+function startDrone() {
+  const a = ensureAudio();
+  if (!a || audio.drone) return;
+  const bus = a.ctx.createGain();
+  bus.gain.value = 0;
+  bus.connect(a.master);
+  const voices = [55, 82.5, 110, 164.8].map((frequency, i) => {
+    const osc = a.ctx.createOscillator();
+    osc.type = i % 2 ? 'sine' : 'triangle';
+    osc.frequency.value = frequency;
+    const level = a.ctx.createGain();
+    level.gain.value = 0.34 / (i + 1);
+    /* a slow LFO on each voice's gain keeps the chord breathing */
+    const lfo = a.ctx.createOscillator();
+    lfo.frequency.value = 0.045 + i * 0.017;
+    const depth = a.ctx.createGain();
+    depth.gain.value = 0.1 / (i + 1);
+    lfo.connect(depth).connect(level.gain);
+    osc.connect(level).connect(bus);
+    osc.start(); lfo.start();
+    return [osc, lfo];
+  });
+  bus.gain.linearRampToValueAtTime(0.09, a.ctx.currentTime + 3);
+  audio.drone = { bus: bus, voices: voices };
+}
+
+function stopDrone() {
+  if (!audio || !audio.drone) return;
+  const dying = audio.drone;
+  audio.drone = null;
+  const now = audio.ctx.currentTime;
+  dying.bus.gain.cancelScheduledValues(now);
+  dying.bus.gain.linearRampToValueAtTime(0, now + 0.7);
+  setTimeout(() => dying.voices.forEach((pair) => pair.forEach((node) => node.stop())), 900);
+}
+
+function toggleSound() {
+  state.sound = !state.sound;
+  dom.buttons.sound.setAttribute('aria-pressed', state.sound ? 'true' : 'false');
+  if (state.sound) {
+    const a = ensureAudio();
+    if (a && a.ctx.state === 'suspended') a.ctx.resume();
+    startDrone();
+    toast('Room tone on');
+  } else {
+    stopDrone();
+    toast('Room tone off');
+  }
+  state.dirty = true;
+}
+
+/* — wing chips ——————————————————————————————————————————————──────────────── */
+function buildChips() {
+  const fragment = document.createDocumentFragment();
+  plan.wings.forEach((wing) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.style.setProperty('--wing', wing.hex);
+    chip.setAttribute('aria-pressed', 'false');
+    chip.innerHTML = '<i class="dot"></i><span>' + esc(wing.name) + '</span><span class="n"></span>';
+    chip.title = 'Solo the ' + wing.name + ' wing — click it again to open the whole room';
+    chip.addEventListener('click', () => soloWing(wing.name));
+    wing._chip = chip;
+    fragment.appendChild(chip);
+  });
+  dom.chips.appendChild(fragment);
+}
+
+/* One wing at a time is the natural way to read a rotunda: the hall you are
+   standing in, and nothing else. Clicking the soloed wing opens it up again. */
+function soloWing(name) {
+  const only = state.wingsOn.size === 1 && state.wingsOn.has(name);
+  state.wingsOn.clear();
+  if (only) plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
+  else state.wingsOn.add(name);
+  recomputeVisibility();
+  flyToWing(only ? null : name, 1.0);
+  blip(520, 0.06, 0.03);
+  announce(only ? 'All wings shown.' : 'Soloed the ' + name + ' wing.');
+}
+
+function updateChips() {
+  const query = state.query.trim().toLowerCase();
+  const soloed = state.wingsOn.size !== plan.wings.length;
+  plan.wings.forEach((wing) => {
+    const shown = countInWing(wing, query);
+    const chip = wing._chip;
+    if (!chip) return;
+    chip.querySelector('.n').textContent = shown;
+    chip.classList.toggle('empty', shown === 0);
+    chip.setAttribute('aria-pressed', soloed && state.wingsOn.has(wing.name) ? 'true' : 'false');
+  });
+  dom.meta.innerHTML = state.visible.length === LINKS.length && !state.favouritesOnly
+    ? LINKS.length + ' exhibits · ' + plan.wings.length + ' wings'
+    : '<b>' + state.visible.length + '</b> of ' + LINKS.length + ' in view';
+}
+
+/* — search ————————————————————————————————————————————————────────────────── */
+let searchFrame = 0;
+function onSearchInput() {
+  state.query = dom.search.value;
+  dom.searchClear.classList.toggle('show', state.query.length > 0);
+  renderResults();
+  /* one frame of coalescing: typing should never re-shade the room per keystroke */
+  cancelAnimationFrame(searchFrame);
+  searchFrame = requestAnimationFrame(() => recomputeVisibility());
+}
+
+function renderResults() {
+  const query = state.query.trim();
+  if (!query) { dom.results.classList.remove('open'); dom.results.innerHTML = ''; return; }
+  const lower = query.toLowerCase();
+  const hits = [];
+  LINKS.forEach((link, i) => {
+    if (exhibitIsVisible(link, lower)) hits.push(i);
+  });
+  state.results = hits.slice(0, 12);
+  state.cursor = state.results.length ? 0 : -1;
+  if (!hits.length) {
+    dom.results.innerHTML = '<div class="none">Nothing in the collection matches “' + esc(query) + '”.</div>';
+  } else {
+    const rows = state.results.map((i) => {
+      const link = LINKS[i];
+      return '<div class="result' + (i === state.results[0] ? ' cursor' : '') + '"' +
+        ' data-index="' + i + '" style="--wing:' + link._wing.hex + '">' +
+        '<i class="dot"></i><span class="nm">' + highlight(link.n, query) + '</span>' +
+        '<span class="wing">' + esc(link.c) + '</span></div>';
+    });
+    rows.push(hits.length > state.results.length
+      ? '<div class="none">' + (hits.length - state.results.length) + ' more — keep typing</div>' : '');
+    dom.results.innerHTML = rows.join('');
+  }
+  dom.results.classList.add('open');
+}
+
+function moveResultCursor(delta) {
+  if (!state.results || !state.results.length) return;
+  state.cursor = (state.cursor + delta + state.results.length) % state.results.length;
+  const rows = dom.results.querySelectorAll('.result');
+  for (let i = 0; i < rows.length; i++) rows[i].classList.toggle('cursor', i === state.cursor);
+  if (rows[state.cursor]) rows[state.cursor].scrollIntoView({ block: 'nearest' });
+}
+
+function chooseResult() {
+  if (!state.results || !state.results.length) return;
+  const index = state.results[clamp(state.cursor, 0, state.results.length - 1)];
+  dom.results.classList.remove('open');
+  selectExhibit(index, true);
+}
+
+function clearSearch() {
+  dom.search.value = '';
+  state.query = '';
+  dom.searchClear.classList.remove('show');
+  dom.results.classList.remove('open');
+  recomputeVisibility();
+}
+
+/* — favourites ———————————————————————————————————————————────────────────── */
+function loadFavourites() {
+  const saved = store.read('favorites');
+  if (Array.isArray(saved)) saved.forEach((url) => state.favs.add(url));
+}
+
+function toggleFavourite(index) {
+  const link = LINKS[index];
+  if (!link) return;
+  const saving = !state.favs.has(link.u);
+  if (saving) state.favs.add(link.u); else state.favs.delete(link.u);
+  store.write('favorites', Array.from(state.favs));
+  toast(saving ? 'Saved ' + link.n + ' to favourites' : 'Removed ' + link.n + ' from favourites');
+  if (state.selected === index) paintLabel(link, index);
+  if (state.mode === 'catalogue') paintCatalogue();
+  if (state.favouritesOnly) recomputeVisibility();
+  updateChips();
+  announce(saving ? 'Saved to favourites.' : 'Removed from favourites.');
+  blip(saving ? 1046 : 392, 0.09, 0.04);
+}
+
+function toggleFavouritesOnly() {
+  state.favouritesOnly = !state.favouritesOnly;
+  if (state.favouritesOnly && !state.favs.size) {
+    state.favouritesOnly = false;
+    toast('No favourites yet — press F while an exhibit is open');
+    return;
+  }
+  toast(state.favouritesOnly ? 'Showing ' + state.favs.size + ' favourites' : 'Showing the whole collection');
+  recomputeVisibility();
+}
+
+/* `onlyFavourites` is a filter like any other, so it lives inside the
+   predicate the visibility solver already uses. */
+function passesFavourites(link) {
+  return !state.favouritesOnly || state.favs.has(link.u);
+}
+
+/* — mode ──────────────────────────────────────────────────────────────────── */
+function setMode(mode) {
+  if (state.mode === mode) return;
+  state.mode = mode;
+  document.body.classList.toggle('mode-catalogue', mode === 'catalogue');
+  dom.buttons.catalogue.setAttribute('aria-pressed', mode === 'catalogue' ? 'true' : 'false');
+  if (mode === 'catalogue') {
+    paintCatalogue();
+    dom.catalogue.scrollTop = 0;
+    announce('Catalogue view: a readable list of every exhibit in view.');
+  } else {
+    announce('Back to the rotunda.');
+    flyToWing(null, 0.9);
+  }
+  state.dirty = true;
+}
+
+/* — caption (the tour's subtitles) —————————————————───────────────────────── */
+function showCaption(index) {
+  const link = LINKS[index];
+  dom.caption.style.setProperty('--wing', link._wing.hex);
+  dom.caption.querySelector('.wing').textContent = link.c + ' wing';
+  dom.caption.querySelector('.nm').textContent = link.n;
+  dom.caption.querySelector('.d').textContent = link.d;
+  dom.caption.classList.add('on');
+}
+function hideCaption() { dom.caption.classList.remove('on'); }
+
+/* — help + stats —————————————————————————————————─────────────────────────── */
+function toggleHelp(open) {
+  const show = open === undefined ? !dom.help.classList.contains('open') : open;
+  dom.help.classList.toggle('open', show);
+  dom.help.setAttribute('aria-hidden', show ? 'false' : 'true');
+  if (show) dom.buttons.helpClose.focus();
+}
+
+function toggleStats() {
+  state.stats = !state.stats;
+  dom.stats.classList.toggle('on', state.stats);
+  state.dirty = true;
+}
+
+/* — keyboard and the wing key ——————————————————————————───────────────────── */
+/* The help sheet's colour key: every wing, in plan order, with how many
+   exhibits it holds. Built from the plan so it can never drift from the room. */
+function buildHelpLegend() {
+  dom.helpLegend.innerHTML = plan.wings.map((wing) =>
+    '<i style="--wing:' + WING_HEX[wing.name] + '"><s></s>' + esc(wing.name) +
+    ' <em>' + wing.count + '</em></i>'
+  ).join('');
+}
+
+function onKeydown(event) {
+  const typing = event.target === dom.search;
+  if (event.key === 'Escape') {
+    if (dom.help.classList.contains('open')) toggleHelp(false);
+    else if (dom.search.value) clearSearch();
+    else if (dom.results.classList.contains('open')) dom.results.classList.remove('open');
+    else if (state.mode === 'catalogue') setMode('rotunda');
+    else closeLabel();
+    return;
+  }
+  if (typing) {
+    if (event.key === 'ArrowDown') { moveResultCursor(1); event.preventDefault(); }
+    else if (event.key === 'ArrowUp') { moveResultCursor(-1); event.preventDefault(); }
+    else if (event.key === 'Enter') { chooseResult(); event.preventDefault(); }
+    return;
+  }
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+  switch (event.key) {
+    case '/': dom.search.focus(); dom.search.select(); event.preventDefault(); break;
+    case 't': case 'T': toggleTour(); break;
+    case 's': case 'S': randomExhibit(); break;
+    case 'c': case 'C': setMode(state.mode === 'catalogue' ? 'rotunda' : 'catalogue'); break;
+    case 'f': case 'F':
+      if (state.selected >= 0) toggleFavourite(state.selected);
+      else toast('Open an exhibit first — click any plaque');
+      break;
+    case 'm': case 'M': toggleFavouritesOnly(); break;
+    case 'r': case 'R': rigReset(); flyToWing(null, 0.9); toast('View reset'); break;
+    case 'v': case 'V': if (state.webgl) toggleStats(); break;
+    case '?': case 'h': case 'H': toggleHelp(); break;
+    case 'ArrowLeft': stepExhibit(-1); event.preventDefault(); break;
+    case 'ArrowRight': stepExhibit(1); event.preventDefault(); break;
+    case 'ArrowUp': zoomBy(-1); event.preventDefault(); break;
+    case 'ArrowDown': zoomBy(1); event.preventDefault(); break;
+    case 'a': case 'A': orbitBy(-0.3); break;
+    case 'd': case 'D': orbitBy(0.3); break;
+    default: break;
+  }
+}
+
+function randomExhibit() {
+  if (!state.visible.length) { toast('Nothing in view to jump to'); return; }
+  stopTour();
+  const pick = state.visible[Math.floor(Math.random() * state.visible.length)];
+  selectExhibit(pick, true);
+  toast('Surprise: ' + LINKS[pick].n);
+}
+
+/* — copy the address ─————————————————————──────────────────────────────────── */
+function copyUrl(link) {
+  if (!link) return;
+  const done = () => { toast('Copied ' + link.u); blip(660, 0.06, 0.03); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link.u).then(done, () => fallbackCopy(link.u, done));
+  } else fallbackCopy(link.u, done);
+}
+function fallbackCopy(text, done) {
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.setAttribute('readonly', '');
+  field.style.cssText = 'position:fixed;top:-20px;opacity:0';
+  document.body.appendChild(field);
+  field.select();
+  try { document.execCommand('copy'); done(); }
+  catch (error) { toast('Copy blocked — select the address manually'); }
+  document.body.removeChild(field);
+}
+
+/* — wire the chrome ———————————————————————────────────────────────────────── */
+function bindChrome() {
+  dom.search.addEventListener('input', onSearchInput);
+  dom.search.addEventListener('focus', () => { if (state.query) renderResults(); });
+  dom.searchClear.addEventListener('click', () => { clearSearch(); dom.search.focus(); });
+  dom.results.addEventListener('click', (event) => {
+    const row = event.target.closest('.result');
+    if (!row) return;
+    state.cursor = state.results.indexOf(Number(row.dataset.index));
+    chooseResult();
+  });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.search')) dom.results.classList.remove('open');
+  });
+
+  dom.buttons.tour.addEventListener('click', toggleTour);
+  dom.buttons.random.addEventListener('click', randomExhibit);
+  dom.buttons.catalogue.addEventListener('click', () =>
+    setMode(state.mode === 'catalogue' ? 'rotunda' : 'catalogue'));
+  dom.buttons.sound.addEventListener('click', toggleSound);
+  dom.buttons.reset.addEventListener('click', () => { rigReset(); flyToWing(null, 0.9); });
+  dom.buttons.help.addEventListener('click', () => toggleHelp());
+  dom.buttons.helpClose.addEventListener('click', () => toggleHelp(false));
+  dom.help.addEventListener('click', (event) => { if (event.target === dom.help) toggleHelp(false); });
+
+  dom.panel.close.addEventListener('click', closeLabel);
+  dom.panel.prev.addEventListener('click', () => stepExhibit(-1));
+  dom.panel.next.addEventListener('click', () => stepExhibit(1));
+  dom.panel.star.addEventListener('click', () => { if (state.selected >= 0) toggleFavourite(state.selected); });
+  dom.panel.url.addEventListener('click', () => copyUrl(LINKS[state.selected]));
+  dom.panel.url.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      copyUrl(LINKS[state.selected]);
+      event.preventDefault();
+    }
+  });
+  document.addEventListener('keydown', onKeydown);
+}
+
+/* ── 12 · catalogue ──────────────────────────────────────────────────────
+   The readable version of the same collection: press C and the rotunda becomes
+   a list. It is not a consolation screen — it is how you actually browse 88
+   items quickly — and it is driven by exactly the same filter, so the two
+   views are always in agreement. */
+
+function catalogueMarkup() {
+  const query = state.query.trim();
+  const lower = query.toLowerCase();
+  const saved = state.favs.size;
+
+  const intro =
+    '<div class="cat-intro">' +
+      '<h2>' + state.visible.length + ' of ' + LINKS.length + ' exhibits, in the order they stand around the room</h2>' +
+      '<p>The same collection as the rotunda, in type. Wings run in plan order, clockwise from ' +
+      'the entrance; the accession number in the corner of each card is the number painted on ' +
+      'its plaque. Anything filtered out in the room is dimmed here too.</p>' +
+      '<div class="keys">' +
+        '<span>' + LINKS.length + ' exhibits</span>' +
+        '<span>' + plan.wings.length + ' wings</span>' +
+        '<span>' + saved + ' saved</span>' +
+        '<span>' + (query ? 'filtered by “' + esc(query) + '”' : 'no filter') + '</span>' +
+      '</div>' +
+    '</div>';
+
+  const blocks = plan.wings.map((wing) => {
+    const shown = countInWing(wing, lower);
+    const lit = state.wingsOn.has(wing.name);
+    const cards = wing.items.map((i) => {
+      const link = LINKS[i];
+      const hit = query && matchesQuery(link, lower);
+      return '<article class="card' + (hit ? ' hit' : '') + '" data-index="' + i + '"' +
+          ' aria-fav="' + (state.favs.has(link.u) ? 'true' : 'false') + '"' +
+          ' style="--wing:' + link._wing.hex + '" tabindex="0">' +
+        '<div class="top">' +
+          '<span class="no">#' + pad2(i + 1) + '</span>' +
+          '<span class="nm">' + (query ? highlight(link.n, query) : esc(link.n)) + '</span>' +
+          '<button class="fav" type="button" data-act="fav" title="Save to favourites" aria-label="Save ' + esc(link.n) + ' to favourites">★</button>' +
+        '</div>' +
+        '<p class="d">' + esc(link.d) + '</p>' +
+        '<div class="u">' + esc(hostOf(link.u)) + '</div>' +
+        '<div class="row">' +
+          '<a href="' + esc(link.u) + '" target="_blank" rel="noopener noreferrer">Open ↗</a>' +
+          '<button type="button" data-act="room">View in the room</button>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+
+    return '<section class="wing-block' + (lit && shown ? '' : ' dimmed') + '"' +
+        ' style="--wing:' + wing.hex + '" id="cat-' + wing._id + '">' +
+      '<header class="wing-head">' +
+        '<i class="dot"></i><h3>' + esc(wing.name) + '</h3>' +
+        '<span class="sub">' + shown + ' / ' + wing.items.length + ' exhibits · radius ' + Math.round(wing.rMax) + 'm</span>' +
+        '<button class="jump" type="button" data-wing="' + esc(wing.name) + '">Stand in this wing →</button>' +
+      '</header>' +
+      '<div class="grid">' + cards + '</div>' +
+    '</section>';
+  }).join('');
+
+  return intro + blocks;
+}
+
+function paintCatalogue() {
+  dom.catalogue.innerHTML = catalogueMarkup();
+}
+
+/* One delegated listener for the whole list: cards, stars and the wing
+   shortcuts are all recognised from the markup itself. */
+function bindCatalogue() {
+  dom.catalogue.addEventListener('click', (event) => {
+    const jump = event.target.closest('[data-wing]');
+    if (jump) {
+      setMode('rotunda');
+      flyToWing(jump.dataset.wing, 1.4);
+      return;
+    }
+    const card = event.target.closest('.card');
+    if (!card) return;
+    const index = Number(card.dataset.index);
+    const action = event.target.closest('[data-act]');
+    if (action && action.dataset.act === 'fav') { toggleFavourite(index); return; }
+    if (action && action.dataset.act === 'room') {
+      setMode('rotunda');
+      requestAnimationFrame(() => selectExhibit(index, true));
+      return;
+    }
+    /* clicking the card body itself is the "take me there" gesture */
+    setMode('rotunda');
+    requestAnimationFrame(() => selectExhibit(index, true));
+  });
+
+  dom.catalogue.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const card = event.target.closest('.card');
+    if (!card) return;
+    setMode('rotunda');
+    requestAnimationFrame(() => selectExhibit(Number(card.dataset.index), true));
+    event.preventDefault();
+  });
+}
+
+/* ── 13 · plan view ──────────────────────────────────────────────────────
+   A drawn plan in the corner, not a rendered minimap: twelve wedges, eighty
+   eight dots and a marker for where you are standing. It is also an input —
+   click a wing to walk into it, click a dot to open that exhibit — which
+   makes the whole collection navigable in one gesture. */
+const PLAN_NS = 'http://www.w3.org/2000/svg';
+const PLAN_R = 50;                     // svg units of clearance inside the viewBox
+const planRefs = { beam: null, you: null, selected: null };
+let planScale = 1;                     // world metres → svg units, set from the plan
+
+function planPoint(angle, radius) {
+  /* the same polar convention the room uses, so the plan and the view agree */
+  return { x: Math.sin(angle) * radius * planScale, y: Math.cos(angle) * radius * planScale };
+}
+
+function svgTag(name, attrs) {
+  const node = document.createElementNS(PLAN_NS, name);
+  for (const key in attrs) node.setAttribute(key, attrs[key]);
+  return node;
+}
+
+/* a wedge of the plan, drawn as an arc band between two radii */
+function arcBandPath(aStart, aEnd, rIn, rOut) {
+  const p1 = planPoint(aStart, rOut), p2 = planPoint(aEnd, rOut);
+  const q1 = planPoint(aEnd, rIn), q2 = planPoint(aStart, rIn);
+  const sweep = aEnd - aStart > Math.PI ? 1 : 0;
+  const outer = (rOut * planScale).toFixed(2), inner = (rIn * planScale).toFixed(2);
+  return 'M ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2) +
+    ' A ' + outer + ' ' + outer + ' 0 ' + sweep + ' 1 ' + p2.x.toFixed(2) + ' ' + p2.y.toFixed(2) +
+    ' L ' + q1.x.toFixed(2) + ' ' + q1.y.toFixed(2) +
+    ' A ' + inner + ' ' + inner + ' 0 ' + sweep + ' 0 ' + q2.x.toFixed(2) + ' ' + q2.y.toFixed(2) + ' Z';
+}
+
+function buildPlan() {
+  planScale = PLAN_R / plan.wallR;
+  const svg = dom.planSvg;
+  svg.innerHTML = '';
+
+  /* the rotunda itself: floor edge, camera clearance and the oculus */
+  svg.appendChild(svgTag('circle', {
+    cx: 0, cy: 0, r: PLAN_R.toFixed(2),
+    fill: 'none', stroke: 'rgba(255,255,255,.10)', 'stroke-width': 0.7
+  }));
+  svg.appendChild(svgTag('circle', {
+    cx: 0, cy: 0, r: (plan.camMax * planScale).toFixed(2),
+    fill: 'none', stroke: 'rgba(255,255,255,.07)', 'stroke-width': 0.5, 'stroke-dasharray': '1.5 2'
+  }));
+  svg.appendChild(svgTag('circle', { cx: 0, cy: 0, r: 3, fill: 'rgba(147,180,255,.16)' }));
+
+  plan.wings.forEach((wing) => {
+    const group = svgTag('g', {});
+    group.appendChild(svgTag('path', {
+      d: arcBandPath(wing.aStart, wing.aStart + wing.aSpan, wing.rMin - 1.6, wing.rMax + 1.6),
+      fill: wing.hex, opacity: 0.16
+    }));
+    /* an invisible wedge from the centre outwards: the clickable part */
+    const hit = svgTag('path', {
+      d: arcBandPath(wing.aStart, wing.aStart + wing.aSpan, 3.2, wing.rMax + 1.6),
+      class: 'wedge-hit'
+    });
+    hit.addEventListener('click', () => { flyToWing(wing.name, 1.2); soloWing(wing.name); });
+    group.appendChild(hit);
+    svg.appendChild(group);
+  });
+
+  /* exhibit dots — small enough to read as a collection, big enough to hit */
+  LINKS.forEach((link) => {
+    const at = planPoint(link._a, link._r);
+    const dot = svgTag('circle', {
+      cx: at.x.toFixed(2), cy: at.y.toFixed(2), r: 0.95,
+      class: 'dot', fill: link._wing.hex, opacity: 1
+    });
+    dot.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectExhibit(link._i, true);
+    });
+    link._dot = dot;
+    svg.appendChild(dot);
+  });
+
+  /* view cone + you-are-here marker, moved by the render loop */
+  planRefs.beam = svgTag('path', { class: 'beam', d: 'M 0 0 L 0 0 L 0 0 Z' });
+  planRefs.you = svgTag('circle', { class: 'you', cx: 0, cy: 0, r: 1.7 });
+  svg.appendChild(planRefs.beam);
+  svg.appendChild(planRefs.you);
+
+  dom.planNote.textContent = 'click a wing to walk in';
+}
+
+/* Dots fade with the filter. CSS transitions do the easing, and the stagger
+   delay is recomputed here so the plan animates in step with the room. */
+function syncPlanDots() {
+  LINKS.forEach((link) => {
+    if (!link._dot) return;
+    const rank = state.visible.indexOf(link._i);
+    link._dot.style.transitionDelay = (rank >= 0 ? Math.min(rank, 24) * 0.028 : 0) + 's';
+    link._dot.setAttribute('opacity', rank >= 0 ? 0.95 : 0.07);
+  });
+  const shown = plan.wings.filter((wing) => state.wingsOn.has(wing.name)).length;
+  dom.planNote.textContent = shown === plan.wings.length
+    ? 'click a wing to walk in'
+    : shown + ' of ' + plan.wings.length + ' wings lit';
+}
+
+function highlightPlan(index) {
+  if (planRefs.selected) {
+    planRefs.selected.setAttribute('r', 0.95);
+    planRefs.selected.removeAttribute('stroke');
+    planRefs.selected.removeAttribute('stroke-width');
+  }
+  const dot = index >= 0 && LINKS[index] ? LINKS[index]._dot : null;
+  planRefs.selected = dot || null;
+  if (dot) {
+    dot.setAttribute('r', 2.1);
+    dot.setAttribute('stroke', '#ffffff');
+    dot.setAttribute('stroke-width', 0.55);
+  }
+}
+
+/* Called every frame: a marker for the camera and a triangle for what it is
+   looking at. Two attribute writes, no DOM churn. The marker is read from the
+   camera itself, so it stays honest however the rig is posed. */
+function updatePlanMarker() {
+  if (!planRefs.you || state.mode !== 'rotunda') return;
+  const worldAngle = Math.atan2(camera.position.x, camera.position.z);
+  const worldRadius = Math.hypot(camera.position.x, camera.position.z);
+  const here = planPoint(worldAngle, worldRadius);
+  planRefs.you.setAttribute('cx', here.x.toFixed(2));
+  planRefs.you.setAttribute('cy', here.y.toFixed(2));
+
+  /* view cone: from where you stand, half a field of view either way, out to
+     the far wall — enough to see which exhibits you are facing. */
+  const half = (CFG.camFov * Math.PI / 180) * 0.9;
+  const reach = plan.wallR;
+  const towards = Math.atan2(rig.target.x - camera.position.x, rig.target.z - camera.position.z);
+  const a = planPoint(towards - half, reach), b = planPoint(towards + half, reach);
+  planRefs.beam.setAttribute('d',
+    'M ' + here.x.toFixed(2) + ' ' + here.y.toFixed(2) +
+    ' L ' + a.x.toFixed(2) + ' ' + a.y.toFixed(2) +
+    ' A ' + (reach * planScale).toFixed(2) + ' ' + (reach * planScale).toFixed(2) + ' 0 0 1 ' +
+    b.x.toFixed(2) + ' ' + b.y.toFixed(2) + ' Z');
+}
+
+/* ── 14 · tour ───────────────────────────────────────────────────────────
+   The guided tour reads the building the way a docent would: one exhibit per
+   wing, in plan order, with a title card as you cross into the next hall. It
+   is a route through the same selection machinery the keyboard uses, so the
+   tour can never show you something the filters have hidden. */
+let tourRoute = [];
+let captionClock = 0;
+
+function buildTourRoute() {
+  const route = [];
+  plan.wings.forEach((wing) => {
+    /* one representative per wing: the exhibit closest to the middle of its
+       wedge, which is the one a visitor notices first on entering */
+    let best = -1, bestDistance = Infinity;
+    wing.items.forEach((i) => {
+      if (!state.visibleSet.has(i)) return;
+      const distance = angularDistance(LINKS[i]._a, wing.aCenter);
+      if (distance < bestDistance) { bestDistance = distance; best = i; }
+    });
+    if (best >= 0) route.push({ index: best, wing: wing.name, card: true });
+  });
+  /* a second pass through the wings that have exhibits to spare, so the tour
+     also shows the deeper rows that a first visit would miss */
+  plan.wings.forEach((wing) => {
+    const visible = wing.items.filter((i) => state.visibleSet.has(i));
+    if (visible.length < 4) return;
+    route.push({ index: visible[Math.floor(visible.length / 2)], wing: wing.name, card: false });
+  });
+  return route;
+}
+
+function toggleTour() {
+  if (state.tour) { stopTour(); return; }
+  startTour();
+}
+
+function startTour() {
+  tourRoute = buildTourRoute();
+  if (!tourRoute.length) { toast('Nothing to tour — widen the filter first'); return; }
+  state.tour = true;
+  state.tourStep = -1;
+  state.tourClock = CFG.tourSeconds;      // advance immediately on the first beat
+  dom.buttons.tour.setAttribute('aria-pressed', 'true');
+  if (state.mode === 'catalogue') setMode('rotunda');
+  toast('Guided tour — ' + tourRoute.length + ' stops. Press T to stop.');
+  announce('Guided tour started.');
+  state.dirty = true;
+}
+
+function stopTour() {
+  if (!state.tour) return;
+  state.tour = false;
+  captionClock = 0;
+  hideCaption();
+  dom.buttons.tour.setAttribute('aria-pressed', 'false');
+  toast('Tour stopped');
+  state.dirty = true;
+}
+
+function advanceTour() {
+  state.tourStep = (state.tourStep + 1) % tourRoute.length;
+  const stop = tourRoute[state.tourStep];
+  selectExhibit(stop.index, true);
+  if (stop.card) { showCaption(stop.index); captionClock = Math.min(2.4, CFG.tourSeconds * 0.8); }
+  else hideCaption();
+  if (state.tourStep === tourRoute.length - 1) dom.planNote.textContent = 'last stop — looping';
+}
+
+/* Driven by the render loop, so the tour keeps time with the camera rather
+   than with a timer that does not know when the flight has landed. */
+function updateTour(delta) {
+  if (!state.tour) return;
+  if (captionClock > 0) {
+    captionClock -= delta;
+    if (captionClock <= 0) hideCaption();
+  }
+  state.tourClock += delta;
+  if (state.tourClock >= CFG.tourSeconds) {
+    state.tourClock = 0;
+    advanceTour();
+  }
+}
+
+/* ── 15 · render loop ────────────────────────────────────────────────────
+   One rAF, one clock. The room renders on demand: anything that can change
+   sets state.dirty or keeps state.busy true, and when nothing is happening at
+   all the loop still draws every CFG.heartbeat-th frame so the dust and the
+   ember keep drifting — at a fifth of the cost. */
+let rafId = 0, tick = 0, rendered = 0, fpsClock = 0, fpsValue = 0;
+
+function frame() {
+  rafId = requestAnimationFrame(frame);
+  const delta = Math.min(0.05, clock.getDelta());      // clamped: a hidden tab must not jump the world
+  const elapsed = clock.elapsedTime;
+  tick++;
+
+  /* the catalogue is plain DOM: while it is up the room is not drawn at all */
+  if (state.mode === 'catalogue') return;
+
+  const fading = animateFades(delta, elapsed);
+  const flying = !!rig.goal;
+  const settling = Math.abs(rig.velocity.theta) > 1e-5 || Math.abs(rig.velocity.phi) > 1e-5;
+  const moving = fading || flying || settling || rig.dragging || state.tour || mark.active;
+
+  if (flying || fading || state.tour) state.busy = true;
+  updateCamera(delta);
+  updateTour(delta);
+  updateStage(elapsed, delta);
+  updateSelectionMark(delta);
+  /* the two DOM overlays only need touching when the world actually moved */
+  if (moving || state.dirty) {
+    if (state.selected >= 0) updateBloom();
+    updatePlanMarker();
+  }
+
+  const worthDrawing = state.dirty || moving || tick % CFG.heartbeat === 0;
+  if (worthDrawing) {
+    renderer.render(scene, camera);
+    rendered++;
+    state.dirty = false;
+  }
+  if (!moving) state.busy = false;
+
+  /* fps is measured over a second of wall time, not frame counts */
+  fpsClock += delta;
+  if (fpsClock >= 0.5) {
+    fpsValue = Math.round(rendered / fpsClock);
+    rendered = 0;
+    fpsClock = 0;
+    if (state.stats) paintStats();
+  }
+}
+
+function paintStats() {
+  const info = renderer.info;
+  dom.statValues.fps.textContent = fpsValue + ' fps';
+  dom.statValues.calls.textContent = info.render.calls + ' calls';
+  dom.statValues.tris.textContent = (info.render.triangles / 1000).toFixed(1) + 'k tris';
+  dom.statValues.vis.textContent = room.visibleCount + '/' + LINKS.length;
+}
+
+function startLoop() {
+  if (rafId) return;
+  clock.start();
+  rafId = requestAnimationFrame(frame);
+}
+
+/* Pause cleanly when the tab is hidden: rAF already stops in every browser,
+   but the clock must be restarted so nothing leaps on return. */
+function onVisibilityChange() {
+  if (document.hidden) {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  } else if (!rafId) {
+    clock.getDelta();
+    startLoop();
+  }
+  state.dirty = true;
+}
+
+/* ── 16 · boot ───────────────────────────────────────────────────────────
+   The sequence that turns the text in this file into a building. It is staged
+   and yields to the browser between steps, so the loading curtain can narrate
+   what it is doing instead of freezing on a white screen — and if WebGL or the
+   three.js CDN is unavailable, the same sequence ends in the readable
+   catalogue rather than an error page. */
+
+function hasWebGL() {
+  try {
+    const probe = document.createElement('canvas');
+    return !!(probe.getContext('webgl2') || probe.getContext('webgl'));
+  } catch (error) {
+    return false;
+  }
+}
+
+const nextFrame = () => new Promise((resolve) => {
+  requestAnimationFrame(() => requestAnimationFrame(resolve));
+});
+
+/* — window plumbing —————————————————————──────────────────────────────────── */
+let resizeFrame = 0;
+function onResize() {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    const width = window.innerWidth, height = window.innerHeight;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CFG.maxDpr));
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    state.dirty = true;
+  });
+}
+
+function bindWindow() {
+  window.addEventListener('resize', onResize);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  /* the first gesture is the only moment a browser allows an AudioContext */
+  window.addEventListener('pointerdown', () => { if (state.sound) ensureAudio(); }, { once: true });
+}
+
+/* — opening flight —————————————————————───────────────────────────────────── */
+/* The visitor arrives from outside the building and is carried in over the
+   oculus: a long eased dolly with a slow drift, which reads as walking rather
+   than as a camera cut. */
+function introFlight() {
+  const first = plan.wings[0];
+  rig.theta = CFG.introFrom.angle;
+  rig.phi = CFG.introFrom.phi;
+  rig.radius = CFG.introFrom.radius;
+  rig.target.set(0, CFG.camTargetY + 6, 0);
+  flyTo({
+    theta: facingFrom(first.aCenter),
+    phi: CFG.camPhi,
+    radius: CFG.camRadius,
+    target: { x: 0, y: CFG.camTargetY, z: 0 },
+    seconds: REDUCED_MOTION ? 0.2 : 3.4,
+    drift: REDUCED_MOTION ? 0 : 0.035
+  });
+}
+
+/* — fallback ——————————————————————————————————───────────────────────────── */
+/* No WebGL (or no three.js): the collection is still a collection. The same
+   filter, search and favourites machinery runs; only the room is missing. */
+function bootFallback(reason) {
+  state.webgl = false;
+  state.mode = 'catalogue';
+  document.body.classList.add('mode-catalogue');
+  dom.curtain.classList.add('failed');
+  dom.curtainTag.textContent = reason;
+  dom.curtainStep.textContent = 'opening the printed catalogue instead…';
+  [dom.buttons.tour, dom.buttons.reset].forEach((button) => {
+    button.disabled = true;
+    button.title = 'Needs WebGL';
+  });
+  dom.plan.style.display = 'none';
+  dom.stats.style.display = 'none';
+  loadFavourites();
+  buildFloorPlan();
+  buildChips();
+  buildHelpLegend();
+  bindChrome();
+  bindCatalogue();
+  recomputeVisibility({ instant: true });
+  paintCatalogue();
+  curtain(1, 'catalogue ready');
+  setTimeout(() => dom.curtain.classList.add('lift'), 700);
+  toast('3D unavailable — showing the catalogue');
+}
+
+/* — main sequence —————————————————————────────────────────────────────────── */
+async function boot() {
+  /* One deliberate leak for the curious: open the console and the whole museum
+     is in there — state, plan, room, world — plus a few verbs. Nothing in the
+     app reads it back. */
+  window.museum = {
+    state, plan, room, world, rig, CFG, LINKS,
+    go: (index) => selectExhibit(index, true),
+    find: (query) => { dom.search.value = query; onSearchInput(); },
+    wing: (name) => { flyToWing(name, 1.2); soloWing(name); },
+    tour: () => toggleTour(),
+    catalogue: () => setMode('catalogue')
+  };
+
+  const noLibrary = typeof THREE === 'undefined';
+  if (noLibrary || !hasWebGL()) {
+    bootFallback(noLibrary ? 'the three.js library could not be loaded' : 'this browser cannot open a 3D canvas');
+    return;
+  }
+
+  curtain(0.06, 'reading the collection…');
+  loadFavourites();
+  buildFloorPlan();
+  applyCameraLimits();
+  dom.curtainTag.textContent = plan.wings.length + ' wings · ' + LINKS.length +
+    ' exhibits · one rotunda ' + Math.round(plan.wallR * 2) + ' metres across';
+  await nextFrame();
+
+  curtain(0.18, 'raising the rotunda…');
+  initThreeScratch();
+  createStage();
+  await nextFrame();
+
+  curtain(0.44, 'etching ' + LINKS.length + ' plaques…');
+  buildAtlases();
+  await nextFrame();
+
+  curtain(0.6, 'casting plinths and hanging banners…');
+  buildExhibits();
+  buildBanners();
+  await nextFrame();
+
+  curtain(0.72, 'drawing the plan…');
+  buildPlan();
+  buildChips();
+  buildHelpLegend();
+  bindChrome();
+  bindCatalogue();
+  bindStageInput();
+  bindWindow();
+  await nextFrame();
+
+  curtain(0.84, 'lighting the exhibits…');
+  plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
+  recomputeVisibility({ instant: true });
+  assembleRoom();
+  await nextFrame();
+
+  curtain(0.95, 'opening the doors…');
+  startLoop();
+  introFlight();
+  await nextFrame();
+
+  curtain(1, 'welcome');
+  setTimeout(() => {
+    dom.curtain.classList.add('lift');
+    if (!store.read('seen')) {
+      store.write('seen', true);
+      setTimeout(() => toast('Drag to walk the room · press ? for the map'), 1400);
+    }
+    announce('The Museum of Useful Links is open. ' + LINKS.length + ' exhibits across ' +
+      plan.wings.length + ' wings. Press ? for the keyboard map.');
+  }, 420);
+}
+
+/* Everything above is inside one immediately-invoked function, so nothing in
+   this file leaks into the page. */
+boot();
+})();
+</script>
+</body>
+</html>
