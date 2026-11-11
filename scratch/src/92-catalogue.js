@@ -41,7 +41,7 @@ function catalogueMarkup() {
         '<div class="u">' + esc(hostOf(link.u)) + '</div>' +
         '<div class="row">' +
           '<a href="' + esc(link.u) + '" target="_blank" rel="noopener noreferrer">Open ↗</a>' +
-          '<button type="button" data-act="room">View in the room</button>' +
+          (state.webgl ? '<button type="button" data-act="room">View in the room</button>' : '') +
         '</div>' +
       '</article>';
     }).join('');
@@ -51,7 +51,9 @@ function catalogueMarkup() {
       '<header class="wing-head">' +
         '<i class="dot"></i><h3>' + esc(wing.name) + '</h3>' +
         '<span class="sub">' + shown + ' / ' + wing.items.length + ' exhibits · radius ' + Math.round(wing.rMax) + 'm</span>' +
-        '<button class="jump" type="button" data-wing="' + esc(wing.name) + '">Stand in this wing →</button>' +
+        (state.webgl
+          ? '<button class="jump" type="button" data-wing="' + esc(wing.name) + '">Stand in this wing →</button>'
+          : '') +
       '</header>' +
       '<div class="grid">' + cards + '</div>' +
     '</section>';

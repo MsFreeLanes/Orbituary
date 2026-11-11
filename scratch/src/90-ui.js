@@ -112,6 +112,8 @@ function buildChips() {
     fragment.appendChild(chip);
   });
   dom.chips.appendChild(fragment);
+  /* the chips are the filter, and every one of them starts lit */
+  plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
 }
 
 /* One wing at a time is the natural way to read a rotunda: the hall you are

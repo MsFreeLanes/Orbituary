@@ -1602,26 +1602,26 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
   const words = String(text).split(/\s+/);
   const lines = [];
   let line = '';
+  let remainder = false;
   for (let i = 0; i < words.length; i++) {
     const attempt = line ? line + ' ' + words[i] : words[i];
     if (ctx.measureText(attempt).width > maxWidth && line) {
       lines.push(line);
       line = words[i];
-      if (lines.length === maxLines) break;
+      if (lines.length === maxLines) { remainder = true; break; }
     } else {
       line = attempt;
     }
   }
-  if (lines.length < maxLines && line) lines.push(line);
-  if (lines.length === maxLines) {
-    const last = lines[maxLines - 1];
-    if (ctx.measureText(last).width > maxWidth) {
-      let trimmed = last;
-      while (trimmed.length > 4 && ctx.measureText(trimmed + '…').width > maxWidth) {
-        trimmed = trimmed.slice(0, -1);
-      }
-      lines[maxLines - 1] = trimmed.replace(/[\s,;:]+$/, '') + '…';
+  if (!remainder && lines.length < maxLines && line) lines.push(line);
+  /* anything we had to leave out is shown as an ellipsis, not silence */
+  if (lines.length === maxLines &&
+      (remainder || ctx.measureText(lines[maxLines - 1]).width > maxWidth)) {
+    let last = lines[maxLines - 1];
+    while (last.length > 4 && ctx.measureText(last + '…').width > maxWidth) {
+      last = last.slice(0, -1);
     }
+    lines[maxLines - 1] = last.replace(/[\s,;:]+$/, '') + '…';
   }
   return lines;
 }
@@ -1712,10 +1712,11 @@ function drawPlaqueTile(ctx, px, py, link, number) {
     ctx.fillText(line, px + pad, descTop + i * descLine);
   });
 
-  /* where it lives — truncated to whatever width is left beside the OPEN mark */
+  /* where it lives — the "OPEN ↗" mark owns the right end of the footer, so the
+     domain gets the tile width minus both margins minus whatever that mark needs */
   ctx.font = font('mono', Math.round(S * 0.052), '400');
   ctx.fillStyle = 'rgba(122,133,166,0.9)';
-  const room = (S - pad * 2) - Math.round(S * 0.14);
+  const room = (S - pad * 2) - Math.round(S * 0.3);
   let host = hostOf(link.u);
   while (host.length > 4 && ctx.measureText(host + '…').width > room) host = host.slice(0, -1);
   if (host !== hostOf(link.u)) host += '…';
@@ -2774,6 +2775,8 @@ function buildChips() {
     fragment.appendChild(chip);
   });
   dom.chips.appendChild(fragment);
+  /* the chips are the filter, and every one of them starts lit */
+  plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
 }
 
 /* One wing at a time is the natural way to read a rotunda: the hall you are
@@ -3107,7 +3110,7 @@ function catalogueMarkup() {
         '<div class="u">' + esc(hostOf(link.u)) + '</div>' +
         '<div class="row">' +
           '<a href="' + esc(link.u) + '" target="_blank" rel="noopener noreferrer">Open ↗</a>' +
-          '<button type="button" data-act="room">View in the room</button>' +
+          (state.webgl ? '<button type="button" data-act="room">View in the room</button>' : '') +
         '</div>' +
       '</article>';
     }).join('');
@@ -3117,7 +3120,9 @@ function catalogueMarkup() {
       '<header class="wing-head">' +
         '<i class="dot"></i><h3>' + esc(wing.name) + '</h3>' +
         '<span class="sub">' + shown + ' / ' + wing.items.length + ' exhibits · radius ' + Math.round(wing.rMax) + 'm</span>' +
-        '<button class="jump" type="button" data-wing="' + esc(wing.name) + '">Stand in this wing →</button>' +
+        (state.webgl
+          ? '<button class="jump" type="button" data-wing="' + esc(wing.name) + '">Stand in this wing →</button>'
+          : '') +
       '</header>' +
       '<div class="grid">' + cards + '</div>' +
     '</section>';
@@ -3610,7 +3615,6 @@ async function boot() {
   await nextFrame();
 
   curtain(0.84, 'lighting the exhibits…');
-  plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
   recomputeVisibility({ instant: true });
   assembleRoom();
   await nextFrame();

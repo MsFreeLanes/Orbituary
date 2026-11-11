@@ -28,26 +28,26 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
   const words = String(text).split(/\s+/);
   const lines = [];
   let line = '';
+  let remainder = false;
   for (let i = 0; i < words.length; i++) {
     const attempt = line ? line + ' ' + words[i] : words[i];
     if (ctx.measureText(attempt).width > maxWidth && line) {
       lines.push(line);
       line = words[i];
-      if (lines.length === maxLines) break;
+      if (lines.length === maxLines) { remainder = true; break; }
     } else {
       line = attempt;
     }
   }
-  if (lines.length < maxLines && line) lines.push(line);
-  if (lines.length === maxLines) {
-    const last = lines[maxLines - 1];
-    if (ctx.measureText(last).width > maxWidth) {
-      let trimmed = last;
-      while (trimmed.length > 4 && ctx.measureText(trimmed + '…').width > maxWidth) {
-        trimmed = trimmed.slice(0, -1);
-      }
-      lines[maxLines - 1] = trimmed.replace(/[\s,;:]+$/, '') + '…';
+  if (!remainder && lines.length < maxLines && line) lines.push(line);
+  /* anything we had to leave out is shown as an ellipsis, not silence */
+  if (lines.length === maxLines &&
+      (remainder || ctx.measureText(lines[maxLines - 1]).width > maxWidth)) {
+    let last = lines[maxLines - 1];
+    while (last.length > 4 && ctx.measureText(last + '…').width > maxWidth) {
+      last = last.slice(0, -1);
     }
+    lines[maxLines - 1] = last.replace(/[\s,;:]+$/, '') + '…';
   }
   return lines;
 }
@@ -138,10 +138,11 @@ function drawPlaqueTile(ctx, px, py, link, number) {
     ctx.fillText(line, px + pad, descTop + i * descLine);
   });
 
-  /* where it lives — truncated to whatever width is left beside the OPEN mark */
+  /* where it lives — the "OPEN ↗" mark owns the right end of the footer, so the
+     domain gets the tile width minus both margins minus whatever that mark needs */
   ctx.font = font('mono', Math.round(S * 0.052), '400');
   ctx.fillStyle = 'rgba(122,133,166,0.9)';
-  const room = (S - pad * 2) - Math.round(S * 0.14);
+  const room = (S - pad * 2) - Math.round(S * 0.3);
   let host = hostOf(link.u);
   while (host.length > 4 && ctx.measureText(host + '…').width > room) host = host.slice(0, -1);
   if (host !== hostOf(link.u)) host += '…';

@@ -141,7 +141,6 @@ async function boot() {
   await nextFrame();
 
   curtain(0.84, 'lighting the exhibits…');
-  plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
   recomputeVisibility({ instant: true });
   assembleRoom();
   await nextFrame();
