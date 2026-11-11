@@ -66,6 +66,23 @@ function recomputeVisibility(options) {
   if (state.mode === 'catalogue') paintCatalogue();
 }
 
+/* A click on something that is off stage — a plan dot in a wing that has been
+   soloed away, a saved exhibit while the favourites filter is up — should never
+   be a dead click. Take the filters off: the exhibit is standing there like all
+   the others, and the caller can fly to it. */
+function bringIntoView(link) {
+  if (state.query) clearSearch();
+  if (state.favouritesOnly) {
+    state.favouritesOnly = false;
+    recomputeVisibility();
+  }
+  if (state.wingsOn.size !== plan.wings.length) {
+    plan.wings.forEach((wing) => state.wingsOn.add(wing.name));
+    recomputeVisibility();
+  }
+  return state.visibleSet.has(link._i);
+}
+
 function countInWing(wing, query) {
   let shown = 0;
   wing.items.forEach((i) => {
@@ -124,7 +141,8 @@ function animateFades(delta, elapsed) {
   return moving;
 }
 
-/* A wing's banner and its lit lip ride along with its exhibits. */
+/* A wing's banner, its lit lip and the whole room around it ride along with
+   its exhibits. */
 function applyWingFades() {
   plan.wings.forEach((wing, i) => {
     room.attr.banner.aAlpha.setX(i, wing._fade);
@@ -139,6 +157,7 @@ function applyWingFades() {
   });
   room.attr.banner.aAlpha.needsUpdate = true;
   room.banner.instanceMatrix.needsUpdate = true;
+  applyHallFades();
 }
 
 /* Staggered opening: the room assembles itself wing by wing behind the

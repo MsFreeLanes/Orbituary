@@ -28,7 +28,6 @@ function rigReset(soft) {
     target: { x: 0, y: CFG.camTargetY, z: 0 },
     seconds: soft ? 1.1 : 0.01
   });
-  rig.goal = null;
 }
 
 /* Fly to a pose. `seconds` 0 snaps. `look` offsets the aim, so a selected
@@ -44,7 +43,7 @@ function flyTo(options) {
     },
     to: {
       theta: o.theta === undefined ? rig.theta : o.theta,
-      phi: clamp(o.phi === undefined ? rig.phi : o.phi, 0.18, 1.47),
+      phi: clamp(o.phi === undefined ? rig.phi : o.phi, CFG.camPhiMin, CFG.camPhiMax),
       radius: clamp(o.radius === undefined ? rig.radius : o.radius, CFG.camMin, CFG.camMax * 2.4),
       x: o.target ? o.target.x : rig.target.x,
       y: o.target ? o.target.y : rig.target.y,
@@ -67,7 +66,7 @@ function poseFor(eye, target, seconds) {
   const radius = Math.max(CFG.camMin, Math.hypot(dx, dy, dz));
   flyTo({
     theta: Math.atan2(dx, dz),          // same polar convention the room uses
-    phi: clamp(Math.acos(clamp(dy / radius, -1, 1)), 0.18, 1.47),
+    phi: clamp(Math.acos(clamp(dy / radius, -1, 1)), CFG.camPhiMin, CFG.camPhiMax),
     radius: radius,
     target: target,
     seconds: seconds
@@ -125,7 +124,7 @@ function updateCamera(delta) {
     /* inertia: keep drifting after a drag, settling within a couple of frames */
     if (!rig.dragging && (Math.abs(rig.velocity.theta) > 1e-5 || Math.abs(rig.velocity.phi) > 1e-5)) {
       rig.theta += rig.velocity.theta;
-      rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+      rig.phi = clamp(rig.phi + rig.velocity.phi, CFG.camPhiMin, CFG.camPhiMax);
       rig.velocity.theta *= 0.90;
       rig.velocity.phi *= 0.90;
       state.dirty = true;
@@ -153,13 +152,32 @@ function updateCamera(delta) {
 }
 
 /* — input —————————————————————————————————————————————————──────────────── */
-function orbitBy(dx, dy) {
+/* Two vocabularies for the same rig: the pointer speaks in pixels and
+   multiplicative factors, the keyboard speaks in radians and fractions. The
+   nudges below are the primitives; orbitBy and zoomBy translate and defer. */
+function turnBy(radians) {
   rig.goal = null;
-  rig.velocity.theta = -dx * 0.005;
-  rig.velocity.phi = -dy * 0.005;
-  rig.theta += rig.velocity.theta;
-  rig.phi = clamp(rig.phi + rig.velocity.phi, 0.18, 1.47);
+  /* the rig coasts on whatever velocity the last move left behind — for a drag
+     that is a few hundredths of a radian, so a key press hands it a tenth of
+     its own step or the room would spin a quarter turn per tap */
+  rig.velocity.theta = radians * 0.1;
+  rig.theta += radians;
   state.dirty = true;
+}
+function tiltBy(radians) {
+  rig.goal = null;
+  rig.velocity.phi = radians * 0.1;
+  rig.phi = clamp(rig.phi + radians, CFG.camPhiMin, CFG.camPhiMax);
+  state.dirty = true;
+}
+function dollyBy(fraction) {
+  rig.goal = null;
+  rig.radius = clamp(rig.radius * (1 + fraction), CFG.camMin, CFG.camMax);
+  state.dirty = true;
+}
+function orbitBy(dx, dy) {
+  turnBy(-dx * 0.005);
+  tiltBy(-dy * 0.005);
 }
 function zoomBy(factor) {
   rig.goal = null;

@@ -38,27 +38,31 @@ function frame() {
   }
   if (!moving) state.busy = false;
 
-  /* fps is measured over a second of wall time, not frame counts */
-  fpsClock += delta;
-  if (fpsClock >= 0.5) {
-    fpsValue = Math.round(rendered / fpsClock);
+  /* fps is measured over a window of wall time, not over the simulation clock:
+     delta is clamped, so a slow machine would read its own ceiling back */
+  const now = performance.now();
+  if (now - fpsClock >= 500) {
+    fpsValue = Math.round(rendered * 1000 / (now - fpsClock));
     rendered = 0;
-    fpsClock = 0;
+    fpsClock = now;
     if (state.stats) paintStats();
   }
 }
 
 function paintStats() {
   const info = renderer.info;
-  dom.statValues.fps.textContent = fpsValue + ' fps';
-  dom.statValues.calls.textContent = info.render.calls + ' calls';
-  dom.statValues.tris.textContent = (info.render.triangles / 1000).toFixed(1) + 'k tris';
+  /* the markup already names each unit, so these are bare numbers */
+  dom.statValues.fps.textContent = fpsValue;
+  dom.statValues.calls.textContent = info.render.calls;
+  dom.statValues.tris.textContent = (info.render.triangles / 1000).toFixed(1) + 'k';
   dom.statValues.vis.textContent = room.visibleCount + '/' + LINKS.length;
 }
 
 function startLoop() {
   if (rafId) return;
   clock.start();
+  fpsClock = performance.now();
+  rendered = 0;
   rafId = requestAnimationFrame(frame);
 }
 

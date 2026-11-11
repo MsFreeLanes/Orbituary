@@ -64,7 +64,10 @@ function moveTip(clientX, clientY) {
 /* — selection —————————————————————————————————————————————————──────────── */
 function selectExhibit(index, fly) {
   const link = LINKS[index];
-  if (!link || !state.visibleSet.has(index)) return;
+  if (!link) return;
+  /* off stage is not the same as unreachable: a plan dot in a soloed wing is
+     still a request to go somewhere, so take the filters off and carry on */
+  if (!state.visibleSet.has(index)) bringIntoView(link);
   state.selected = index;
   moveSelectionMark(index);
   paintLabel(link, index);
