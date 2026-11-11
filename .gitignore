@@ -17,3 +17,6 @@ scratch/fallback-test.html
 
 # the packaged copy of the project, built from what is already committed
 museum-of-useful-links.zip
+
+# index.html with three.js inlined, for use without a network
+index-offline.html

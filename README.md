@@ -3,8 +3,9 @@
 88 hand-picked links, standing around a rotunda under its own sky.
 
 Double-click `index.html`. That is the whole install — one file, no build step,
-no server, no tracking, nothing leaves your machine. If WebGL is unavailable the
-museum opens as a plain 2D catalogue instead, so it never shows a blank page.
+no server, no tracking. It fetches three.js from a CDN, so with no network it
+opens as a plain 2D catalogue rather than a blank page. `index-offline.html` is
+the same museum with the library already inside it — 826 KB, works on a plane.
 
 ## The room
 
@@ -110,6 +111,10 @@ node scratch/audit.mjs      # the whole room, checked: 23 checks + the fallback
 node scratch/juke.mjs       # drives the deck with real clicks, listens to it
 node scratch/shot.mjs <url> <out.png> [waitMs] [expression]
 ```
+
+`index.html` and `index-offline.html` are both generated — the second is the
+first with `scratch/three-r128.min.js` swapped in for the CDN tag. Neither is
+tracked in git, since both can be rebuilt from the parts.
 
 Those last three drive an installed Chrome over the DevTools protocol with no
 dependencies, so the room can be photographed, probed and photographed again
