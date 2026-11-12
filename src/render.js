@@ -91,13 +91,20 @@ export function createRender(canvas) {
     composer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  const watchdog = { frames: 0, acc: 0, cooldown: 0 };
+  const watchdog = { frames: 0, acc: 0, cooldown: 0, last: 0 };
   let fps = 60;
 
-  function tickWatchdog(dt) {
+  function tickWatchdog() {
+    /* the frame loop hands out a clamped dt so a stutter cannot fling the
+       visitor through a wall, which means that number can never show a slow
+       machine for what it is. the watchdog keeps its own clock. */
+    const now = performance.now();
+    if (!watchdog.last) watchdog.last = now;
+    const real = (now - watchdog.last) / 1000;
+    watchdog.last = now;
     watchdog.frames++;
-    watchdog.acc += dt;
-    watchdog.cooldown -= dt;
+    watchdog.acc += real;
+    watchdog.cooldown -= real;
     if (watchdog.acc >= 1.0) {
       fps = watchdog.frames / watchdog.acc;
       watchdog.frames = 0; watchdog.acc = 0;
@@ -122,7 +129,7 @@ export function createRender(canvas) {
     get fps() { return fps; },
     get tier() { return tier; },
     render(dt, camera) {
-      tickWatchdog(dt);
+      tickWatchdog();
       grain.uniforms.uTime.value = performance.now() * 0.001;
       composer.passes[0].camera = camera;
       composer.render(dt);

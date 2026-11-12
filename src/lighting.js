@@ -43,8 +43,16 @@ function anchorsFor(plan, skyTint) {
     [-1, 1].forEach((s) => {
       A.push({
         x: room.center.x + room.u.x * sw * s, z: room.center.z + room.u.z * sw * s,
-        y: 2.05, color: room.key, i: 1.6, r: 4.0, room: room.id, wash: true
+        y: 2.35, color: room.key, i: 2.2, r: 5.0, room: room.id, wash: true
       });
+    });
+    /* the far wall is the one you walk towards and the one a photograph of the
+       room is really about, so it gets its own fixture. a room lit only from
+       the middle has a bright floor and a black backdrop. */
+    A.push({
+      x: room.center.x + room.n.x * (room.d / 2 - 0.9),
+      z: room.center.z + room.n.z * (room.d / 2 - 0.9),
+      y: 2.6, color: room.key, i: 3.0, r: 6.5, room: room.id, wash: true
     });
   });
   plan.corridors.forEach((c) => {
