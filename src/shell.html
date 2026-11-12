@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Museum of Useful Links</title>
+<meta name="description" content="Twelve rooms, eighty-eight links, tonight's sky over the windows. A walkable museum in one file.">
+<style>
+  :root {
+    --ink: #e8e2d6;
+    --dim: #8f96a3;
+    --line: rgba(232, 226, 214, 0.16);
+    --panel: rgba(12, 14, 18, 0.62);
+    --wing: #ffd9a0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; }
+  body {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  .hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  .kicker {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 10px; letter-spacing: 0.22em; color: var(--dim); text-transform: uppercase;
+  }
+
+  /* ── room card ── */
+  .card {
+    position: absolute; left: 26px; top: 24px; max-width: 46vw;
+    padding: 14px 18px 16px; border-left: 2px solid var(--wing);
+    background: linear-gradient(90deg, var(--panel), rgba(12, 14, 18, 0));
+    backdrop-filter: blur(3px);
+  }
+  .card.flash { animation: flash 900ms ease-out; }
+  @keyframes flash {
+    0% { border-left-color: #fff; transform: translateX(-6px); opacity: 0.4; }
+    100% { border-left-color: var(--wing); transform: none; opacity: 1; }
+  }
+  .brand { font-size: 10px; letter-spacing: 0.3em; color: var(--dim); font-family: ui-monospace, monospace; }
+  .room-name { font-size: 30px; line-height: 1.1; margin: 6px 0 2px; letter-spacing: 0.01em; }
+  .room-sub { font-size: 12.5px; color: var(--dim); font-style: italic; }
+
+  /* ── sky dial ── */
+  .skybox {
+    position: absolute; right: 26px; top: 24px; width: 268px; padding: 12px 14px 14px;
+    background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(6px);
+    opacity: 0.34; transition: opacity 260ms ease;
+  }
+  .skybox:hover, .hud.sky-open .skybox { opacity: 1; pointer-events: auto; }
+  .sky-name { font-size: 19px; margin: 3px 0 1px; }
+  .sky-clock { font-size: 11px; color: var(--dim); font-family: ui-monospace, monospace; }
+  .dial { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 8px; }
+  .chip {
+    font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.06em;
+    color: var(--ink); background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line); padding: 4px 7px; cursor: pointer;
+  }
+  .chip:hover { background: rgba(255, 255, 255, 0.14); }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mini { font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--dim); }
+  .time { flex: 1 1 100%; height: 3px; appearance: none; background: var(--line); cursor: pointer; }
+  .time::-webkit-slider-thumb { appearance: none; width: 11px; height: 11px; background: var(--wing); border-radius: 50%; }
+  .toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toggle input { accent-color: var(--wing); }
+
+  /* ── floor plan ── */
+  .mapbox {
+    position: absolute; left: 26px; bottom: 62px; width: 208px; padding: 10px 10px 6px;
+    background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(6px);
+  }
+  .mapbox svg { display: block; margin-top: 6px; }
+  .mapbox .rot { fill: rgba(232, 226, 214, 0.07); stroke: rgba(232, 226, 214, 0.35); stroke-width: 0.35; }
+  .mapbox .corr { fill: none; stroke: rgba(232, 226, 214, 0.3); stroke-width: 0.3; }
+  .mapbox .roomrect { stroke-width: 0.3; }
+  .mapbox .you { fill: #fff; }
+  .map-hint { font-family: ui-monospace, monospace; font-size: 9px; color: var(--dim); letter-spacing: 0.1em; }
+
+  /* ── plaque ── */
+  .plaque {
+    position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
+    width: min(560px, 74vw); padding: 14px 18px 12px;
+    background: var(--panel); border: 1px solid var(--line); border-bottom: 2px solid var(--wing);
+    backdrop-filter: blur(6px);
+  }
+  .plaque-title { font-size: 24px; margin: 4px 0 3px; }
+  .plaque-note { font-size: 13px; color: var(--dim); font-style: italic; }
+  .plaque-go {
+    margin-top: 8px; font-family: ui-monospace, monospace; font-size: 9.5px;
+    letter-spacing: 0.16em; color: var(--wing);
+  }
+
+  /* ── bottom bar ── */
+  .bar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 42px;
+    display: flex; align-items: center; gap: 16px; padding: 0 26px;
+    background: linear-gradient(0deg, rgba(5, 6, 10, 0.86), rgba(5, 6, 10, 0));
+  }
+  .keys { font-size: 11.5px; color: var(--dim); }
+  .keys b { color: var(--ink); font-family: ui-monospace, monospace; font-size: 10.5px; font-weight: 600; }
+  .meter { display: flex; gap: 2px; margin-left: auto; }
+  .meter i { width: 3px; height: 9px; background: rgba(232, 226, 214, 0.14); }
+  .meter i.on { background: var(--wing); }
+  .stats { font-family: ui-monospace, monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
+
+  /* ── toasts ── */
+  .toasts { position: absolute; right: 26px; bottom: 62px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .toast {
+    font-size: 12.5px; padding: 7px 12px; background: var(--panel);
+    border-left: 2px solid var(--wing); opacity: 0; transform: translateY(6px);
+    transition: opacity 320ms ease, transform 320ms ease; max-width: 40vw;
+  }
+  .toast.in { opacity: 1; transform: none; }
+
+  /* ── help ── */
+  .help {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(620px, 86vw); max-height: 78vh; overflow: auto; padding: 26px 30px 30px;
+    background: rgba(8, 10, 14, 0.9); border: 1px solid var(--line);
+    pointer-events: auto; backdrop-filter: blur(10px);
+  }
+  .help h2 { margin: 0 0 12px; font-size: 26px; }
+  .help p { font-size: 14px; line-height: 1.62; color: #c9c4bb; }
+  .help b { color: var(--ink); }
+
+  /* ── intro ── */
+  .intro {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: radial-gradient(120% 90% at 50% 40%, rgba(5, 6, 10, 0.5), rgba(5, 6, 10, 0.94));
+    pointer-events: auto; transition: opacity 900ms ease;
+  }
+  .intro.gone { opacity: 0; pointer-events: none; }
+  .intro-inner { text-align: center; max-width: 640px; padding: 0 24px; }
+  .intro-kicker { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.34em; color: var(--dim); }
+  .intro h1 { font-size: clamp(38px, 7vw, 76px); line-height: 1.02; margin: 14px 0 16px; font-weight: 400; }
+  .intro p { font-size: 15px; color: #b9b4ab; font-style: italic; }
+  .intro-keys {
+    margin-top: 26px; font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.28em; color: var(--wing);
+  }
+
+  @media (max-width: 760px) {
+    .mapbox { display: none; }
+    .room-name { font-size: 22px; }
+    .keys { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<script type="module">
+/*__BUNDLE__*/
+</script>
+</body>
+</html>
