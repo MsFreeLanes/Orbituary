@@ -1,6 +1,7 @@
 /* ── building ────────────────────────────────────────────────────────────
    The shell: floors, walls with real openings, ceilings, the rotunda drum
-   and dome, window frames and glazing, and a plinth for every exhibit.
+   and dome, the stair down to the cellar, window frames and glazing, and a
+   plinth for every exhibit.
 
    Walls are built as runs of boxes with the texture tiling baked into the
    geometry UVs, so one material per surface type serves the whole building
@@ -8,7 +9,10 @@
    through it, and the light outside comes through it.
 
    Both storeys come out of the same builder: the plan says what floor a room
-   or a corridor is on, and one offset puts its whole shell on that floor. */
+   or a corridor is on, and one offset puts its whole shell on that floor. The
+   two storeys are joined by one thing, the stair, and it is joined by a hole:
+   the same rectangle missing from the courtyard slab, the rotunda floor and
+   the stair hall's ceiling. */
 import * as THREE from 'three';
 import { S } from './scale.js';
 import { LINKS } from './data.js';
@@ -401,7 +405,11 @@ function buildCorridor(parent, M, corridor, L, plan) {
   const z0 = corridor.floor === 'basement' ? hallWall(plan, corridor) : S.ROTUNDA_R - 0.4;
   const z1 = corridor.t1;
 
-  const floor = mesh(g, planeUV(half * 2, z1 - z0, 2.2), M.mat('terrazzo', 1, 1), 0, 0, (z0 + z1) / 2);
+  /* the cellar arms are swept concrete, not the terrazzo the processional
+     ranges are laid in: these are service corridors, and the same floor runs
+     on into the stair hall and the rooms off the arm */
+  const floorMat = corridor.floor === 'basement' ? M.mat('concrete', 1, 1) : M.mat('terrazzo', 1, 1);
+  const floor = mesh(g, planeUV(half * 2, z1 - z0, 2.2), floorMat, 0, 0, (z0 + z1) / 2);
   floor.rotation.set(-Math.PI / 2, 0, 0);
   floor.receiveShadow = true;
   /* the same sheet the cellar rooms' ceilings are cut from, at the same height,
@@ -428,18 +436,35 @@ function buildRotunda(parent, plan, M, pickables, L) {
   const R = S.ROTUNDA_R, h = S.CEIL_ROTUNDA;
   const marble = M.mat('marble', 1, 1);
   const wallMat = M.mat('marbleDark', 1, 1);
+  const well = wellOf(plan);
 
-  const floor = mesh(g, planeUV(R * 2, R * 2, 2.4), marble, 0, 0, 0);
-  floor.geometry = uvScale(new THREE.CircleGeometry(R, 64), (R * 2) / 2.4, (R * 2) / 2.4);
+  /* the floor is a disc with the stair well cut out of it. ShapeGeometry
+     hands back UVs in the shape's own metres, so the tiling is a plain
+     divide rather than the scale-the-0-to-1-uv trick the circle needed.
+     the shape is drawn in x/y and the mesh is turned over, so a hole at
+     world z sits at shape y = -z. */
+  const disc = new THREE.Shape();
+  disc.absarc(0, 0, R, 0, TAU, false);
+  const cut = new THREE.Path();
+  cut.moveTo(well.x0, -well.z0);
+  cut.lineTo(well.x1, -well.z0);
+  cut.lineTo(well.x1, -well.z1);
+  cut.lineTo(well.x0, -well.z1);
+  cut.closePath();
+  disc.holes.push(cut);
+  const floor = mesh(g, uvScale(new THREE.ShapeGeometry(disc, 64), 1 / 2.4, 1 / 2.4), marble, 0, 0, 0);
   floor.rotation.set(-Math.PI / 2, 0, 0);
   floor.receiveShadow = true;
 
-  /* the drum, pierced by four arches one per range */
+  /* the drum, pierced by one arch per range: twelve ranges at 30°, not the
+     four the first building had, so every corridor meets a doorway instead of
+     a wall. what is left between the arches is a pier of R*(step - 2*half)
+     ≈ 1.6 m, which is where the pilasters below stand. */
   const half = Math.asin(S.CORRIDOR_W / 2 / R);
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * TAU;
-    const start = a + half, span = TAU / 4 - half * 2;
-    const seg = uvScale(new THREE.CylinderGeometry(R, R, h, 24, 1, true, start, span),
+  for (let i = 0; i < S.SPOKE_COUNT; i++) {
+    const a = i * S.SPOKE_STEP;
+    const start = a + half, span = S.SPOKE_STEP - half * 2;
+    const seg = uvScale(new THREE.CylinderGeometry(R, R, h, 12, 1, true, start, span),
       (R * span) / 2.4, h / 2.4);
     const m = new THREE.Mesh(seg, wallMat);
     m.position.y = h / 2;
@@ -449,7 +474,7 @@ function buildRotunda(parent, plan, M, pickables, L) {
 
     /* the arch above each doorway */
     const lintelH = h - S.DOOR_BIG_H;
-    const lintel = uvScale(new THREE.CylinderGeometry(R, R, lintelH, 8, 1, true, a - half, half * 2),
+    const lintel = uvScale(new THREE.CylinderGeometry(R, R, lintelH, 4, 1, true, a - half, half * 2),
       (R * half * 2) / 2.4, lintelH / 2.4);
     const lm = new THREE.Mesh(lintel, wallMat);
     lm.position.y = S.DOOR_BIG_H + lintelH / 2;
@@ -493,9 +518,11 @@ function buildRotunda(parent, plan, M, pickables, L) {
   ring.rotation.x = Math.PI / 2;
   g.add(ring);
 
-  /* pilasters marking the four axes, so the doorways read as doorways */
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * TAU + Math.PI / 8;
+  /* pilasters on the piers between the arches, so the twelve doorways read as
+     doorways. one per pier, at the bisector between two ranges — at the old
+     eight the piers would have stood in the middle of the arches. */
+  for (let i = 0; i < S.SPOKE_COUNT; i++) {
+    const a = i * S.SPOKE_STEP + S.SPOKE_STEP / 2;
     const p = mesh(g, boxUV(0.5, h, 0.5, 1.6), M.solid(0xa9a49a, { roughness: 0.5 }),
       Math.sin(a) * (R - 0.28), h / 2, Math.cos(a) * (R - 0.28), { cast: true, receive: true });
     p.rotation.y = a;
@@ -515,11 +542,188 @@ function buildRotunda(parent, plan, M, pickables, L) {
   return g;
 }
 
+/* ── the stair well ──────────────────────────────────────────────────────
+   One rectangle in plan that has to be missing from three different sheets:
+   the rotunda floor it descends through, the stair hall's ceiling below it,
+   and the courtyard slab, which lies three centimetres under the rotunda
+   floor and would otherwise be the first thing you saw down the well. The
+   plan says where it is — the stair record's x/z is the head of the flight
+   and the flight runs `run` metres from there — so the well and the stair
+   cannot drift apart. */
+function wellOf(plan) {
+  const s = plan.stair;
+  return { x0: s.x - s.w / 2, x1: s.x + s.w / 2, z0: s.z, z1: s.z + s.run };
+}
+
+/* the underside of the ground slab, which is also the cellar ceiling */
+const SOFFIT = S.FLOOR_BASE + S.CEIL_BASE;
+
+function buildStairHall(parent, plan, M, L) {
+  const g = new THREE.Group();
+  g.position.set(0, S.FLOOR_BASE, 0);
+  parent.add(g);
+  const t = S.WALL_T, h = S.CEIL_BASE;
+  const hw = S.STAIR_HALL_W / 2, hd = S.STAIR_HALL_D / 2;
+  const well = wellOf(plan);
+  const wallMat = M.mat('plasterDark', 1, 1);
+  const lamps = lampsFor(M, L, { floor: 'basement', id: 'stair-hall', flicker: 0.12 });
+
+  /* laid concrete, and laid a centimetre low: the last tread of the flight
+     lands flush on this sheet, and two up-facing sheets at the same height
+     flicker wherever they overlap */
+  const floor = mesh(g, planeUV(hw * 2, hd * 2, 2.2), M.mat('concrete', 1, 1), 0, -0.012, 0,
+    { receive: true });
+  floor.rotation.set(-Math.PI / 2, 0, 0);
+
+  /* the ceiling is the soffit of the rotunda floor, so it is at the same
+     height as the cellar corridors' and runs away under the drum. three
+     sheets rather than one pierced one because the well runs off the south
+     edge of the hall: the flight comes in through that wall, so the notch
+     reaches the boundary and is not a hole */
+  const sheets = [
+    [hw * 2, hd - well.z1, 0, (well.z1 + hd) / 2],
+    [well.x0 + hw, well.z1 + hd, (-hw + well.x0) / 2, (-hd + well.z1) / 2],
+    [hw - well.x1, well.z1 + hd, (well.x1 + hw) / 2, (-hd + well.z1) / 2]
+  ];
+  for (const [w, d, cx, cz] of sheets) {
+    const c = mesh(g, planeUV(w, d, 2.6), wallMat, cx, h, cz, { cast: true, receive: true });
+    c.rotation.set(Math.PI / 2, 0, 0);
+  }
+
+  /* four walls, each pierced where a cellar arm starts. the arm shells begin
+     at hallWall(), which reads the hall's own walkable rect, so putting the
+     openings on those same four lines is what makes the doors land where the
+     plan thinks they are. the south mouth is the stair's width, not the
+     corridor's: the flight is wider than the arm it lands in. */
+  const mouth = S.BASE_CORRIDOR_W;
+  const stairMouth = Math.max(S.STAIR_W, mouth);
+  addWall(g, wallMat, { run: 'x', at: hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(g, wallMat, { run: 'x', at: -hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: stairMouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(g, wallMat, { run: 'z', at: -hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(g, wallMat, { run: 'z', at: hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+
+  /* the arm is 2.20 wide and the stair 3.00, so at the south mouth the arm's
+     walls finish 0.40 short of the stair's. without these returns the hall
+     looks into a slot that goes nowhere */
+  const ret = S.STAIR_W / 2 - S.BASE_CORRIDOR_W / 2;
+  if (ret > 0.01) {
+    for (const sx of [-1, 1]) {
+      mesh(g, boxUV(ret, h, t, 2.4), wallMat, sx * (S.BASE_CORRIDOR_W / 2 + ret / 2), h / 2, -hd,
+        { cast: true, receive: true });
+    }
+  }
+
+  /* one cold tube, north of the well so it lights the hall and the doors off
+     it rather than shining down the stair. it carries a light of its own:
+     lighting.js lays its pool out from plan.rooms and plan.corridors, and the
+     stair hall is neither — the plan only records it as a walkable rect — so
+     nothing else in the building knows to light it. this is one static light
+     added at boot, not a member of the pool, so the pool's count, and the
+     shaders that depend on it, never change. */
+  addPendant(g, lamps, 0, h - 0.5, 1.4, h, 0.2);
+  const lamp = new THREE.PointLight(0xa9c8e8, 30, 12, 2);
+  lamp.position.set(0, h - 0.62, 1.4);
+  g.add(lamp);
+  return g;
+}
+
+function buildStair(parent, plan, M, L) {
+  const g = new THREE.Group();
+  parent.add(g);
+  const s = plan.stair;
+  const steps = Math.round(S.STAIR_DROP / S.STAIR_RISER);   // twenty
+  const rise = S.STAIR_DROP / steps;                        // 0.18
+  const tread = s.run / steps;                              // 0.28, twice the rise plus the tread is 0.64
+  const stone = M.mat('concrete', 1, 1);
+  const well = wellOf(plan);
+  const zBack = s.z - S.STAIR_LAND / 2;                     // back of the top landing
+  const zHall = -S.STAIR_HALL_D / 2;                        // the hall wall the flight comes through
+
+  /* twenty treads cut into one sloping slab. the underside stays straight,
+     not stepped and not filled to the cellar floor, because the south cellar
+     arm runs under the flight for its first two metres — the plan's union
+     says that stretch is walkable, and a mass of masonry under the stair
+     would be a wall the plan cannot see. 0.26 m of stone leaves 1.67 m of
+     headroom where the arm passes under, which is why the arm is a service
+     corridor and not a processional one. */
+  const slope = Math.atan(s.drop / s.run);
+  const len = Math.hypot(s.run, s.drop);
+  const slab = mesh(g, boxUV(s.w, 0.22, len, 1.6), stone, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
+    { cast: true, receive: true });
+  slab.rotation.x = slope;
+  for (let i = 1; i <= steps; i++) {
+    const top = -i * rise;
+    mesh(g, boxUV(s.w, 0.07, tread, 1.6), stone, s.x, top - 0.035, s.z + (i - 0.5) * tread,
+      { cast: true, receive: true });
+  }
+
+  /* the two landings, flagged so you can feel where the slope starts and
+     ends: the top one is the rotunda floor, the bottom one the hall floor,
+     and in both cases the flag sits a centimetre proud of the sheet under it
+     instead of coplanar with it */
+  const land = [
+    [s.z - S.STAIR_LAND / 2, s.z, 0.012],
+    [s.z + s.run, s.z + s.run + S.STAIR_LAND / 2, S.FLOOR_BASE + 0.012]
+  ];
+  for (const [z0, z1, y] of land) {
+    mesh(g, boxUV(s.w, 0.024, z1 - z0, 2.2), stone, s.x, y - 0.012, (z0 + z1) / 2,
+      { cast: false, receive: true });
+  }
+
+  /* two side walls, the whole length of the well. above the ground floor they
+     are the drum's own stone and stand as a parapet, so nobody walks into
+     the hole from the side; below it they are the damp plaster the cellar is
+     plastered in. */
+  for (const sx of [-1, 1]) {
+    const at = s.x + sx * (s.w / 2 + S.WALL_T / 2);
+    mesh(g, boxUV(S.WALL_T, -S.FLOOR_BASE, zHall - zBack, 2.4), M.mat('plasterDark', 1, 1),
+      at, S.FLOOR_BASE / 2, (zBack + zHall) / 2, { cast: true, receive: true });
+    mesh(g, boxUV(S.WALL_T, 0.9, zHall - zBack, 2.4), M.mat('marbleDark', 1, 1),
+      at, 0.45, (zBack + zHall) / 2, { cast: true, receive: true });
+  }
+
+  /* a handrail down one side, hung 0.90 above the nosing line */
+  const rail = M.solid(0x3c3f45, { roughness: 0.35, metalness: 0.75 });
+  const rx = s.x + s.w / 2 - 0.10;
+  const bar = mesh(g, new THREE.CylinderGeometry(0.028, 0.028, len, 10), rail,
+    rx, 0.9 - s.drop / 2, s.z + s.run / 2, { cast: true });
+  bar.rotation.x = Math.atan2(s.run, -s.drop);
+  for (let k = 0; k <= 5; k++) {
+    const z = s.z + (k / 5) * s.run;
+    const y = -(z - s.z) / s.run * s.drop;
+    mesh(g, new THREE.CylinderGeometry(0.022, 0.022, 0.9, 8), rail, rx, y + 0.45, z, { cast: true });
+  }
+
+  /* the slab edge round the well: the 0.40 m between the top of the ground
+     slab and the cellar soffit, lined on the two ends. the sides are already
+     lined by the well walls above. */
+  for (const z of [well.z0, well.z1]) {
+    mesh(g, boxUV(well.x1 - well.x0, -SOFFIT, 0.2, 2.4), M.mat('marbleDark', 1, 1),
+      (well.x0 + well.x1) / 2, SOFFIT / 2, z, { cast: false, receive: true });
+  }
+  return g;
+}
+
 function buildGrounds(parent, M, plan) {
   /* the courtyard stops well short of the sky dome on purpose: a window that
      looks out onto gravel all the way to the horizon shows you a floor, not a
      night sky, and the whole point of the glazing is the sky */
-  const ground = new THREE.Mesh(planeUV(240, 240, 4), M.mat('gravel', 1, 1));
+  const d = 240;
+  /* the slab stops at the drum. the stair well is cut through the rotunda
+     floor, and this sheet runs three centimetres under that floor: left whole
+     it would close the well over like a lid and the cellar would be a room
+     with no way into it. */
+  const shape = new THREE.Shape();
+  shape.moveTo(-d / 2, -d / 2);
+  shape.lineTo(d / 2, -d / 2);
+  shape.lineTo(d / 2, d / 2);
+  shape.lineTo(-d / 2, d / 2);
+  shape.closePath();
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, S.ROTUNDA_R, 0, TAU, true);
+  shape.holes.push(hole);
+  const ground = new THREE.Mesh(uvScale(new THREE.ShapeGeometry(shape, 48), 1 / 4, 1 / 4),
+    M.mat('gravel', 1, 1));
   ground.rotation.set(-Math.PI / 2, 0, 0);
   ground.position.y = -0.03;
   ground.receiveShadow = true;
@@ -528,15 +732,16 @@ function buildGrounds(parent, M, plan) {
   /* low courtyard walls in the diagonal quadrants: the windows need something
      to look at before the planting goes in */
   const low = M.solid(0x54564f, { roughness: 0.85 });
-  const d = plan.reach * 0.72;
+  const q = plan.reach * 0.72;
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * TAU + Math.PI / 4;
     const wall = mesh(parent, boxUV(16, 1.6, 0.4, 2.4), low,
-      Math.sin(a) * d, 0.8, Math.cos(a) * d, { cast: true, receive: true });
+      Math.sin(a) * q, 0.8, Math.cos(a) * q, { cast: true, receive: true });
     wall.rotation.y = a;
   }
   return ground;
 }
+
 
 export function buildBuilding(THREE, plan, M) {
   const group = new THREE.Group();
@@ -544,6 +749,8 @@ export function buildBuilding(THREE, plan, M) {
   const L = lampMats(M);
   buildGrounds(group, M, plan);
   buildRotunda(group, plan, M, pickables, L);
+  buildStairHall(group, plan, M, L);
+  buildStair(group, plan, M, L);
   plan.corridors.forEach((corridor) => buildCorridor(group, M, corridor, L, plan));
   plan.rooms.forEach((room) => buildRoom(group, plan, M, room, pickables, L));
   return { group, pickables };
