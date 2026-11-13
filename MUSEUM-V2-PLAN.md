@@ -1,6 +1,6 @@
 ---
 tags: [museum, project, plan]
-status: locked — building
+status: locked — building (phases 0–2 and 4–8 in, phase 3 half in; see HANDOFF.md)
 build: v2
 base: index.html (v1, 5,168 lines, one rotunda, 88 exhibits) — tagged `v1-rotunda`
 ---
@@ -41,6 +41,7 @@ graph TD
 | Acquisitions board | In, low priority (~30 min): paste a URL, a crate appears in the rotunda, saved locally. |
 | XR | Viewer rig with eye height + IPD now (free, it is the camera model anyway); a hidden "enter VR" button is the last item and can slip to the next step. |
 | Sound default | On after your first click, with a level meter; `M` mutes. |
+| Cost table | **Open, not merged.** A 110-row software cost table arrived 2026-11-12. Transcribed to `scratch/candidates-software-costs.js`; `node scratch/check-candidates.mjs` reports 4 collisions with the live collection, 8 rows whose domains do not exist, 9 whose domains belong to other products, and 13 real products with wrong URLs. Merging as-is puts 52 exhibits in the Atelier and 33 in the Print Shop, which the 12-room plan cannot hold at a 1.50 m turning circle. Awaiting: drop or keep the unverifiable rows, and whether the big rooms get split. See `HANDOFF.md`. |
 
 ## 1 · Scale grid (what makes walk/VR support cheap later)
 

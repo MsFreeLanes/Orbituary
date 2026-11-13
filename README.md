@@ -101,6 +101,7 @@ node scratch/check-v2.mjs --shots  # and photograph all thirteen spaces
 node scratch/check-scale.mjs       # the metric grid, and can a body fit through
 node scratch/check-sky.mjs         # sixteen checks against real astronomy
 node scratch/check-events.mjs      # 2000 ambient events, checked for clustering
+node scratch/check-candidates.mjs  # dry run of the software-costs merge
 node scratch/probe-exposure.mjs    # pixel readback: is the room actually lit
 node scratch/probe-keys.mjs        # presses the keyboard and watches the rig
 node scratch/probe-tier.mjs        # the quality ladder under load
@@ -122,6 +123,7 @@ __museum.view.tier                   // which quality rung the watchdog picked
 | `src/data.js` | the 88 links and the category palette |
 | `src/plan.js` | the building: rooms, corridors, doors, windows, walkable space |
 | `src/building.js` | walls with real openings, ceilings, plinths, lamps |
+| `src/props.js` | the furniture: easels, racks, vitrines, crates — written, not yet wired in |
 | `src/materials.js` | canvas-painted PBR maps, glass, the environment probe |
 | `src/signage.js` | plaques and door plates typeset into one atlas per room |
 | `src/sky.js` | the planetarium |
@@ -147,3 +149,10 @@ Curated by hand, 88 entries, no affiliate links. Two Steam app URLs were
 corrected during the build (`Game Compressor`, `3D Controller Overlay`) and one
 entry, the GDQ Donation Generator, is served over plain `http://` because that is
 how its author publishes it.
+
+A 110-row software cost table arrived on 2026-11-12 and is **not merged**: it is
+transcribed into `scratch/candidates-software-costs.js` and `node
+scratch/check-candidates.mjs` says what it would do to the building. Eight of its
+rows point at domains that do not exist and nine more point at domains that
+belong to something else, so it is waiting on a ruling before anything hangs on
+a wall. `HANDOFF.md` carries the state of the build and that decision.
