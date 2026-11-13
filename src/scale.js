@@ -79,6 +79,12 @@ export const S = {
   STAIR_HALL_D: 8.00,
   STAIR_W: 3.00,          // a grand stair: two people abreast, and a stretcher
   STAIR_RUN: 5.60,        // horizontal run of the flight; 3.60 m down over 5.60 m is 33°
+  STAIR_DROP: 3.60,       // what the flight falls through: exactly one storey, so the
+                          // slab it lands on is the ground floor slab above
+  STAIR_RISER: 0.18,      // a step's rise. 3.60 / 0.18 is twenty steps, and twenty
+                          // steps across the 5.60 m run is a 0.28 m tread: twice the
+                          // rise plus the tread is 0.64 m, the old rule of thumb for a
+                          // flight you can walk down without reaching for the rail
   STAIR_LAND: 1.60,       // flat at each end, so the door is never on the slope
   STAIR_INSET: 1.40,      // how far inside the drum the top of the stair stands
 
