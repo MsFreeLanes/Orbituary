@@ -52,6 +52,29 @@ export const S = {
   HALL_WIN_H: 2.60,
   HALL_SILL: 0.45,
 
+  /* the pressure hull (2026-11-13: the building is a station, not a house).
+     The skin is a second wall bolted onto the outside of the outer wall: a
+     viewport's reveal passes through both leaves, and the reveal is cut to
+     HULL_OUT, so the frame and the skin cannot drift apart.
+     There is no cavity behind the plate. The plan interleaves the side rooms
+     of neighbouring spokes, and the tightest pair of rooms on two ranges
+     stands 1.16 m clear of each other (scratch/hull-clearance.mjs measures
+     it); a skin standing off the wall at 30 cm on each side of that gap does
+     not fit, so the plate is bonded down flat and the services run inside the
+     rooms rather than behind the wall. */
+  HULL_T: 0.30,           // the skin's own plate thickness
+  HULL_OUT: 0.475,        // room wall centreline → hull skin's outer face:
+                          // WALL_T/2 + HULL_T, the skin lying on the wall face
+  HULL_BELLY: -0.36,      // the keel. 4 cm above the cellar soffit (-0.40): the
+                          // hull's belly and the cellar's ceiling must not be
+                          // the same plane or they fight for every pixel
+  HULL_CLEAR: 0.55,       // room ceiling → hull roof: the duct run over the rooms
+  HULL_DRUM: 8.42,        // the drum's outer skin. The drum wall ends at 8.35,
+                          // and 7 mm clear is what stops the two skins z-fighting
+  HULL_CUPOLA: 8.72,      // the cupola's shell, one skin clear of the dome
+  VIEW_FLANGE: 0.16,      // the hole in the hull is this much wider and taller
+                          // than the glazing: the space the pressure frame fills
+
   /* the plan: a twelve-spoke wheel (2026-11-13 revision) */
   ROTUNDA_R: 8.00,        // interior radius of the central hall
   SPOKE_COUNT: 12,        // ranges radiating off the rotunda

@@ -1,0 +1,30 @@
+draw calls — before — 2026-11-13T12:40:46.524Z
+
+whole building, nothing culled: {"calls":352,"tris":92517,"geoms":277,"texs":48,"programs":41,"objects":788,"submitted":587,"texMB":79.16,"atlasCount":4,"atlasMB":14.96,"atlasMax":"1536x768","lights":12,"poolLit":10,"casters":1}
+
+rotunda-centre         at 0,0 (ground, rotunda)
+     169 calls ·   56091 tris · 139/788 objects submitted · 48 texs · 41 programs
+   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+   lights 12 (10 lit) · shadow casters 1
+
+mid-corridor-north     at 0,26 (ground, corridor)
+      71 calls ·   19886 tris · 82/788 objects submitted · 50 texs · 61 programs
+   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+   lights 12 (10 lit) · shadow casters 1
+
+terminus-hall-gaming   at 0,37.2 (ground, gaming)
+      27 calls ·    9034 tris · 44/788 objects submitted · 50 texs · 61 programs
+   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+   lights 12 (10 lit) · shadow casters 1
+
+stair-hall             at 0,1.4 (basement, stair-hall)
+      90 calls ·   32285 tris · 125/788 objects submitted · 50 texs · 62 programs
+   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+   lights 12 (10 lit) · shadow casters 1
+
+cellar-room            at 1.8,9 (basement, apple-dev)
+      27 calls ·    7476 tris · 40/788 objects submitted · 50 texs · 62 programs
+   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+   lights 12 (10 lit) · shadow casters 1
+
+errors: []

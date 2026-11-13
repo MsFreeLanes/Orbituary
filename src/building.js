@@ -1,7 +1,7 @@
 /* ── building ────────────────────────────────────────────────────────────
    The shell: floors, walls with real openings, ceilings, the rotunda drum
-   and dome, the stair down to the cellar, window frames and glazing, and a
-   plinth for every exhibit.
+   and its cupola, the pressure hull over the whole wheel, the stair down to
+   the cellar, viewport frames and glazing, and a plinth for every exhibit.
 
    Walls are built as runs of boxes with the texture tiling baked into the
    geometry UVs, so one material per surface type serves the whole building
@@ -11,8 +11,8 @@
    Both storeys come out of the same builder: the plan says what floor a room
    or a corridor is on, and one offset puts its whole shell on that floor. The
    two storeys are joined by one thing, the stair, and it is joined by a hole:
-   the same rectangle missing from the courtyard slab, the rotunda floor and
-   the stair hall's ceiling.
+   the same rectangle missing from the rotunda floor and the stair hall's
+   ceiling.
 
    Fifty-one spaces is a great many boxes, and a box that is its own mesh
    costs a draw call — which, not the triangles, is what a walk pays for. So
@@ -177,7 +177,13 @@ function addWall(B, mat, o) {
   along(cursor, to);
 }
 
-/* frame + glazing sitting in an opening */
+/* frame + glazing sitting in an opening. Out of a window in a building you
+   look at the reveal of the wall and then the garden; out of a viewport you
+   look through a hull, so the reveal is lined with metal all the way from the
+   room face to the outside of the skin, opens up as it goes (the bevel a
+   pressure frame needs so the plate can carry the load), and stops at a
+   collar. The opening in the hull is wider than the glazing by the frame's
+   own width on every side, which is what the bevel is cut to. */
 function addWindow(B, M, o) {
   const { run, at, c, w, y0, y1, t } = o;
   const glassMat = M.glass;
@@ -198,12 +204,43 @@ function addWindow(B, M, o) {
     const geo = run === 'x' ? new THREE.BoxGeometry(bw, bh, fd) : new THREE.BoxGeometry(fd, bh, bw);
     B.put(geo, frame, run === 'x' ? bx : at, by, run === 'x' ? at : bx, { cast: false });
   }
-  /* a sill lip, the way a real window has one */
+
+  /* the reveal, through both leaves. zIn is the room face of the wall, zOut
+     the outside of the pressure hull; the four plates run between them and
+     splay outwards by exactly the frame's width. The plan only ever glazes
+     the wall opposite the door, so this is built in the room's own frame with
+     the depth running along +z. */
+  const bev = S.VIEW_FLANGE;
+  const zIn = at - t / 2, zOut = at + S.HULL_OUT;
+  const dz = zOut - zIn, ang = Math.atan2(bev, dz), L = Math.hypot(dz, bev);
+  const zc = (zIn + zOut) / 2, plate = 0.04;
+  for (const sy of [1, -1]) {
+    B.put(new THREE.BoxGeometry(w, plate, L), frame, c,
+      (sy > 0 ? y1 : y0) + sy * bev / 2, zc, { rx: -sy * ang, cast: false });
+  }
+  for (const sx of [1, -1]) {
+    B.put(new THREE.BoxGeometry(plate, y1 - y0 + bev * 2, L), frame,
+      c + sx * (w / 2 + bev / 2), (y0 + y1) / 2, zc, { ry: sx * ang, cast: false });
+  }
+  /* the pressure frame itself: a collar on the room face, standing proud of
+     the plaster so the opening reads as fitted into the wall rather than cut
+     out of it */
+  const fl = 0.14, pr = 0.09, zf = zIn - pr / 2 + 0.02;
+  for (const sy of [1, -1]) {
+    B.put(new THREE.BoxGeometry(w + fl * 2, fl, pr), frame, c,
+      (sy > 0 ? y1 : y0) + sy * fl / 2, zf, { cast: false });
+  }
+  for (const sx of [1, -1]) {
+    B.put(new THREE.BoxGeometry(fl, y1 - y0, pr), frame, c + sx * (w / 2 + fl / 2),
+      (y0 + y1) / 2, zf, { cast: false });
+  }
+  /* the sill, now part of the frame: a stone sill lip on a hull is the one
+     detail that would put the building back on the ground */
   const sillGeo = run === 'x'
     ? new THREE.BoxGeometry(w + 0.16, 0.05, t + 0.14)
     : new THREE.BoxGeometry(t + 0.14, 0.05, w + 0.16);
-  B.put(sillGeo, M.solid(0x8a857c, { roughness: 0.6 }),
-    run === 'x' ? c : at, y0 - 0.02, run === 'x' ? at : c, { cast: false, receive: true });
+  B.put(sillGeo, frame, run === 'x' ? c : at, y0 - 0.02, run === 'x' ? at : c,
+    { cast: false, receive: true });
 }
 
 /* every lamp in the building shares two materials: a dark metal shade and a
@@ -514,7 +551,7 @@ function shellRect(plan, c) {
   };
 }
 
-function buildCorridor(parent, M, corridor, L, plan) {
+function buildCorridor(parent, M, corridor, L, plan, H) {
   const g = new THREE.Group();
   g.position.set(0, yOf(corridor), 0);
   g.rotation.y = Math.atan2(corridor.dir.x, corridor.dir.z);
@@ -547,12 +584,16 @@ function buildCorridor(parent, M, corridor, L, plan) {
      cellar lamps keep their own spacing from the near end of the shell. */
   const first = corridor.floor === 'basement' ? z0 + 1.4 : S.ROTUNDA_R + 1.5;
   for (let p = first; p < corridor.t1; p += 3.6) addDownlight(B, lamps, 0, h - 0.01, p, 0.11);
+
+  /* the range's own hull, welded into this same batch: the range is one mesh
+     with or without it, and the cull that hides the range hides its skin too */
+  if (corridor.floor !== 'basement') buildArmHull(B, H, plan, corridor);
   B.flush();
   corridor.group = g;
   return g;
 }
 
-function buildRotunda(parent, plan, M, pickables, L, kit) {
+function buildRotunda(parent, plan, M, pickables, L, kit, H) {
   const g = new THREE.Group();
   parent.add(g);
   const R = S.ROTUNDA_R, h = S.CEIL_ROTUNDA;
@@ -583,9 +624,9 @@ function buildRotunda(parent, plan, M, pickables, L, kit) {
      a wall. what is left between the arches is a pier of R*(step - 2*half)
      ≈ 1.6 m, which is where the pilasters below stand. */
   const half = Math.asin(S.CORRIDOR_W / 2 / R);
-  /* the drum is seen from both sides — from the rotunda floor and from the
-     courtyard outside a window — and the material is the shared marble, so
-     the double side is set on the material, as it always was */
+  /* the drum is a single sheet with no thickness, and at the twelve arch
+     mouths you see its outer face and its edge from inside the hub, so the
+     double side stays on the shared marble, as it always was */
   wallMat.side = THREE.DoubleSide;
   for (let i = 0; i < S.SPOKE_COUNT; i++) {
     const a = i * S.SPOKE_STEP;
@@ -649,6 +690,20 @@ function buildRotunda(parent, plan, M, pickables, L, kit) {
   B.put(new THREE.TorusGeometry(oculusR, 0.16, 10, 64),
     M.solid(0xb9a06a, { roughness: 0.35, metalness: 0.8 }),
     0, h + R * Math.cos(thetaHole) * (S.DOME_RISE / R), 0, { rx: Math.PI / 2 });
+
+  /* the meridians, the cornice and the oculus ring are laid on after the
+     hub's first weld, so they need this second one: a pile that is never
+     flushed is a piece of the building that does not exist */
+  B.flush();
+
+  /* the hub's own skin, and the cupola the oculus is now set in. One batch
+     for both, so the drum, the bowl, the collar and the junction posts are
+     one mesh on the hub the cull already switches */
+  const HB = batch(g);
+  buildDrumHull(HB, H, plan);
+  buildCupola(HB, H, M, thetaHole);
+  HB.flush();
+
   plan.rotunda.group = g;
   return g;
 }
@@ -656,8 +711,8 @@ function buildRotunda(parent, plan, M, pickables, L, kit) {
 /* ── the stair well ──────────────────────────────────────────────────────
    One rectangle in plan that has to be missing from three different sheets:
    the rotunda floor it descends through, the stair hall's ceiling below it,
-   and the courtyard slab, which lies three centimetres under the rotunda
-   floor and would otherwise be the first thing you saw down the well. The
+   and the hull's keel, which runs under the whole drum and would otherwise
+   be the first thing you saw down the well — a lid on the only way down. The
    plan says where it is — the stair record's x/z is the head of the flight
    and the flight runs `run` metres from there — so the well and the stair
    cannot drift apart. */
@@ -815,43 +870,329 @@ function buildStair(parent, plan, M, L) {
   return g;
 }
 
-function buildGrounds(parent, M, plan) {
-  /* the courtyard stops well short of the sky dome on purpose: a window that
-     looks out onto gravel all the way to the horizon shows you a floor, not a
-     night sky, and the whole point of the glazing is the sky */
-  const d = 240;
-  /* the slab stops at the drum. the stair well is cut through the rotunda
-     floor, and this sheet runs three centimetres under that floor: left whole
-     it would close the well over like a lid and the cellar would be a room
-     with no way into it. */
-  const shape = new THREE.Shape();
-  shape.moveTo(-d / 2, -d / 2);
-  shape.lineTo(d / 2, -d / 2);
-  shape.lineTo(d / 2, d / 2);
-  shape.lineTo(-d / 2, d / 2);
-  shape.closePath();
-  const hole = new THREE.Path();
-  hole.absarc(0, 0, S.ROTUNDA_R, 0, TAU, true);
-  shape.holes.push(hole);
-  const ground = new THREE.Mesh(uvScale(new THREE.ShapeGeometry(shape, 48), 1 / 4, 1 / 4),
-    M.mat('gravel', 1, 1));
-  ground.rotation.set(-Math.PI / 2, 0, 0);
-  ground.position.y = -0.03;
-  ground.receiveShadow = true;
-  parent.add(ground);
+/* ── the pressure hull ───────────────────────────────────────────────────
+   There is no courtyard and no ground any more: out here the outside of the
+   outer wall is the outside of the station. So the wheel gets a second skin —
+   plate over the drum and over every range, jointed into panels, stiffened
+   where the ranges meet the drum, and pierced only where a viewport goes
+   through. The plate is bolted flat onto the outside of the outer wall: a
+   viewport still passes through both leaves, and the reveal between the room
+   face and the outside of the skin is what tells you the wall is a hull and
+   not a facade — but there is no cavity behind it, and none is needed: the
+   tightest pair of rooms on two ranges stands 1.16 m clear of each other
+   (scratch/hull-clearance.mjs measures it), and a skin standing off the wall
+   on both sides of that gap does not fit.
 
-  /* low courtyard walls in the diagonal quadrants: the windows need something
-     to look at before the planting goes in */
-  const low = M.solid(0x54564f, { roughness: 0.85 });
-  const q = plan.reach * 0.72;
-  const B = batch(parent);
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * TAU + Math.PI / 4;
-    B.put(boxUV(16, 1.6, 0.4, 2.4), low, Math.sin(a) * q, 0.8, Math.cos(a) * q,
-      { cast: true, receive: true, ry: a });
+   The skin follows the plan rather than wrapping it in a tube: at 30° the
+   ranges interleave in the wedge between them, and a constant-width hull
+   would meet its neighbour before the first room band. Each range is
+   therefore a chain of bays — the corridor's own width between the room
+   bands, the room's width over the room, the hall's width over the hall —
+   with a step closed where one hands over to the next.
+
+   None of it is a separate draw call: the skin, the stiffeners and the rim
+   strips are welded into the range's own batch, so a range that the cull
+   switches off takes its hull with it. */
+function hullMats(M) {
+  return {
+    skin: M.mat('hull', 1, 1),
+    /* the hard rim light: a strip of the cold tube colour laid along every
+       top edge of the skin. Out here there is no ground to bounce the lamps
+       back, so without it the hull is a black mass on a black sky and the
+       only thing that reads is the lit patch through a viewport. It is
+       emissive geometry rather than a light — a real lamp would recompile
+       every shader in the building and move the moon's shadow. */
+    rim: new THREE.MeshStandardMaterial({
+      color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 2.4,
+      roughness: 0.4, metalness: 0.3
+    })
+  };
+}
+
+/* a run of hull plate, pierced by viewports. Same arithmetic as addWall —
+   the holes are real holes, and the void has to be able to see you through
+   them — but measured from y0 up rather than from the floor, and with the
+   plate standing off the wall it covers. */
+function hullRun(B, H, o) {
+  const { run, at, from, to, y0, y1, openings = [] } = o;
+  const t = S.HULL_T, h = y1 - y0, scale = 1.6;
+  const along = (a, b) => {
+    if (b - a < 0.01) return;
+    const len = b - a, mid = (a + b) / 2;
+    const geo = run === 'z' ? boxUV(t, h, len, scale) : boxUV(len, h, t, scale);
+    B.put(geo, H.skin, run === 'z' ? at : mid, y0 + h / 2, run === 'z' ? mid : at,
+      { cast: true, receive: true });
+  };
+  const sorted = openings.slice().sort((a, b) => a.c - b.c);
+  let cursor = from;
+  for (const op of sorted) {
+    const lo = op.c - op.w / 2, hi = op.c + op.w / 2;
+    along(cursor, lo);
+    if (op.y0 > y0 + 0.01) {
+      const gh = op.y0 - y0;
+      const geo = run === 'z' ? boxUV(t, gh, op.w, scale) : boxUV(op.w, gh, t, scale);
+      B.put(geo, H.skin, run === 'z' ? at : op.c, y0 + gh / 2, run === 'z' ? op.c : at,
+        { cast: true, receive: true });
+    }
+    if (op.y1 < y1 - 0.01) {
+      const gh = y1 - op.y1;
+      const geo = run === 'z' ? boxUV(t, gh, op.w, scale) : boxUV(op.w, gh, t, scale);
+      B.put(geo, H.skin, run === 'z' ? at : op.c, op.y1 + gh / 2, run === 'z' ? op.c : at,
+        { cast: true, receive: true });
+    }
+    cursor = hi;
   }
-  B.flush();
-  return ground;
+  along(cursor, to);
+}
+
+/* a stiffener: a hoop standing proud of the skin at a bay junction. It is
+   welded from four plates rather than instanced because it is the same
+   material as the skin it stiffens, and a weld costs nothing — the whole
+   range, hull and all, is still one mesh. */
+function hullHoop(B, H, t, p, n, y0, y1) {
+  const proud = 0.24, wide = 0.28;
+  for (const sx of [1, -1]) {
+    const at = (sx > 0 ? p : -n) + sx * proud / 2;
+    B.put(boxUV(wide, y1 - y0 + proud * 2, proud, 1.2), H.skin,
+      at, (y0 + y1) / 2, t, { cast: true, receive: true });
+  }
+  for (const sy of [1, -1]) {
+    const y = (sy > 0 ? y1 : y0) + sy * proud / 2;
+    B.put(boxUV(p + n + proud * 2, wide, proud, 1.2), H.skin,
+      (p - n) / 2, y, t, { cast: true, receive: true });
+  }
+}
+
+/* One range's hull, in the range's own frame: +z along the spoke, +x to the
+   +side. The bays come out of the plan — every room on this range is a bay,
+   and the stretches between them are the corridor's own width. */
+function buildArmHull(B, H, plan, corridor) {
+  const dir = corridor.dir;
+  /* the plan's world frame, read into the arm's frame: the group is already
+     turned to the spoke, so this is the only place the spoke's angle appears */
+  const local = (p) => ({ x: dir.z * p.x - dir.x * p.z, z: dir.x * p.x + dir.z * p.z });
+  const stand = S.WALL_T / 2 + S.HULL_T / 2;   // wall centreline → skin centre
+  const belly = S.HULL_BELLY;
+  const rooms = plan.rooms
+    .filter((r) => r.floor !== 'basement' && r.range === corridor.range)
+    .map((r) => {
+      const cs = [
+        local(r.entry),
+        local({ x: r.entry.x + r.n.x * r.d, z: r.entry.z + r.n.z * r.d }),
+        local({ x: r.entry.x + Math.cos(r.angle) * r.w / 2, z: r.entry.z - Math.sin(r.angle) * r.w / 2 }),
+        local({ x: r.entry.x - Math.cos(r.angle) * r.w / 2, z: r.entry.z + Math.sin(r.angle) * r.w / 2 })
+      ];
+      const along = cs.map((p) => p.z), across = cs.map((p) => p.x);
+      return {
+        room: r,
+        t0: Math.min(...along), t1: Math.max(...along),
+        x0: Math.min(...across), x1: Math.max(...across),
+        wins: r.windows.map((w) => {
+          const c = local({ x: w.x, z: w.z });
+          return { c, along: c.z, across: c.x, w: w.w, y0: w.sill - S.VIEW_FLANGE, y1: w.sill + w.h + S.VIEW_FLANGE };
+        })
+      };
+    })
+    .sort((a, b) => a.t0 - b.t0);
+
+  const corrHalf = corridor.half + stand;
+  const bays = [];
+  let cursor = S.ROTUNDA_R + 0.2;
+  for (const r of rooms) {
+    if (r.t0 - cursor > 0.01) {
+      bays.push({ t0: cursor, t1: r.t0, p: corrHalf, n: corrHalf, top: corridor.ceil + S.HULL_CLEAR, wins: [] });
+    }
+    const hall = r.room.side === 0;
+    const p = hall ? r.x1 + stand : Math.max(r.x1 + stand, corrHalf);
+    const n = hall ? -r.x0 + stand : Math.max(-r.x0, corrHalf);
+    bays.push({
+      t0: r.t0, t1: r.t1 + stand, p, n, top: r.room.ceil + S.HULL_CLEAR,
+      wins: r.wins, side: r.room.side, end: hall
+    });
+    cursor = r.t1 + stand;
+  }
+
+  /* the first hoop: where the range leaves the drum. It stands against the
+     pair of junction posts on the drum's own ring, which is what makes the
+     twelve spokes read as carried rather than butted on */
+  if (bays.length) hullHoop(B, H, bays[0].t0, bays[0].p, bays[0].n, belly, bays[0].top);
+
+  for (let i = 0; i < bays.length; i++) {
+    const b = bays[i];
+    /* a side room's glazing goes through the skin on the side it leans to; a
+       terminus hall's goes through the end cap, and putting it in the side
+       skins as well would leave a hole at each corner of the hall */
+    const hole = (w, c) => ({ c, w: w.w + S.VIEW_FLANGE * 2, y0: w.y0, y1: w.y1 });
+    const onSide = (sign) => (b.side === 0 ? [] : b.wins)
+      .filter((w) => sign * w.across > 0)
+      .map((w) => hole(w, w.along));
+    hullRun(B, H, { run: 'z', at: b.p, from: b.t0, to: b.t1, y0: belly, y1: b.top, openings: onSide(1) });
+    hullRun(B, H, { run: 'z', at: -b.n, from: b.t0, to: b.t1, y0: belly, y1: b.top, openings: onSide(-1) });
+
+    /* the roof and the keel. The keel is the floor of the station: with the
+       courtyard gone it is the only thing between the cellar and empty space,
+       and it is what makes the silhouette a hull rather than a section. */
+    const w = b.p + b.n, cz = (b.t0 + b.t1) / 2;
+    B.put(planeUV(w, b.t1 - b.t0, 1.6), H.skin, (b.p - b.n) / 2, b.top, cz,
+      { rx: -Math.PI / 2, cast: true, receive: true });
+    B.put(planeUV(w, b.t1 - b.t0, 1.6), H.skin, (b.p - b.n) / 2, belly, cz,
+      { rx: Math.PI / 2, cast: true, receive: true });
+
+    /* the rim light: a strip along every long edge of the skin, at the roof
+       and at the keel. Out here nothing bounces the lamps back and the moon is
+       a fraction of a lux, so without an edge that makes its own light the
+       station is a black mass on a black sky and the only part of it you can
+       see is the lit patch through a viewport. */
+    const rw = 0.12, rp = 0.14, out = S.HULL_T / 2 - 0.03;
+    for (const sx of [1, -1]) {
+      const at = (sx > 0 ? b.p : -b.n) + sx * out;
+      for (const sy of [1, -1]) {
+        B.put(new THREE.BoxGeometry(rw, rp, b.t1 - b.t0 - 0.02), H.rim,
+          at, (sy > 0 ? b.top : belly) + sy * 0.05, cz, { cast: false });
+      }
+    }
+    if (b.end) {
+      for (const sy of [1, -1]) {
+        B.put(new THREE.BoxGeometry(b.p + b.n - rw, rp, rw), H.rim,
+          (b.p - b.n) / 2, (sy > 0 ? b.top : belly) + sy * 0.05, b.t1 + out, { cast: false });
+      }
+      /* and a marker at each upper corner of the end cap, the way the end of
+         every module on a station carries one: at eighty metres out it is the
+         only thing that says where the range stops */
+      for (const sx of [1, -1]) {
+        B.put(new THREE.BoxGeometry(0.24, 0.24, 0.12), H.rim,
+          (sx > 0 ? b.p : -b.n) - sx * 0.34, b.top - 0.42, b.t1 + out + 0.04, { cast: false });
+      }
+    }
+
+    /* where the next bay is a different shape, close the step. The strip is
+       the difference between the two sections, so nothing is left open. */
+    const nx = bays[i + 1];
+    if (!nx) {
+      hullRun(B, H, {
+        run: 'x', at: b.t1, from: -b.n, to: b.p, y0: belly, y1: b.top,
+        openings: (b.end ? b.wins : []).map((w) => hole(w, w.across))
+      });
+      hullHoop(B, H, b.t1, b.p, b.n, belly, b.top);
+      continue;
+    }
+    const hi = Math.max(b.top, nx.top);
+    hullHoop(B, H, nx.t0, Math.max(b.p, nx.p), Math.max(b.n, nx.n), belly, hi);
+    if (Math.abs(b.p - nx.p) > 0.01) {
+      hullRun(B, H, { run: 'x', at: nx.t0, from: Math.min(b.p, nx.p), to: Math.max(b.p, nx.p), y0: belly, y1: hi });
+    }
+    if (Math.abs(b.n - nx.n) > 0.01) {
+      hullRun(B, H, { run: 'x', at: nx.t0, from: -Math.max(b.n, nx.n), to: -Math.min(b.n, nx.n), y0: belly, y1: hi });
+    }
+    if (Math.abs(b.top - nx.top) > 0.01) {
+      hullRun(B, H, {
+        run: 'x', at: nx.t0, from: -Math.min(b.n, nx.n), to: Math.min(b.p, nx.p),
+        y0: Math.min(b.top, nx.top), y1: hi
+      });
+    }
+  }
+}
+
+/* The drum's skin, and the cupola over it. The ring is cut at the twelve
+   arches — the skin has to stop where the range begins or the hub is sealed
+   off from its own spokes — and the gap it leaves is exactly the corridor's
+   hull, so the two skins meet without either one knowing about the other. */
+function buildDrumHull(B, H, plan) {
+  const R = S.HULL_DRUM, y0 = S.HULL_BELLY, y1 = S.CEIL_ROTUNDA + S.HULL_CLEAR;
+  const mouth = S.CORRIDOR_W / 2 + S.WALL_T / 2;
+  const half = Math.asin(mouth / R);
+  for (let i = 0; i < S.SPOKE_COUNT; i++) {
+    const a = i * S.SPOKE_STEP;
+    const start = a + half, span = S.SPOKE_STEP - half * 2;
+    const seg = uvScale(new THREE.CylinderGeometry(R, R, y1 - y0, 10, 1, true, start, span),
+      (R * span) / 1.6, (y1 - y0) / 1.6);
+    B.put(seg, H.skin, 0, (y0 + y1) / 2, 0, { cast: true, receive: true });
+
+    /* the junction ribs: a post either side of every arch, and the hoop the
+       range's own first stiffener butts against. Twelve ranges, twenty-four
+       posts, one weld. */
+    for (const s of [-1, 1]) {
+      const b = a + s * (mouth + 0.17);
+      B.put(boxUV(0.34, y1 - y0 + 0.7, 0.34, 1.2), H.skin,
+        Math.sin(b) * (R + 0.17), (y0 + y1) / 2, Math.cos(b) * (R + 0.17),
+        { cast: true, receive: true, ry: b });
+    }
+  }
+  /* stringers round the drum, so the plate reads as framed rather than as a
+     painted cylinder */
+  for (const y of [y0 + 0.4, (y0 + y1) / 2, y1 - 0.4]) {
+    const ring = uvScale(new THREE.TorusGeometry(R + 0.17, 0.13, 6, 72), (TAU * R) / 1.6, 0.4);
+    B.put(ring, H.skin, 0, y, 0, { rx: Math.PI / 2, cast: true, receive: true });
+  }
+  /* the keel under the drum, with the stair well cut out of it for the same
+     reason the well is cut out of the rotunda floor: a plate across the well
+     is a lid on the only way down. It sits two centimetres under the ranges'
+     keel so the two sheets do not fight where they overlap at the junction. */
+  const disc = new THREE.Shape();
+  disc.absarc(0, 0, R, 0, TAU, false);
+  const well = wellOf(plan);
+  const cut = new THREE.Path();
+  cut.moveTo(well.x0, well.z0);
+  cut.lineTo(well.x1, well.z0);
+  cut.lineTo(well.x1, well.z1);
+  cut.lineTo(well.x0, well.z1);
+  cut.closePath();
+  disc.holes.push(cut);
+  B.put(uvScale(new THREE.ShapeGeometry(disc, 48), 1 / 1.6, 1 / 1.6), H.skin,
+    0, y0 - 0.02, 0, { rx: Math.PI / 2, cast: true, receive: true });
+  /* the rim light round the hub: one ring at the top of the drum's skin and
+     one at the keel, so the drum reads as a body with an edge rather than as
+     a shadow against the stars */
+  for (const y of [y1 - 0.02, y0 + 0.02]) {
+    B.put(new THREE.TorusGeometry(R + 0.06, 0.07, 6, 72), H.rim, 0, y, 0, { rx: Math.PI / 2 });
+  }
+  return y1;
+}
+
+/* The Cupola. The dome keeps its geometry and its oculus keeps its size —
+   what changes is that the hole in the roof becomes a window: a shell one
+   skin clear of the dome, a collar where the two meet, a pressure ring at
+   the opening and the same glazing the viewports use. */
+function buildCupola(B, H, M, thetaHole) {
+  const h = S.CEIL_ROTUNDA, R = S.HULL_CUPOLA, rise = S.DOME_RISE;
+  const y1 = h + S.HULL_CLEAR;                       // where the drum's skin ends
+  const base = Math.acos((y1 - h) / (rise * R / S.ROTUNDA_R));
+  const holeR = S.ROTUNDA_R * Math.sin(thetaHole) + 0.30;
+  const hole = Math.asin(holeR / R);
+  const shell = uvScale(new THREE.SphereGeometry(R, 48, 20, 0, TAU, hole, base - hole),
+    (TAU * R) / 1.6, (R * (base - hole)) / 1.6);
+  /* the bowl is an ellipsoid, so the squash is baked into the vertices before
+     the weld: the batch only composes position and rotation */
+  shell.scale(1, rise / S.ROTUNDA_R, 1);
+  B.put(shell, H.skin, 0, h, 0, { cast: true, receive: true });
+
+  const yHole = h + (rise * R / S.ROTUNDA_R) * Math.cos(hole);
+  /* the collar: the bevel of the top window, running from the dome's own
+     oculus out to the shell's opening, so the hole reads as a framed opening
+     through two leaves rather than as a hole in a roof */
+  const domeR = S.ROTUNDA_R * Math.sin(thetaHole);
+  const yDome = h + rise * Math.cos(thetaHole);
+  const collar = new THREE.CylinderGeometry(holeR, domeR, yHole - yDome, 48, 1, true);
+  B.put(uvScale(collar, (TAU * domeR) / 1.6, (yHole - yDome) / 1.6), H.skin,
+    0, (yHole + yDome) / 2, 0, { cast: false, receive: true });
+
+  /* the pressure ring, and the glazing. The pane is the same material the
+     viewports use and keeps its depthWrite: false — a pane that writes depth
+     here would be the last thing between the rotunda and the whole sky. */
+  const frame = M.solid(0x2b2f36, { roughness: 0.45, metalness: 0.6 });
+  B.put(new THREE.TorusGeometry(domeR + 0.09, 0.11, 8, 48), frame, 0, yDome + 0.05, 0,
+    { rx: Math.PI / 2, cast: false });
+  B.put(new THREE.TorusGeometry(holeR + 0.06, 0.09, 8, 48), frame, 0, yHole - 0.04, 0,
+    { rx: Math.PI / 2, cast: false });
+  B.put(new THREE.CircleGeometry(holeR - 0.02, 48), M.glass, 0, yHole - 0.10, 0,
+    { rx: -Math.PI / 2, order: 5, userData: { window: true } });
+  B.put(new THREE.TorusGeometry(holeR + 0.02, 0.06, 6, 48), H.rim, 0, yHole + 0.02, 0,
+    { rx: Math.PI / 2 });
+  /* and the same lit edge at the room's end of the collar: from the rotunda
+     floor the Cupola has to read as an opening with a frame, not as a hole
+     punched in a roof, and the only thing that says so at night is its edge */
+  B.put(new THREE.TorusGeometry(domeR + 0.16, 0.05, 6, 48), H.rim, 0, yDome + 0.16, 0,
+    { rx: Math.PI / 2 });
 }
 
 /* ── culling by spoke ────────────────────────────────────────────────────
@@ -900,9 +1241,9 @@ function distToRect(x, z, r) {
 }
 
 function spokeCull(o) {
-  const { wings, hub, cellarHub, grounds, hall, well } = o;
+  const { wings, hub, cellarHub, hall, well } = o;
   let on = true;
-  const groups = [hub, cellarHub, grounds].concat(wings.map((w) => w.group));
+  const groups = [hub, cellarHub].concat(wings.map((w) => w.group));
   return {
     /* the probe wants the whole building on the GPU at once, once, to have
        something to compare the standing positions against */
@@ -936,7 +1277,6 @@ function spokeCull(o) {
          arch you came out of, and from the head of the stair looking down */
       hub.visible = nearWell || (basement ? false : r0 < S.ROTUNDA_R + HUB_REACH);
       cellarHub.visible = nearWell || (basement && hall && distToRect(pos.x, pos.z, hall) < REACH);
-      grounds.visible = true;
     }
   };
 }
@@ -945,18 +1285,18 @@ export function buildBuilding(THREE, plan, M) {
   const group = new THREE.Group();
   const pickables = [];
   const L = lampMats(M);
+  const H = hullMats(M);
   const kit = plinthKit(M);
 
   /* the building is hung in the spaces the visitor moves between, not in the
      order they were built: a hub, a cellar floor, and one group per range and
-     per cellar arm, so the cull has something to switch off */
+     per cellar arm, so the cull has something to switch off. There is no
+     ground group any more: outside the hull there is nothing to switch. */
   const hub = new THREE.Group();
   const cellarHub = new THREE.Group();
-  const grounds = new THREE.Group();
-  group.add(hub, cellarHub, grounds);
+  group.add(hub, cellarHub);
 
-  buildGrounds(grounds, M, plan);
-  buildRotunda(hub, plan, M, pickables, L, kit);
+  buildRotunda(hub, plan, M, pickables, L, kit, H);
   buildStairHall(cellarHub, plan, M, L);
   buildStair(cellarHub, plan, M, L);
 
@@ -973,7 +1313,7 @@ export function buildBuilding(THREE, plan, M) {
   const wingOf = new Map();
   plan.corridors.forEach((c, i) => {
     wingOf.set(c.range, wings[i]);
-    buildCorridor(wings[i].group, M, c, L, plan);
+    buildCorridor(wings[i].group, M, c, L, plan, H);
   });
   plan.rooms.forEach((room) => {
     const w = wingOf.get(room.range) || wings[0];
@@ -988,7 +1328,7 @@ export function buildBuilding(THREE, plan, M) {
 
   const well = wellOf(plan);
   const cull = spokeCull({
-    wings, hub, cellarHub, grounds,
+    wings, hub, cellarHub,
     hall: plan.walkable.rects.find((r) => r.room === plan.stair.to),
     well: {
       cx: (well.x0 + well.x1) / 2, cz: (well.z0 + well.z1) / 2,

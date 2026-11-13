@@ -153,6 +153,54 @@ function brushedTexture(base) {
   return c;
 }
 
+/* The hull's skin is painted as the plate it is: a field of butt-jointed
+   panels, a row of fasteners along every joint, and a tonal shift from panel
+   to panel so the joints are not the only thing giving the surface scale.
+   Without the joints a 40 m spoke reads as one smooth extrusion and the
+   building goes back to looking like a model of a building. The joints are
+   drawn at the tile's edges as well as inside it, so a wall that starts
+   mid-panel still ends at a joint. */
+function hullPlateTexture() {
+  const W = 512, { c, x } = canvas(W, W);
+  x.fillStyle = '#767b82'; x.fillRect(0, 0, W, W);
+  const rand = rng(131);
+  const cell = 128;
+  for (let r = 0; r * cell < W; r++) {
+    for (let col = 0; col * cell < W; col++) {
+      const t = rand();
+      x.fillStyle = 'rgb(' + (112 + t * 26 | 0) + ',' + (118 + t * 24 | 0) + ',' + (126 + t * 22 | 0) + ')';
+      x.fillRect(col * cell + 3, r * cell + 3, cell - 6, cell - 6);
+      /* one panel in five is a stencilled access plate, which is where a
+         station's surface stops being decoration and starts being plumbing */
+      if (rand() < 0.22) {
+        x.strokeStyle = 'rgba(232,236,240,0.10)';
+        x.lineWidth = 2;
+        x.strokeRect(col * cell + 26, r * cell + 26, cell - 52, cell - 52);
+      }
+    }
+  }
+  /* the joints themselves, and the fasteners along them */
+  for (let g = 0; g <= W; g += cell) {
+    x.fillStyle = 'rgba(14,16,20,0.55)';
+    x.fillRect(g - 2, 0, 4, W);
+    x.fillRect(0, g - 2, W, 4);
+    x.fillStyle = 'rgba(226,232,238,0.16)';
+    for (let p = 12; p < W; p += 26) {
+      x.beginPath(); x.arc(g, p, 2.1, 0, TAU); x.fill();
+      x.beginPath(); x.arc(p, g, 2.1, 0, TAU); x.fill();
+    }
+  }
+  /* brushed, the way every other metal face in this building is finished */
+  for (let i = 0; i < 500; i++) {
+    const y = rand() * W;
+    x.strokeStyle = rand() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    x.lineWidth = rand() * 1.4;
+    x.beginPath(); x.moveTo(0, y); x.lineTo(W, y + (rand() - 0.5) * 3); x.stroke();
+  }
+  grain(x, W, W, 14, 137);
+  return c;
+}
+
 function panelTexture() {
   const W = 512, { c, x } = canvas(W, W);
   x.fillStyle = '#4a3524'; x.fillRect(0, 0, W, W);
@@ -186,6 +234,14 @@ const SPECS = {
   woodPanel: { paint: () => panelTexture(), rough: 0.42, metal: 0.0, tint: 0xffffff },
   brick: { paint: () => brickTexture(), rough: 0.82, metal: 0.0, tint: 0xb4aca8 },
   steel: { paint: () => brushedTexture('#8b9096'), rough: 0.30, metal: 0.85, tint: 0xdfe3e8 },
+  /* the same brushed steel the lamps are made of, jointed into plates: the
+     hull is not a new colour in this building, it is the old one built up.
+     It runs far less metallic than the lamp shades, and that is not a style
+     call: a metal face in three.js is lit almost entirely by the environment
+     map, which this scene keeps at a tenth strength, and a hull that is only
+     lit by the map is a hull that disappears against a night sky. Plate on a
+     station is painted, and painted plate is a diffuse surface with a sheen. */
+  hull: { paint: () => hullPlateTexture(), rough: 0.62, metal: 0.26, tint: 0xcfd4da },
   carpet: { paint: () => carpetTexture(), rough: 0.95, metal: 0.0, tint: 0xffffff },
   velvet: { paint: () => carpetTexture(), rough: 0.92, metal: 0.0, tint: 0x6a2a3a },
   gravel: { paint: () => concreteTexture('#4a4c46', 37), rough: 0.9, metal: 0.0, tint: 0x3a3e39 }
