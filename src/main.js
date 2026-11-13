@@ -23,7 +23,11 @@ const MOOD = {
   grand: [0.96, 0.30], dark: [0.92, 0.66], vault: [1.00, 0.50], clinic: [1.10, 0.40],
   arcade: [1.04, 0.66], daylit: [1.20, 0.36], printshop: [1.10, 0.44], workshop: [1.08, 0.42],
   bank: [1.16, 0.40], engine: [0.98, 0.80], server: [1.00, 0.82], library: [1.10, 0.44],
-  cabinet: [1.10, 0.48]
+  cabinet: [1.10, 0.48],
+  /* the cellar has a tone of its own in the plan and did not have one here, so
+     every room under the rotunda was being lit like the entrance hall: a low
+     exposure and a tube that is trying to start, which is what the bloom is for */
+  cellar: [0.90, 0.62]
 };
 
 function boot() {
@@ -73,15 +77,61 @@ function boot() {
   /* ── visitor ── */
   let moodTarget = MOOD.grand;
   let moodFog = 0.006;
+
+  /* A corridor is not a room, and the rig can only say "corridor": the plan is
+     the thing that knows which of the sixteen your feet are in. The card wants
+     a name and the mood wants a tone, and both of them used to answer with the
+     rotunda — which is a floor directly above you when you are in the cellar. */
+  function corridorHere() {
+    const x = rig.state.x, z = rig.state.z, storey = rig.state.storey;
+    for (const c of plan.corridors) {
+      if (c.floor !== storey) continue;
+      const t = x * c.dir.x + z * c.dir.z;
+      if (t < c.t0 || t > c.t1 || Math.abs(x * c.lat.x + z * c.lat.z) > c.half) continue;
+      return {
+        id: 'corridor', cat: 'Corridor', kind: 'corridor', range: c.range,
+        name: 'The ' + c.range + ' Corridor',
+        hex: c.floor === 'basement' ? '#9fb0c2' : '#d8cdb8',
+        color: c.floor === 'basement' ? 0x9fb0c2 : 0xd8cdb8,
+        floor: c.floor, parent: null, items: [],
+        doors: plan.rooms.filter((r) => r.range === c.range).length,
+        tone: c.floor === 'basement' ? 'cellar' : 'grand',
+        fog: c.floor === 'basement' ? 0.020 : 0.006
+      };
+    }
+    return null;
+  }
+
+  /* The map draws one storey at a time, and the flight is the only place the
+     storey changes — which is also the only place the room does not change,
+     because the rig calls the whole flight "stair" from head to foot. So the
+     storey is watched in the frame as well as on a room change. */
+  let storey = 'ground';
+  function setStorey(next) {
+    if (next === storey) return;
+    storey = next;
+    hud.setStorey(next);
+    /* the flight belongs to whichever storey your feet are on and the audio
+       reads the storey off the plan's record for it, so the record follows the
+       rig rather than picking a side: the top step is not concrete-cellar. */
+    plan.stairRoom.floor = next;
+  }
+
   const rig = createRig(THREE, camera, canvas, plan, {
     onStep: (floor, strength) => audio.step(floor, strength),
     onRoom: (id, instant) => {
-      const room = plan.byId(id) || plan.rotunda;
-      hud.setRoom(id === 'corridor' ? plan.rotunda : room);
-      if (id !== 'corridor') audio.enterRoom(room);
-      const tone = (room && room.tone) || 'grand';
-      moodTarget = MOOD[tone] || MOOD.grand;
-      moodFog = (room && room.fog) || 0.008;
+      /* the plan answers for every name the rig can hand in: a gallery, the
+         rotunda, the flight, the hall under it — and, for a corridor, the one
+         corridor the visitor is standing in */
+      const here = id === 'corridor'
+        ? corridorHere() || (rig.state.storey === 'basement' ? plan.stairHall : plan.rotunda)
+        : plan.byId(id);
+      if (!here) return;
+      setStorey(rig.state.storey);
+      hud.setRoom(here);
+      if (here.cat !== 'Corridor') audio.enterRoom(here);
+      moodTarget = MOOD[here.tone] || MOOD.grand;
+      moodFog = here.fog || 0.008;
     },
     onArrive: (id) => {
       const room = plan.byId(id);
@@ -89,6 +139,7 @@ function boot() {
     }
   });
   rig.teleportTo('rotunda');
+  setStorey(rig.state.storey);
 
   /* ── the tour circuit and the arrow that leads you ── */
   let circuit = 0;
@@ -230,6 +281,7 @@ function boot() {
     const elapsed = (now - arrivedAt) / 1000;
 
     rig.update(dt);
+    setStorey(rig.state.storey);
 
     skyClock += dt;
     if (skyClock > 0.1) {

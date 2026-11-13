@@ -579,6 +579,42 @@ export function buildPlan() {
     w: S.STAIR_W, run: S.STAIR_RUN, drop: S.FLOOR_GROUND - S.FLOOR_BASE
   };
 
+  /* ── the two places that are not rooms ─────────────────────────────────
+     The flight and the hall it lands in are floors you stand on, and the rig
+     names both of them from the walkable union, so they need records: without
+     one, the card falls back to the rotunda and tells a visitor three metres
+     under the building that he is in the middle of the ground floor. They are
+     not in `rooms` — they hold no exhibits, the tour does not visit them, and
+     the room count in the checks counts galleries — so `byId` reaches for
+     them by name instead. `w`, `d` and `ceil` are there because audio.js
+     works out how big the space is from them: the stair well and the hall are
+     both smaller and harder than the rotunda they sit under, and that is what
+     a footstep down there should sound like. */
+  const stairHall = {
+    id: 'stair-hall', cat: 'Stair Hall', range: 'Cellar', side: null,
+    floor: 'basement', parent: null,
+    name: 'The Stair Hall', subtitle: `${cellar.length} rooms off four cellar corridors`,
+    hex: '#a9b6c4', color: 0xa9b6c4, kind: 'stair-hall', items: [],
+    w: S.STAIR_HALL_W, d: S.STAIR_HALL_D, ceil: S.CEIL_BASE,
+    center: { x: 0, z: 0 },
+    floorMat: 'concrete', wall: 'plasterDark', tone: 'cellar', fog: 0.022
+  };
+  const stairRoom = {
+    id: 'stair', cat: 'Stair', range: 'Centre', side: null,
+    /* The flight is the one space in the building that belongs to two storeys.
+       The rig is the only thing that knows which one your feet are on, and the
+       footstep sample reads the storey off this record, so main.js writes the
+       answer here whenever the visitor's storey changes — otherwise the top
+       step would ring like the cellar. */
+    floor: 'ground', parent: null,
+    name: 'The Stair', subtitle: `${Math.round(S.STAIR_DROP / S.STAIR_RISER)} steps down to the cellar`,
+    hex: '#c3ccd8', color: 0xc3ccd8, kind: 'stair', items: [],
+    w: S.STAIR_W, d: S.STAIR_RUN, ceil: S.CEIL_ROTUNDA,
+    center: { x: stairTop.x, z: stairTop.z + S.STAIR_RUN / 2 },
+    floorMat: 'concrete', wall: 'plaster', tone: 'cellar', fog: 0.014
+  };
+  const places = { 'stair-hall': stairHall, stair: stairRoom };
+
   /* rotunda plinths: six empty pedestals under the oculus, waiting */
   rotunda.plinths = [];
   for (let i = 0; i < 6; i++) {
@@ -615,9 +651,14 @@ export function buildPlan() {
 
   return {
     rotunda, rooms, corridors, walkable, order, stair, unplaced,
+    stairHall, stairRoom,
     reach,
     wingNames: WING_NAMES,
-    byId: (id) => (id === 'rotunda' ? rotunda : rooms.find((room) => room.id === id) || null)
+    /* a name is a gallery, the rotunda, or one of the two places the stair
+       makes: the flight and the hall. all three come through here so that
+       whatever the rig says your feet are on, something answers. */
+    byId: (id) => (id === 'rotunda' ? rotunda
+      : rooms.find((room) => room.id === id) || places[id] || null)
   };
 }
 

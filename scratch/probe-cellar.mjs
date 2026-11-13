@@ -9,6 +9,12 @@
  * that. Nothing here is installed over the rig — what the probe reports is
  * what the page is doing on its own.
  *
+ * And at five of those stops it reads the room card out of the DOM — the same
+ * text a visitor reads, not the plan behind it — because the thing that broke
+ * was the card: below ground it went on naming the rotunda. The name
+ * scrambles into place over a few animation frames, so the reader waits for
+ * the text to stop changing instead of trusting a nap.
+ *
  * The walk is stepped, not timed: rig.update(0.05) in a loop, because the
  * headless page runs at two frames a second and a real-time walk of thirty
  * metres would take a five-minute nap. Every step is still a collision test.
@@ -32,6 +38,16 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
   await send('Page.navigate', { url: URL_FILE });
   await nap(4000);
   await evaluate('window.__museum.hud.hideIntro()');
+
+  /* what the card says before anybody walks anywhere, and what the door it
+     came through says: both are counted off the plan, not written down. */
+  console.log('at rest', JSON.stringify(await evaluate(`(() => {
+    const m = window.__museum, p = m.plan;
+    return { links: p.rooms.reduce((n, r) => n + r.items.length, 0),
+      withThings: p.rooms.filter((r) => r.items.length && r.floor !== 'basement').length,
+      waitingDownstairs: p.rooms.filter((r) => r.floor === 'basement').length,
+      intro: document.querySelector('.intro-kicker').textContent };
+  })()`)));
 
   /* the two storeys, as the renderer actually placed them */
   console.log('storeys', JSON.stringify(await evaluate(`(() => {
@@ -113,6 +129,40 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
     return at;
   };
 
+  /* What the visitor reads. The card is DOM over the canvas, so this reads the
+     DOM — the name, the line under it, the colour down its left edge, and the
+     floor plan's own state — rather than the plan the card was built from. The
+     name scrambles in over a few animation frames and the headless page only
+     paints twice a second, so the reader waits for the text to stop changing. */
+  const cards = {};
+  const card = async (label, key) => {
+    const read = `(() => {
+      const m = window.__museum, c = document.querySelector('.card'), box = document.querySelector('.mapbox');
+      const text = (root, sel) => { const n = root.querySelector(sel); return n ? n.textContent : ''; };
+      const svg = box.querySelector('svg');
+      const hints = box.querySelectorAll('.map-hint');
+      const drawn = Array.from(svg.querySelectorAll('g'))
+        .filter((g) => g.getAttribute('display') !== 'none').length;
+      return { room: m.rig.state.room, storey: m.rig.state.storey,
+        name: text(c, '.room-name'), sub: text(c, '.room-sub'),
+        accent: getComputedStyle(c).borderLeftColor,
+        kicker: text(box, '.kicker'),
+        here: hints[0] ? hints[0].textContent : '', other: hints[1] ? hints[1].textContent : '',
+        viewBox: svg.getAttribute('viewBox'), layersDrawn: drawn,
+        roomsDrawn: svg.querySelectorAll('g:not([display="none"]) polygon').length };
+    })()`;
+    let out = null, last = '', steady = 0;
+    for (let i = 0; i < 24; i++) {
+      out = await evaluate(read);
+      const key2 = out.name + '|' + out.sub;
+      if (key2 === last) { if (++steady >= 2) break; } else { steady = 0; last = key2; }
+      await nap(220);
+    }
+    console.log('card ' + label, JSON.stringify(out));
+    cards[key] = out;
+    return out;
+  };
+
   /* hold W and step the rig until it has gone so far. one evaluate per leg so
      the page's own two-frame-a-second loop cannot starve the walk. */
   const walk = async (label, yaw, metres) => {
@@ -152,6 +202,7 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
     m.rig.state.x = 0.6; m.rig.state.z = 3.0; m.rig.setYawPitch(0.12, -0.40); })()`);
   await nap(1800);
   await stop('rotunda, looking at the stair opening');
+  await card('in the rotunda', 'rotunda');
   await shot(send, 'probe-stair-rotunda.png');
 
   /* south across the rotunda to the head of the stair. the walkable union is
@@ -159,6 +210,7 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
   await walk('south to the head of the stair', 0, 9.5);
   await evaluate('window.__museum.rig.setYawPitch(Math.PI, -0.62)');
   await nap(1400);
+  await card('at the head of the stair', 'head');
   await shot(send, 'probe-stair-head.png');
 
   /* about turn and down: the flight runs back north into the hall */
@@ -166,12 +218,14 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
   await evaluate('window.__museum.rig.setYawPitch(Math.PI, -0.14)');
   await nap(1800);
   await stop('on the stair');
+  await card('mid-flight', 'flight');
   await shot(send, 'probe-stair-flight.png');
 
   await walk('to the foot of the stair', Math.PI, 4.2);
   await evaluate('window.__museum.rig.setYawPitch(0, 0.30)');
   await nap(1800);
   await stop('in the Stair Hall, looking back up the flight');
+  await card('in the Stair Hall', 'hall');
   await shot(send, 'probe-stair-hall.png');
 
   /* north up the cellar arm and through a door. the arm leg stops at the door
@@ -179,13 +233,31 @@ await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
      a body radius in it that is only 0.54 m of latitude to cross on. */
   await walk('along the north cellar arm', Math.PI, 7.9);
   await stop('on the north cellar arm');
+  await card('on the north cellar arm', 'arm');
   await walk('through the door', -Math.PI / 2, 2.2);
   await evaluate('window.__museum.rig.setYawPitch(-Math.PI / 2, 0.05)');
   await nap(1800);
   const end = await stop('in ' + pick.cat);
+  await card('in ' + pick.cat, 'room');
   await shot(send, 'probe-cellar-room.png');
 
   console.log('cellar room pick', JSON.stringify(pick), 'ended in', JSON.stringify(end));
+
+  /* the five strings, in the order a visitor reads them on the way down. The
+     card is allowed to name the rotunda in exactly one of them: the first. */
+  console.log('card, on the way down:');
+  for (const k of ['rotunda', 'head', 'flight', 'hall', 'arm', 'room']) {
+    const c = cards[k];
+    console.log('  ' + k.padEnd(8) + ' [' + c.room + '/' + c.storey + '] "' + c.name +
+      '" — "' + c.sub + '"');
+  }
+  const lying = Object.keys(cards)
+    .filter((k) => cards[k].room !== 'rotunda' && /rotunda/i.test(cards[k].name));
+  console.log(lying.length ? 'FAIL: the card names the rotunda at ' + lying.join(', ')
+    : 'card: never says "The Rotunda" once the rig is off the rotunda floor');
+  const floors = Object.keys(cards).map((k) => cards[k].kicker + ' ' + cards[k].viewBox);
+  console.log('map: ' + (new Set(floors).size === 2 ? 'two spans, one per storey' : 'span did not change') +
+    ' — ' + [...new Set(floors)].join(' | '));
 
   /* and the sound of the place. the page never gets a click in here, so the
      probe starts the audio context itself: the cellar tone, the drip it
