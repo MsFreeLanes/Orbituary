@@ -4,6 +4,12 @@
    volume and what its floor is made of. A marble hall rings; a carpeted
    screening room does not.
 
+   A room's `floor` is which storey it is on and `floorMat` is the surface
+   underfoot, so the impulse and the footstep sample are picked off the
+   material and the room tone is picked off the storey: the cellar is a damp
+   concrete box under the rotunda, and it sounds like one whatever it is
+   paved with.
+
    There is no music in this museum. What you hear is your own footsteps,
    the air of the room you are standing in, and the building settling. */
 
@@ -19,6 +25,11 @@ const IR = {
   velvet: { len: 0.6, decay: 5.5, bright: 0.15 }
 };
 
+/* the cellar: the slab above is the rotunda floor and the walls are damp, so
+   the tail runs on — nothing down there is soft enough to stop it — while the
+   top end of it is dead. a longer, deader room than any upstairs. */
+const CELLAR_IR = { len: 2.9, decay: 2.1, bright: 0.22 };
+
 const STEP = {
   marble: { f: 2600, q: 1.2, dur: 0.10, gain: 0.5, tone: 1400 },
   terrazzo: { f: 2300, q: 1.1, dur: 0.10, gain: 0.48, tone: 1200 },
@@ -33,11 +44,17 @@ const STEP = {
   gravel: { f: 3200, q: 0.5, dur: 0.16, gain: 0.3, tone: 1800 }
 };
 
+/* footsteps in the cellar. the concrete there is laid over damp earth under
+   the rotunda slab, so the scuff lands and then something under it answers:
+   a creak, low and slow, that a dry ground-floor corridor would never make. */
+const CELLAR_STEP = { f: 1250, q: 0.7, dur: 0.2, gain: 0.34, tone: 660 };
+
 export function createAudio(plan) {
   let ctx = null, master = null, dry = null, wet = null, conv = null, analyser = null;
   let toneSrc = null, toneGain = null, toneFilter = null;
   let started = false, muted = false;
   let currentRoom = null;
+  let dripAt = null;
   const noise = { buf: null };
 
   function noiseBuffer(seconds) {
@@ -109,7 +126,12 @@ export function createAudio(plan) {
   function enterRoom(room) {
     if (!started || !room) return;
     currentRoom = room;
-    const floor = IR[room.floor] || IR.concrete;
+    /* the impulse is the surface underfoot, which is `floorMat`; the tone is
+     * the storey, which is `floor`. reading the impulse off `floor` is what
+     * made every room upstairs ring like concrete — `floor` is the storey
+     * now, and there is no material by that name in the table. */
+    const cellar = room.floor === 'basement';
+    const floor = cellar ? CELLAR_IR : (IR[room.floorMat] || IR.concrete);
     const volume = (room.r ? Math.PI * room.r * room.r * room.ceil : room.w * room.d * room.ceil);
     const ir = makeIR(floor, volume);
     const t = ctx.currentTime;
@@ -120,11 +142,45 @@ export function createAudio(plan) {
     wet.gain.linearRampToValueAtTime(0.22 + floor.bright * 0.3, t + 1.4);
     toneFilter.frequency.linearRampToValueAtTime(140 + floor.bright * 420, t + 1.2);
     toneGain.gain.linearRampToValueAtTime(0.02 + floor.bright * 0.03, t + 1.2);
+    setDrip(cellar);
   }
 
-  function step(floorMat, strength) {
+  /* the one thing in the cellar that moves is water. a drop every few
+     seconds, at a random pitch and landing somewhere off to one side, with
+     the tail of the room on it: rare enough that you stop hearing it, and
+     then you hear it. it stops the moment you are back upstairs. */
+  function drip() {
+    dripAt = null;
+    if (!currentRoom || currentRoom.floor !== 'basement') return;
+    const t = ctx.currentTime;
+    const hz = 780 + Math.random() * 620;
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(hz, t);
+    o.frequency.exponentialRampToValueAtTime(hz * 0.42, t + 0.1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0004, t + 0.3);
+    const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; g.connect(pan); pan.connect(dry); pan.connect(wet); }
+    else { g.connect(dry); g.connect(wet); }
+    o.start(t); o.stop(t + 0.35);
+    dripAt = setTimeout(drip, 2400 + Math.random() * 5200);
+  }
+
+  function setDrip(on) {
+    if (on) { if (!dripAt) dripAt = setTimeout(drip, 1400 + Math.random() * 2600); }
+    else if (dripAt) { clearTimeout(dripAt); dripAt = null; }
+  }
+
+  function step(where, strength) {
     if (!started || muted) return;
-    const spec = STEP[floorMat] || STEP.concrete;
+    /* `where` is the space underfoot. the rig hands in the room record, which
+       carries the storey and the material; a bare material name still works,
+       for anything driving the audio by hand from the console. */
+    const mat = (where && where.floorMat) || (typeof where === 'string' ? where : '') || 'concrete';
+    const cellar = !!where && where.floor === 'basement';
+    const spec = cellar ? CELLAR_STEP : (STEP[mat] || STEP.concrete);
     const t = ctx.currentTime;
     const src = ctx.createBufferSource();
     src.buffer = noise.buf;
@@ -151,6 +207,23 @@ export function createAudio(plan) {
       f2.frequency.value = spec.f * 0.6; f2.Q.value = 0.8;
       s2.connect(f2); f2.connect(g2); g2.connect(dry);
       s2.start(t + 0.03, Math.random() * 2); s2.stop(t + 0.2);
+    }
+    /* down here the slab answers: a low band sliding down a fifth under the
+       scuff, a few hundredths late, which is what a boot on concrete laid
+       over damp earth does. */
+    if (cellar) {
+      const s3 = ctx.createBufferSource(); s3.buffer = noise.buf;
+      s3.playbackRate.value = 0.4;
+      const f3 = ctx.createBiquadFilter(); f3.type = 'bandpass';
+      f3.frequency.setValueAtTime(190, t + 0.02);
+      f3.frequency.exponentialRampToValueAtTime(118, t + 0.3);
+      f3.Q.value = 6;
+      const g3 = ctx.createGain();
+      g3.gain.setValueAtTime(0, t + 0.02);
+      g3.gain.linearRampToValueAtTime(0.05 * strength, t + 0.07);
+      g3.gain.exponentialRampToValueAtTime(0.0004, t + 0.34);
+      s3.connect(f3); f3.connect(g3); g3.connect(dry); g3.connect(wet);
+      s3.start(t + 0.02, Math.random()); s3.stop(t + 0.4);
     }
   }
 

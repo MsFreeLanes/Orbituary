@@ -3,16 +3,11 @@
  *
  *   node scratch/probe-cellar.mjs
  *
- * Two facts the building knows and the rig does not, so the probe supplies
- * them and says so out loud:
- *   - the rig has no floor of its own. it stands at eye height over y = 0
- *     wherever it is, so the probe puts the camera on the flight: the height
- *     the rig would be standing at is the same line the treads follow.
- *   - inside() and rig.roomAt are flat. they cannot tell the rotunda from the
- *     Stair Hall directly underneath it, so the probe carries the storey the
- *     rig is on — it changes when the rig steps onto the flight — and picks
- *     the walkable rect on that storey. that storey-aware check belongs in
- *     src/ (rig.roomAt wants it too); this probe is where it is proved first.
+ * The rig carries its own storey and its own eye height now, so the probe
+ * only reads them: `rig.state.storey` is the level the feet are on,
+ * `rig.state.level` is the slab under them, and the camera sits EYE_H above
+ * that. Nothing here is installed over the rig — what the probe reports is
+ * what the page is doing on its own.
  *
  * The walk is stepped, not timed: rig.update(0.05) in a loop, because the
  * headless page runs at two frames a second and a real-time walk of thirty
@@ -32,7 +27,7 @@ const shot = async (send, name) => {
   return file;
 };
 
-await withBrowser(async ({ send, evaluate, sleep: nap }) => {
+await withBrowser(async ({ send, evaluate, sleep: nap, consoleLines }) => {
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: URL_FILE });
   await nap(4000);
@@ -102,55 +97,17 @@ await withBrowser(async ({ send, evaluate, sleep: nap }) => {
       rays: [down(0, 0), down(0, -3.8), down(0, -6.0)] };
   })()`)));
 
-  /* the storey the rig is standing on, and the camera height that goes with
-     it. installed over rig.update so every step, however it is driven, keeps
-     the rig honest about where its feet are. */
-  await evaluate(`(() => {
-    const m = window.__museum, S = m.S, plan = m.plan, s = plan.stair;
-    const inRect = (r, x, z) => {
-      const st = Math.sin(r.angle), ct = Math.cos(r.angle);
-      const px = x - r.cx, pz = z - r.cz;
-      return Math.abs(px * ct - pz * st) <= r.halfX && Math.abs(px * st + pz * ct) <= r.halfZ;
-    };
-    const onFlight = (x, z) => Math.abs(x - s.x) <= s.w / 2 && z >= s.z && z <= s.z + s.run;
-    m.__storey = 'ground';
-    m.__standY = (x, z) => onFlight(x, z) ? -(z - s.z) / s.run * s.drop
-      : (m.__storey === 'basement' ? S.FLOOR_BASE : 0);
-    m.__roomAt = (x, z) => {
-      if (m.__storey === 'ground' && Math.hypot(x, z) <= S.ROTUNDA_R) return 'rotunda';
-      /* a room or the stair hall first: the cellar arms are recorded from the
-         hall centre outward, so a corridor rect always covers the hall too */
-      let arm = null, off = 1e9;
-      for (const r of plan.walkable.rects) {
-        if ((r.floor || 'ground') !== m.__storey) continue;
-        if (!inRect(r, x, z)) continue;
-        if (r.room) return r.room;
-        for (const c of plan.corridors) {
-          if ((c.floor || 'ground') !== m.__storey) continue;
-          const along = x * c.dir.x + z * c.dir.z;
-          const lat = Math.abs(x * c.dir.z - z * c.dir.x);
-          if (along >= 0 && along <= c.t1 && lat <= c.half && lat < off) { off = lat; arm = c.range; }
-        }
-      }
-      return arm || 'corridor';
-    };
-    const update = m.rig.update.bind(m.rig);
-    m.rig.update = (dt) => {
-      const out = update(dt);
-      const x = m.rig.state.x, z = m.rig.state.z;
-      if (onFlight(x, z)) m.__storey = 'basement';
-      else if (z < s.z) m.__storey = 'ground';
-      m.camera.position.y = m.__standY(x, z) + S.EYE_H;
-      return out;
-    };
-  })()`);
-
+  /* every stop reports what the rig itself knows: the storey its feet are on,
+     the slab under them, the camera height, and the room it would name. */
   const stop = async (label) => {
     const at = await evaluate(`(() => {
       const m = window.__museum, s = m.rig.state;
       return { x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(2),
-        eye: +m.__standY(s.x, s.z).toFixed(2), storey: m.__storey,
-        probeRoom: m.__roomAt(s.x, s.z), rigRoom: s.room };
+        storey: s.storey, level: +s.level.toFixed(2),
+        camY: +m.camera.position.y.toFixed(2),
+        eyeOverSlab: +(m.camera.position.y - s.level).toFixed(2),
+        room: s.room, roomAt: m.rig.roomAt(s.x, s.z),
+        onFlight: m.rig.flightT(s.x, s.z) !== null };
     })()`);
     console.log('stop ' + label, JSON.stringify(at));
     return at;
@@ -229,4 +186,27 @@ await withBrowser(async ({ send, evaluate, sleep: nap }) => {
   await shot(send, 'probe-cellar-room.png');
 
   console.log('cellar room pick', JSON.stringify(pick), 'ended in', JSON.stringify(end));
+
+  /* and the sound of the place. the page never gets a click in here, so the
+     probe starts the audio context itself: the cellar tone, the drip it
+     schedules, and footsteps on the concrete. what matters is that the graph
+     builds without throwing, twice over — once down there and once back
+     upstairs — because the storey and the material are now two different
+     lookups and a room record has to satisfy both. */
+  const sound = await evaluate(`(() => {
+    const m = window.__museum;
+    const down = m.plan.byId('apple-dev'), up = m.plan.byId('gaming');
+    m.audio.resume();
+    m.audio.enterRoom(down);
+    for (let i = 0; i < 4; i++) m.audio.step(down, 1);
+    m.audio.enterRoom(up);
+    for (let i = 0; i < 2; i++) m.audio.step(up, 1);
+    return { started: m.audio.started, level: +m.audio.level().toFixed(3),
+      cellar: { floor: down.floor, floorMat: down.floorMat, tone: down.tone },
+      upstairs: { floor: up.floor, floorMat: up.floorMat, tone: up.tone } };
+  })()`);
+  console.log('sound', JSON.stringify(sound));
+
+  const noise = consoleLines.filter((l) => !/favicon|Autoplay|GPU stall|GroupMarkerNotSet|deprecated/i.test(l));
+  console.log(noise.length ? 'CONSOLE:\n' + noise.slice(0, 8).join('\n') : 'console: clean');
 });

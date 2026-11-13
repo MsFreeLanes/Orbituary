@@ -629,15 +629,22 @@ function slug(cat) {
 
 /* Is (x, z) inside the building with `pad` clearance from every wall?
    The union is a disc plus rectangles — cheap, exact, and it is the same
-   union the tour paths are built from, so nothing can clip. The union is
-   drawn flat: it says nothing about which floor you are on, and until the
-   rig takes the stair that is a problem for the cellar rects, not for the
-   ground floor. */
-export function inside(walkable, x, z, pad) {
+   union the tour paths are built from, so nothing can clip.
+   `storey` narrows the union to one level. The disc is the ground-floor
+   slab and every rect carries the storey it belongs to, so a walker who is
+   upstairs cannot leave the building through a cellar rect that happens to
+   sit under the rotunda wall: the cellar rooms stand out to the side of the
+   ground corridors, and flat, they are a door into thin air. Left out, the
+   union stays flat, which is what the plan checks want when they are asking
+   whether a room is a room rather than where the visitor is standing. */
+export function inside(walkable, x, z, pad, storey = null) {
   const disc = walkable.disc;
-  const dx = x - disc.x, dz = z - disc.z;
-  if (dx * dx + dz * dz <= (disc.r - pad) * (disc.r - pad)) return true;
+  if (storey === null || storey === 'ground') {
+    const dx = x - disc.x, dz = z - disc.z;
+    if (dx * dx + dz * dz <= (disc.r - pad) * (disc.r - pad)) return true;
+  }
   for (const rect of walkable.rects) {
+    if (storey !== null && rect.floor !== storey) continue;
     const st = Math.sin(rect.angle), ct = Math.cos(rect.angle);
     const px = x - rect.cx, pz = z - rect.cz;
     const lx = px * ct - pz * st;   // along the rect's local +X
