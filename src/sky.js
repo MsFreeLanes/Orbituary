@@ -184,59 +184,191 @@ function dotTexture() {
    is painted once from a fixed seed, and the terminator is swept over it by
    the real sun the way the moon's phase is.
 
+   It is painted as *fields*, not as shapes. Every coast and every cloud edge
+   in a world seen from orbit is a threshold crossing of something rough, and
+   the only way to get an edge that stops being interesting when you are far
+   from it is to let the roughness decide where it is. The first version of
+   this map drew continents as closed walks and cloud as arcs, and at 300 m
+   off the deck they read exactly as what they were: a pen, a steady hand, and
+   forty-six spirals. Nothing here is drawn. Three noise fields are sampled
+   per texel and thresholded, and the sea, the shore, the forest, the dust and
+   the weather are what the thresholds say.
+
    Seen from above the ground track, the planet is a disc, not a globe: the
    terminator projects to an ellipse whose narrow axis is r·|sin(altitude)|,
    a line across the middle when the sun is on the region's horizon and the
    limb itself when the sun is at its zenith. */
 const EARTH_S = 512;
 
+/* value noise on an integer lattice: one hash per lattice corner, so a field
+   can be rebuilt exactly from its seed and costs nothing to look up */
+function lattice(seed) {
+  return (i, j) => {
+    let n = (Math.imul(i, 0x27d4eb2d) ^ Math.imul(j, 0x165667b1) ^ Math.imul(seed, 0x9e3779b1)) | 0;
+    n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d);
+    n = Math.imul(n ^ (n >>> 12), 0x297a2d39);
+    return ((n ^ (n >>> 15)) >>> 0) / 4294967296;
+  };
+}
+
+/* the same noise summed over octaves, each half the width of the last.
+   `cells` is the number of lattice cells across the map at the first octave,
+   which is the only unit that means anything here: a field is judged by how
+   many features fit on the disc, not by how far apart its corners are. One
+   octave is a field of blobs; three is a coastline with inlets, or a cloud
+   sheet with fringes — the difference between weather and a shape. */
+function fbmField(size, cells, octaves, seed) {
+  const a = new Float32Array(size * size);
+  const noise = lattice(seed);
+  let amp = 1, norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    const step = size / (cells * (1 << o));   // pixels per lattice cell
+    const inv = 1 / step;
+    for (let j = 0; j < size; j++) {
+      const y = j * inv, j0 = Math.floor(y), ty = y - j0, sy = ty * ty * (3 - 2 * ty);
+      const row = j * size;
+      for (let i = 0; i < size; i++) {
+        const x = i * inv, i0 = Math.floor(x), tx = x - i0, sx = tx * tx * (3 - 2 * tx);
+        const n00 = noise(i0, j0), n10 = noise(i0 + 1, j0);
+        const n01 = noise(i0, j0 + 1), n11 = noise(i0 + 1, j0 + 1);
+        a[row + i] += amp * (n00 + (n10 - n00) * sx + (n01 - n00) * sy + (n00 - n10 - n01 + n11) * sx * sy);
+      }
+    }
+    norm += amp; amp *= 0.5;
+  }
+  for (let k = 0; k < a.length; k++) a[k] /= norm;
+  return a;
+}
+
+/* value noise summed over octaves is heavily damped: the octaves average each
+   other out and what comes back sits in a band a twentieth as wide as it
+   looks. Stretched back around its middle, so a threshold set at the middle
+   of the range is a threshold at the middle of the field. */
+function contrast(a, k) {
+  for (let i = 0; i < a.length; i++) a[i] = 0.5 + (a[i] - 0.5) * k;
+  return a;
+}
+
+/* read a field at fractional pixel coordinates, clamped at the border */
+function atField(a, size, u, v) {
+  const i0 = Math.max(0, Math.min(size - 1, Math.floor(u)));
+  const j0 = Math.max(0, Math.min(size - 1, Math.floor(v)));
+  const i1 = Math.min(size - 1, i0 + 1), j1 = Math.min(size - 1, j0 + 1);
+  const sx = Math.max(0, Math.min(1, u - i0)), sy = Math.max(0, Math.min(1, v - j0));
+  const r0 = a[j0 * size + i0] + (a[j0 * size + i1] - a[j0 * size + i0]) * sx;
+  const r1 = a[j1 * size + i0] + (a[j1 * size + i1] - a[j1 * size + i0]) * sx;
+  return r0 + (r1 - r0) * sy;
+}
+
+/* smoothstep as a threshold: this is the soft edge. The band it crosses
+   over is a few texels wide, which is what a coastline or a cloud front
+   looks like from orbit — a gradient, not a line. */
+const soft = (a, b, v) => {
+  const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
 function paintEarthBase(cv) {
   const x = cv.getContext('2d');
   const C = EARTH_S, c = C / 2, r = C * 0.47;
   const rand = rng(20261113);
-  const sea = x.createRadialGradient(C * 0.42, C * 0.40, r * 0.1, c, c, r);
-  sea.addColorStop(0, '#2e5f8f');
-  sea.addColorStop(0.7, '#1d4468');
-  sea.addColorStop(1, '#12293f');
-  x.fillStyle = sea;
-  x.beginPath(); x.arc(c, c, r, 0, TAU); x.fill();
-  /* land: closed random walks, half forest half dust, and the coast lights
-     that will glow through the night wash a few pixels further down */
+  /* the warp is a pair of slow fields, sampled at quarter resolution: it
+     moves where each texel reads the land and the cloud from, which is what
+     breaks value noise's cells into peninsulas and fronts. It is kept slow
+     and shallow on purpose. Warping by more than the wavelength of the
+     finest octave shears that octave into filaments, and filaments at this
+     scale are the white spiral doodles the first version of this map was
+     accused of — a different pen stroke, the same complaint. */
+  const QS = C / 4;
+  const warpX = fbmField(QS, 1.6, 2, 5150);
+  const warpY = fbmField(QS, 1.6, 2, 6260);
+  /* the cell counts are set by how much of this map is ever on screen: the
+     well shows the middle three quarters of the disc's radius at about a
+     pixel and a half to the texel, so a feature three cells across the disc
+     is a continent and one sixteen cells across is a weather system. Three
+     octaves, and the finest of them is thirty-odd texels; anything finer is
+     the blur at the end, not the field. */
+  const elev = contrast(fbmField(C, 3, 4, 4471), 1.7);
+  const bio = contrast(fbmField(C, 6, 3, 9007), 1.7);
+  const cloud = contrast(fbmField(C, 4, 4, 1223), 2.6);
+  const img = x.createImageData(C, C);
+  const d = img.data;
   const coasts = [];
-  for (let i = 0; i < 13; i++) {
-    const a = rand() * TAU, d = rand() * r * 0.8;
-    const px = c + Math.cos(a) * d, py = c + Math.sin(a) * d;
-    const rad = r * (0.09 + rand() * 0.16);
-    x.fillStyle = rand() < 0.6 ? '#3f6b3a' : '#77643f';
-    x.beginPath();
-    const n = 8 + ((rand() * 6) | 0);
-    for (let k = 0; k <= n; k++) {
-      const ang = (k / n) * TAU, rr = rad * (0.55 + rand() * 0.8);
-      x.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr * 0.75);
+  for (let j = 0; j < C; j++) {
+    const ny = (j + 0.5 - c) / r;
+    for (let i = 0; i < C; i++) {
+      const k = j * C + i, p = k * 4;
+      const nx = (i + 0.5 - c) / r;
+      const dd = Math.sqrt(nx * nx + ny * ny);
+      const u = i + (atField(warpX, QS, i / 4, j / 4) - 0.5) * 15;
+      const v = j + (atField(warpY, QS, i / 4, j / 4) - 0.5) * 15;
+      const e = atField(elev, C, u, v);
+      /* ocean: darker the further the field falls below the shore, paler over
+         the shelf, so the sea has depth in it rather than a colour */
+      const deep = Math.max(0, Math.min(1, (0.50 - e) * 2.0));
+      let R = 38 - deep * 20, G = 88 - deep * 42, Bb = 126 - deep * 56;
+      /* land: the elevation field crossed over a band thirteen texels wide,
+         so a coast is a gradient a hundred kilometres deep and never a
+         stroke. Above the shore the colour is not one colour: forest and dust
+         from a slower field, and upland paler and drier as the field climbs,
+         which is what stops a continent reading as a flat tan blob. */
+      const land = soft(0.47, 0.60, e);
+      if (land > 0) {
+        const b = atField(bio, C, u, v);
+        const forest = soft(0.38, 0.66, b);
+        const high = soft(0.575, 0.66, e);
+        R += (130 - forest * 78 + high * 46 - R) * land;
+        G += (112 - forest * 26 + high * 40 - G) * land;
+        Bb += (78 - forest * 26 + high * 36 - Bb) * land;
+      }
+      /* cloud: the same kind of field, thresholded against a band that runs
+         across the disc, so the sheet organises into belts and clear gaps.
+         The crossing is a fifth of the field's whole range wide, which is
+         what makes the fronts soft and the masses irregular instead of
+         cellular, and it tops out at 0.80 of white — under the bloom
+         threshold, so the planet lights the room and does not blow the
+         photograph. */
+      const thr = 0.47 + 0.09 * Math.cos(ny * 3.6 + 0.9);
+      const cl = atField(cloud, C, u, v);
+      const ca = soft(thr, thr + 0.16, cl) * 0.80;
+      R += (238 - R) * ca; G += (243 - G) * ca; Bb += (249 - Bb) * ca;
+      /* and the air standing off the limb: at the edge of a world the last
+         few hundred kilometres of it are what you are looking through */
+      const haze = soft(0.72, 1.0, dd) * 0.30;
+      d[p] = R + (152 - R) * haze;
+      d[p + 1] = G + (180 - G) * haze;
+      d[p + 2] = Bb + (216 - Bb) * haze;
+      d[p + 3] = 255;
+      if (land > 0.15 && land < 0.55 && rand() < 0.0011) coasts.push([i, j]);
     }
-    x.closePath(); x.fill();
-    coasts.push([px, py, rad]);
   }
-  x.fillStyle = 'rgba(255,196,120,0.55)';
-  for (const [px, py, rad] of coasts) {
-    for (let k = 0; k < 5; k++) {
-      x.beginPath();
-      x.arc(px + (rand() - 0.5) * rad * 1.4, py + (rand() - 0.5) * rad, 0.9 + rand(), 0, TAU);
-      x.fill();
-    }
+  x.putImageData(img, 0, 0);
+  /* the lights of the inhabited coasts, and they are painted soft: a hard
+     pixel at this size is a dead pixel, and a city from orbit is a bloom of
+     them rather than a point. They go in the shore band, which is where the
+     people are. */
+  for (const [i, j] of coasts) {
+    const rad = 1.6 + rand() * 2.8;
+    const g = x.createRadialGradient(i, j, 0, i, j, rad);
+    g.addColorStop(0, 'rgba(255,206,140,0.50)');
+    g.addColorStop(0.45, 'rgba(255,198,132,0.22)');
+    g.addColorStop(1, 'rgba(255,190,120,0)');
+    x.fillStyle = g;
+    x.beginPath(); x.arc(i, j, rad, 0, TAU); x.fill();
   }
-  /* cloud: banded smears with a spin to them, the way weather organises
-     into fronts and cyclones rather than confetti */
-  x.lineCap = 'round';
-  for (let i = 0; i < 46; i++) {
-    const a = rand() * TAU, d = rand() * r * 0.95;
-    x.strokeStyle = `rgba(238,244,250,${0.16 + rand() * 0.22})`;
-    x.lineWidth = 3 + rand() * 9;
-    x.beginPath();
-    x.arc(c + Math.cos(a) * d, c + Math.sin(a) * d, 6 + rand() * 26,
-      rand() * TAU, rand() * TAU + 1.2 + rand() * 2.4);
-    x.stroke();
-  }
+  /* and one blur over the whole map. The fields are smooth but every one of
+     them is read through a threshold, and a threshold is where a smooth
+     field grows an edge; a texel and a half of blur is the distance at which
+     the atmosphere, the optics and the eye would all have taken that edge
+     off anyway. */
+  const tmp = document.createElement('canvas');
+  tmp.width = tmp.height = C;
+  const t2 = tmp.getContext('2d');
+  t2.drawImage(cv, 0, 0);
+  x.clearRect(0, 0, C, C);
+  x.filter = 'blur(1.1px)';
+  x.drawImage(tmp, 0, 0);
+  x.filter = 'none';
 }
 
 /* the atmospheric limb: one thin ring of blue standing off the edge of the
@@ -414,11 +546,17 @@ export function createSky(THREE) {
       earthCtx.save();
       earthCtx.translate(c, c);
       earthCtx.rotate(sunAz + Math.PI);      // +x now points away from the sun
+      /* the terminator is the one edge on this map that used to be a drawn
+         line, and it is the one edge that is not: an atmosphere's worth of
+         scattering lies across it, so the night is blurred into the day
+         rather than butted against it */
+      earthCtx.filter = 'blur(9px)';
       earthCtx.fillStyle = 'rgba(5,8,15,0.94)';
       earthCtx.beginPath();
       earthCtx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
       earthCtx.ellipse(0, 0, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0);
       earthCtx.fill();
+      earthCtx.filter = 'none';
       earthCtx.restore();
     }
     earthCtx.restore();

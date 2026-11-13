@@ -70,12 +70,21 @@ export const S = {
      floats over that region's ground track, so the region's zenith is the
      building's +Y and the planet hangs on the -Y axis whatever the hour: the
      stars swing over the roof and the Earth stays below. When the dial says
-     the ground track is Asia, Earth is under Asia. The disc is sized for the
-     Cupola well — 240 m across at 300 m down fills the opening as a body
-     rather than as a coin in it. */
+     the ground track is Asia, Earth is under Asia.
+     The disc is sized by the chain of openings it has to fall through, not by
+     how big a disc looks nice: from a Cupola eye at 1.65 m the well stands
+     41° off the nadir, the stair hall's ceiling 37°, and the mouth of the
+     light well — the last thing in the way, 5.25 m down — 28°. A planet that
+     is to overflow the well rather than sit in it has to subtend more than
+     that, so it is 210 m in radius at 300 m down: 35° off the nadir. A real
+     low orbit is nearer 70°; this is as far as the hull and the viewports
+     will stand, since the limb then sits 55° below the horizon line of
+     anything looking out, and no window that is not looking down sees it.
+     The limb ring keeps its old share of the radius, so it stays as thin a
+     line as it was. */
   EARTH_DROP: 300.00,     // the disc's centre below the rotunda floor
-  EARTH_R: 120.00,        // its radius
-  EARTH_LIMB: 3.20,       // the atmospheric ring standing off the limb
+  EARTH_R: 210.00,        // its radius
+  EARTH_LIMB: 5.00,       // the atmospheric ring standing off the limb
 
   /* earthshine: the lit planet below is a second window for the interior,
      and it is not allowed a lamp of its own — a thirteenth light would
@@ -130,6 +139,24 @@ export const S = {
   CUPOLA_WELL_Z: 0.80,    // its centre: 0.35 m clear of the stair well's edge
   CUPOLA_RING_R: 4.60,    // the gallery deck's outer edge
   CUPOLA_RAIL_R: 1.62,    // the rail standing at the well's edge
+  /* the well does not stay the same size on the way down. A straight shaft
+     puts the cellar slab 5.25 m under a Cupola eye, and at 1.45 m that slab
+     is the whole view: the planet becomes a coin in a grey plate, which is
+     what the first Cupola drawings looked like. So the shaft opens out into a
+     light well as it drops through the stair hall's ceiling void, and the
+     mouth it arrives at is what frames the planet. The mouth cannot be a full
+     circle — the flight lands inside one — so it is a circle with a chord
+     across the south, and the lining stops at that chord: the stair comes in
+     through the side of the well, which is the only way it can. */
+  CUPOLA_LIGHT_R: 2.70,   // the mouth's radius at the cellar slab
+  /* half the sector the well's lining leaves out, radians, measured from due
+     south — the side the stair comes in from. The lining is a cone from the
+     1.45 m tube down to this mouth, and the flight crosses the circle that
+     cone sweeps about 3.1 m down, within 31° of south; the wall stops 50°
+     short of south so the treads and the handrail posts pass through the gap
+     instead of through the wall. The bottom landing then stands inside the
+     mouth, on the glazing. */
+  CUPOLA_LIGHT_GAP: 0.87,
 
   /* the plan: a twelve-spoke wheel (2026-11-13 revision) */
   ROTUNDA_R: 8.00,        // interior radius of the central hall

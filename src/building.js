@@ -474,7 +474,7 @@ function buildRoom(parent, plan, M, room, pickables, L, kit) {
     B.put(planeUV(room.w, room.d, 2.2), floorMat, 0, 0, room.d / 2,
       { rx: -Math.PI / 2, receive: true });
   }
-  /* the ceiling has to cast: the moon is a directional light, and a roof that
+  /* the ceiling has to cast: the sun is a directional light, and a roof that
      throws no shadow is a roof that lets the whole sky pour into the room.
      for a cellar room this one sheet is the slab the ground floor stands on,
      so it stays unbroken: the corridor ceiling out there is at the same height
@@ -775,9 +775,20 @@ function buildStairHall(parent, plan, M, L) {
      lands flush on this sheet, and two up-facing sheets at the same height
      flicker wherever they overlap. The Cupola well pierces this sheet too:
      the well is a two-storey shaft, and the planet under the keel is meant
-     to be read from the gallery above and from this hall below. The opening
-     is glazed at slab level as well — flush, so it is a floor you walk on
-     and the hall keeps its whole floor, not a hole you fall through. */
+     to be read from the gallery above and from this hall below.
+
+     It pierces it as a mouth 2.70 m across, not as the 1.45 m tube the
+     rotunda floor carries, and that is not generosity: a straight tube puts
+     this slab 5.25 m under a Cupola eye, and at 1.45 m the slab is then the
+     whole of the view — a grey plate with a coin of planet in the middle of
+     it, which is what the first Cupola drawings looked like. Opened out, the
+     3.2 m of ceiling void between reads as a depth you are looking into, and
+     the mouth is what frames the planet. The flight comes in through the side
+     of the well: the lining stops short of it and the bottom landing stands
+     inside the mouth on the glazing, an island in the window where the stair
+     arrives. The glazing stays flush, so it is still a floor you walk on and
+     the hall keeps its whole floor. */
+  const lr = S.CUPOLA_LIGHT_R, lg = S.CUPOLA_LIGHT_GAP;
   const slab = new THREE.Shape();
   slab.moveTo(-hw, -hd);
   slab.lineTo(hw, -hd);
@@ -785,14 +796,45 @@ function buildStairHall(parent, plan, M, L) {
   slab.lineTo(-hw, hd);
   slab.closePath();
   const floorWell = new THREE.Path();
-  floorWell.absarc(0, -S.CUPOLA_WELL_Z, S.CUPOLA_WELL_R + 0.10, 0, TAU, true);
+  floorWell.absarc(0, -S.CUPOLA_WELL_Z, lr + 0.10, 0, TAU, true);
   slab.holes.push(floorWell);
   B.put(uvScale(new THREE.ShapeGeometry(slab, 24), 1 / 2.2, 1 / 2.2), M.mat('concrete', 1, 1),
     0, -0.012, 0, { rx: -Math.PI / 2, receive: true });
-  B.put(new THREE.CircleGeometry(S.CUPOLA_WELL_R - 0.02, 48), M.glass, 0, 0.05, S.CUPOLA_WELL_Z,
+
+  /* the lining: one cone, open at both ends, welded to nothing else because
+     its material is its own. DoubleSide, since it is seen from inside the
+     shaft and from the hall at the same time. It is a dark matte steel, and
+     the two adjectives are doing different work: dark, because a polished
+     cone off a shaft full of lamps is a bright plate again — the grey disc
+     this was meant to stop being; matte, because a polished cone also throws
+     the lamps' specular into the bloom and washes the photograph. Not black:
+     the hall's lamp and the planet both light this surface, and a shaft whose
+     walls take no light at all reads as a pasted hole rather than as three
+     and a half metres of building you are looking through. The sector it
+     leaves out is the one the flight crosses its line in: the slope passes
+     through the circle the lining sweeps at about 3.1 m down, within 31° of
+     due south, so the wall stops 50° short of south and the stair comes
+     through the gap. */
+  B.put(new THREE.CylinderGeometry(S.CUPOLA_WELL_R + 0.10, lr + 0.10, h, 44, 1, true,
+    Math.PI + lg, TAU - lg * 2),
+    M.solid(0x2b3037, { roughness: 0.75, metalness: 0.25, side: THREE.DoubleSide }),
+    0, h / 2, S.CUPOLA_WELL_Z, { cast: false });
+
+  /* the pane over the mouth, and the sheen on it. From the gallery this is
+     the floor the planet shows through; from here it is the floor under your
+     feet with 300 m of nothing below, and the same near-invisible wall
+     glazing cannot say both. The pane is the walking glazing, and the sheen
+     is the faint reflection of the hall's own lamp in it. */
+  B.put(new THREE.CircleGeometry(lr - 0.02, 56), M.floorGlass, 0, 0.05, S.CUPOLA_WELL_Z,
     { rx: -Math.PI / 2, order: 5, userData: { window: true } });
-  B.put(new THREE.TorusGeometry(S.CUPOLA_WELL_R + 0.09, 0.09, 8, 48),
-    M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
+  B.put(new THREE.CircleGeometry(lr - 0.06, 56), M.glazingSheen, 0, 0.07, S.CUPOLA_WELL_Z,
+    { rx: -Math.PI / 2, order: 6 });
+
+  /* the steel edge round the mouth, and the rail the flight stops against:
+     an arc rather than a ring, because the gap is where the stair is */
+  const collar = new THREE.TorusGeometry(lr + 0.09, 0.09, 8, 44, TAU - lg * 2);
+  collar.rotateZ(lg - Math.PI / 2);
+  B.put(collar, M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
     { rx: Math.PI / 2, cast: false });
 
   /* the ceiling is the soffit of the rotunda floor, so it is at the same
@@ -846,19 +888,24 @@ function buildStairHall(parent, plan, M, L) {
     }
   }
 
-  /* one cold tube, south of the well so it lights the hall and the doors off
-     it rather than shining down the stair — and clear of the well's own
-     circle, because a lamp hung over a glazed floor is a lamp in front of
-     the planet for anyone looking down. it carries a light of its own:
+  /* one cold tube, east of the well so it lights the hall and the doors off
+     it rather than shining down the stair — and clear of the light well's
+     mouth, because a lamp hung inside a glazed floor is a lamp standing in
+     front of the planet for anyone looking down. The mouth is 2.70 m across,
+     so the tube stands 3.30 m out from the well's axis: the old spot, 2.10 m
+     north of it, is now inside the window. It hangs low for the same reason:
+     the lower it is, the steeper the light that reaches the mouth, and the
+     more of it finds its way up the shaft to light the walls of the well that
+     the rotunda is looking down into. it carries a light of its own:
      lighting.js lays its pool out from plan.rooms and plan.corridors, and the
      stair hall is neither — the plan only records it as a walkable rect — so
      nothing else in the building knows to light it. this is one static light
      added at boot, not a member of the pool, so the pool's count, and the
      shaders that depend on it, never change. */
-  addPendant(B, lamps, 0, h - 0.5, S.CUPOLA_WELL_Z + 2.1, h, 0.2);
+  addPendant(B, lamps, 3.30, h - 1.20, S.CUPOLA_WELL_Z + 0.30, h, 0.2);
   B.flush();
   const lamp = new THREE.PointLight(0xa9c8e8, 30, 12, 2);
-  lamp.position.set(0, h - 0.62, S.CUPOLA_WELL_Z + 2.1);
+  lamp.position.set(3.30, h - 1.32, S.CUPOLA_WELL_Z + 0.30);
   g.add(lamp);
   return g;
 }
@@ -971,7 +1018,7 @@ function hullMats(M) {
        back, so without it the hull is a black mass on a black sky and the
        only thing that reads is the lit patch through a viewport. It is
        emissive geometry rather than a light — a real lamp would recompile
-       every shader in the building and move the moon's shadow. */
+       every shader in the building and move the sun's shadow. */
     rim: new THREE.MeshStandardMaterial({
       color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 2.4,
       roughness: 0.4, metalness: 0.3
@@ -1109,10 +1156,11 @@ function buildArmHull(B, H, plan, corridor) {
       { rx: Math.PI / 2, cast: true, receive: true });
 
     /* the rim light: a strip along every long edge of the skin, at the roof
-       and at the keel. Out here nothing bounces the lamps back and the moon is
-       a fraction of a lux, so without an edge that makes its own light the
-       station is a black mass on a black sky and the only part of it you can
-       see is the lit patch through a viewport. */
+       and at the keel. Out here nothing bounces the lamps back, and the sun
+       that does light the hull is off for the half of the dial the museum
+       runs on, so without an edge that makes its own light the station is a
+       black mass on a black sky and the only part of it you can see is the
+       lit patch through a viewport. */
     const rw = 0.12, rp = 0.14, out = S.HULL_T / 2 - 0.03;
     for (const sx of [1, -1]) {
       const at = (sx > 0 ? b.p : -b.n) + sx * out;
@@ -1306,12 +1354,20 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
 
   /* the shaft, the glazing and the collars. The pane keeps the depthWrite:
      false every window in this building has: a pane that writes depth here
-     is the last thing between the gallery and a planet 300 m below. */
+     is the last thing between the gallery and a planet 300 m below.
+
+     It is the walking glazing rather than the wall glazing, and the sheen
+     over it is the reason the well reads as a floor at all: from the deck
+     you are looking at a hole with a ring round it until something on the
+     surface answers the room's own light back. The ring of lit steel is the
+     edge; the sheen is the pane. */
   B.put(new THREE.CylinderGeometry(wr, wr, 0.42, 40, 1, true),
-    M.solid(0x30343a, { roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }),
+    M.solid(0x22262c, { roughness: 0.7, metalness: 0.35, side: THREE.DoubleSide }),
     0, -0.19, wz, { cast: false });
-  B.put(new THREE.CircleGeometry(wr - 0.02, 48), M.glass, 0, -0.05, wz,
+  B.put(new THREE.CircleGeometry(wr - 0.02, 48), M.floorGlass, 0, -0.05, wz,
     { rx: -Math.PI / 2, order: 5, userData: { window: true } });
+  B.put(new THREE.CircleGeometry(wr - 0.06, 48), M.glazingSheen, 0, -0.03, wz,
+    { rx: -Math.PI / 2, order: 6 });
   B.put(new THREE.TorusGeometry(wr + 0.09, 0.10, 8, 48), frame, 0, -0.01, wz,
     { rx: Math.PI / 2, cast: false });
   B.put(new THREE.TorusGeometry(wr + 0.05, 0.05, 6, 48), H.rim, 0, 0.03, wz,
@@ -1392,7 +1448,7 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
    while you are walking upstairs, except the flight and the hall under the
    well, which you can see straight down at from the rotunda floor.
 
-   What this does not do is keep the moon honest. The shadow map is one pass
+   What this does not do is keep the sun honest. The shadow map is one pass
    over whatever is on the list, so a wall in a range that is off stops
    throwing its shadow into the range that is on. It is a soft difference in
    a patch of light you are not looking at, and it is the price of the frame. */

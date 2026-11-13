@@ -299,7 +299,63 @@ export function makeMaterials(renderer) {
     envMapIntensity: 0.25
   });
 
-  return { mat, solid, glass, textureFor, SPECS };
+  /* The glazing you walk on is a different problem. In a wall, glass that is
+     nearly absent is right; underfoot, the same pane is indistinguishable from
+     a hole, and a hole 300 m deep in a museum floor is a claim the building
+     has to be able to make from the edge of it. So the floor panes are the
+     same physical material with the polish up and the opacity raised a little:
+     at a shallow sight line Fresnel does the rest on its own, and the pane
+     goes from clear near the middle of the well to a bright film near its
+     rim, which is the way real glass behaves and the way a visitor reads it.
+     The clearcoat is the hard specular that catches the pendant; it is one
+     extra program for two meshes, not a light, so no shadow moves. */
+  const floorGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x9fb8d2, roughness: 0.02, metalness: 0,
+    transparent: true, opacity: 0.10, side: THREE.DoubleSide,
+    depthWrite: false, clearcoat: 1.0, clearcoatRoughness: 0.04,
+    envMapIntensity: 0.6
+  });
+
+  /* A reflection for the walking glazing, painted rather than reflected: the
+     building has no mirror and no probe, and either would cost more than the
+     effect is worth. This is one small canvas laid additively over the pane,
+     brightest at the rim where the sight line is shallowest — the same
+     gradient Fresnel is already drawing on the pane under it — with two soft
+     smears in it for the lamps the room is throwing back. It is geometry, so
+     it moves no shadow and recompiles nothing, and it is faint on purpose:
+     0.08 of added luminance at its brightest, well under the bloom. */
+  function sheenTexture() {
+    const N = 256, { c, x } = canvas(N, N);
+    x.clearRect(0, 0, N, N);
+    const rim = x.createRadialGradient(N / 2, N / 2, N * 0.26, N / 2, N / 2, N / 2);
+    rim.addColorStop(0, 'rgba(188,212,236,0)');
+    rim.addColorStop(0.62, 'rgba(188,212,236,0.035)');
+    rim.addColorStop(0.93, 'rgba(206,226,248,0.15)');
+    rim.addColorStop(1, 'rgba(206,226,248,0)');
+    x.fillStyle = rim;
+    x.fillRect(0, 0, N, N);
+    for (const [cx, cy, rx, ry, a] of [[0.33, 0.29, 0.22, 0.055, 0.13], [0.68, 0.63, 0.16, 0.045, 0.09]]) {
+      x.save();
+      x.translate(cx * N, cy * N);
+      x.scale(rx / ry, 1);
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, ry * N);
+      g.addColorStop(0, 'rgba(255,246,228,' + a + ')');
+      g.addColorStop(1, 'rgba(255,246,228,0)');
+      x.fillStyle = g;
+      x.beginPath(); x.arc(0, 0, ry * N, 0, TAU); x.fill();
+      x.restore();
+    }
+    return c;
+  }
+
+  const glazingSheen = new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(sheenTexture()),
+    transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide, opacity: 0.55
+  });
+  glazingSheen.map.colorSpace = THREE.SRGBColorSpace;
+
+  return { mat, solid, glass, floorGlass, glazingSheen, textureFor, SPECS };
 }
 
 export function applyEnvironment(renderer, scene) {

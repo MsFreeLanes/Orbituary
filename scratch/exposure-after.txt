@@ -1,13 +1,20 @@
-pinned to 08:23 · slider 467 (asked 467) · sun altitude 15.6° · key 2.40
-rotunda     floor 105 (clip 0%, dark 0%) mid 74 (clip 0%, dark 6%)  key y5.70 i18.0
-corridor    floor 77 (clip 0%, dark 20%) mid 89 (clip 0%, dark 9%)  key y2.60 i22.0
-gaming      floor 53 (clip 0%, dark 4%)  mid 14 (clip 0%, dark 55%) key y4.40 i24.2
-privacy     floor 52 (clip 0%, dark 0%)  mid 15 (clip 0%, dark 44%) key y4.40 i17.6
-reading     floor 83 (clip 0%, dark 12%) mid 29 (clip 0%, dark 12%) key y2.60 i19.8
-linux       floor 42 (clip 0%, dark 0%)  mid 11 (clip 0%, dark 63%) key y2.60 i22.0
-cellar      floor 50 (clip 0%, dark 0%)  mid 48 (clip 0%, dark 0%)  key y-2.00 i12.6
-cellar-dim  floor 41 (clip 0%, dark 0%)  mid 7 (clip 0%, dark 87%)  key y-2.00 i5.0
-cellar-arm  floor 54 (clip 0%, dark 2%)  mid 49 (clip 0%, dark 8%)  key y-2.00 i9.9
-stair-hall  floor 88 (clip 0%, dark 16%) mid 30 (clip 0%, dark 37%) key y-1.10 i9.0
-stair-flight floor 115 (clip 0%, dark 0%) mid 38 (clip 0%, dark 2%)  key y1.90 i11.0
-mood exposure 0.94 bloom 0.60 env 0.1
+pinned to 07:47 · slider 467 (asked 467) · sun altitude 10.3° · key 2.22
+rotunda     floor 46 (clip 0%, dark 2%)  mid 36 (clip 0%, dark 13%) key y5.70 i18.0
+corridor    floor 78 (clip 0%, dark 20%) mid 90 (clip 0%, dark 9%)  key y2.60 i22.0
+gaming      floor 53 (clip 0%, dark 3%)  mid 14 (clip 0%, dark 54%) key y4.40 i24.2
+privacy     floor 52 (clip 0%, dark 0%)  mid 16 (clip 0%, dark 44%) key y4.40 i17.6
+reading     floor 91 (clip 0%, dark 12%) mid 30 (clip 0%, dark 12%) key y2.60 i19.8
+linux       floor 43 (clip 0%, dark 0%)  mid 11 (clip 0%, dark 63%) key y2.60 i22.0
+cellar      floor 50 (clip 0%, dark 0%)  mid 48 (clip 0%, dark 0%)  key y-2.00 i12.7
+file:///C:/Users/skyee/Documents/Strata/Workspace/scratch/cdp.mjs:100
+        throw new Error(result.exceptionDetails.exception?.description ||
+              ^
+
+Error: TypeError: Cannot read properties of null (reading 'n')
+    at <anonymous>:2:38
+    at <anonymous>:2:64
+    at evaluate (file:///C:/Users/skyee/Documents/Strata/Workspace/scratch/cdp.mjs:100:15)
+    at async file:///C:/Users/skyee/Documents/Strata/Workspace/scratch/probe-exposure.mjs:103:5
+    at async withBrowser (file:///C:/Users/skyee/Documents/Strata/Workspace/scratch/cdp.mjs:106:12)
+
+Node.js v26.13.0

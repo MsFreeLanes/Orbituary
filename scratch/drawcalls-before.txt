@@ -1,30 +1,30 @@
-draw calls — before — 2026-11-13T13:32:16.682Z
+draw calls — before — 2026-11-13T14:35:56.893Z
 
-whole building, nothing culled: {"calls":390,"tris":96899,"geoms":295,"texs":48,"programs":41,"objects":788,"submitted":587,"texMB":79.16,"atlasCount":4,"atlasMB":14.96,"atlasMax":"1536x768","lights":12,"poolLit":10,"casters":1}
+whole building, nothing culled: {"calls":418,"tris":107151,"geoms":307,"texs":49,"programs":53,"objects":819,"submitted":606,"texMB":81.15,"atlasCount":4,"atlasMB":14.96,"atlasMax":"1536x768","lights":12,"poolLit":10,"casters":1}
 
-rotunda-centre         at 0,0 (ground, rotunda)
-     174 calls ·   56959 tris · 139/788 objects submitted · 48 texs · 41 programs
-   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+rotunda-centre         at 0,0 (ground, cupola)
+     204 calls ·   66113 tris · 202/819 objects submitted · 49 texs · 53 programs
+   textures 81.15 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
    lights 12 (10 lit) · shadow casters 1
 
 mid-corridor-north     at 0,26 (ground, corridor)
-     113 calls ·   29014 tris · 162/788 objects submitted · 50 texs · 61 programs
-   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+     115 calls ·   28582 tris · 171/819 objects submitted · 51 texs · 73 programs
+   textures 81.15 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
    lights 12 (10 lit) · shadow casters 1
 
 terminus-hall-gaming   at 0,37.2 (ground, gaming)
-      52 calls ·   14556 tris · 121/788 objects submitted · 50 texs · 61 programs
-   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+      56 calls ·   14846 tris · 130/819 objects submitted · 51 texs · 73 programs
+   textures 81.15 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
    lights 12 (10 lit) · shadow casters 1
 
 stair-hall             at 0,1.4 (basement, stair-hall)
-      92 calls ·   32361 tris · 125/788 objects submitted · 50 texs · 62 programs
-   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+     112 calls ·   40153 tris · 137/819 objects submitted · 51 texs · 75 programs
+   textures 81.15 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
    lights 12 (10 lit) · shadow casters 1
 
 cellar-room            at 1.8,9 (basement, apple-dev)
-      27 calls ·    7476 tris · 40/788 objects submitted · 50 texs · 62 programs
-   textures 79.16 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
+      28 calls ·    7527 tris · 46/819 objects submitted · 51 texs · 75 programs
+   textures 81.15 MB total, 4 plaque sheets 14.96 MB, largest 1536x768
    lights 12 (10 lit) · shadow casters 1
 
 errors: []
