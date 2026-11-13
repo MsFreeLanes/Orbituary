@@ -3,6 +3,15 @@
    and its cupola, the pressure hull over the whole wheel, the stair down to
    the cellar, viewport frames and glazing, and a plinth for every exhibit.
 
+   The shell is painted from six tokens — PALETTE, in materials.js. The hull,
+   the frames, the structural metal and the ceiling fittings are panel and
+   panel-shadow sitting against the void; the palette's cyan and amber are
+   kept for the lit edges and the markers, because those are the parts of the
+   silhouette that have to survive being eighty metres away. The floors and
+   the museum's own finishes — marble, oak, brick, plaster, carpet, velvet —
+   keep what they were: this is the station's skin, not the exhibits, and the
+   rooms' colours are replaced by a separate step that has not landed yet.
+
    Walls are built as runs of boxes with the texture tiling baked into the
    geometry UVs, so one material per surface type serves the whole building
    and nothing is stretched. Every wall opening is a real hole — you can walk
@@ -30,6 +39,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { S } from './scale.js';
+import { PALETTE } from './materials.js';
 import { LINKS } from './data.js';
 import { plaqueSheets, roomSign, uvRect } from './signage.js';
 
@@ -187,7 +197,12 @@ function addWall(B, mat, o) {
 function addWindow(B, M, o) {
   const { run, at, c, w, y0, y1, t } = o;
   const glassMat = M.glass;
-  const frame = M.solid(0x2b2f36, { roughness: 0.45, metalness: 0.6 });
+  /* the pressure frame is painted the same panel-shadow as the rest of the
+     station's fittings. It is a metal at 0.6, and the environment map runs at
+     a tenth strength, so the token reads as a light frame only where a lamp
+     or the sun actually finds it — which is the way a painted frame behaves
+     and the reason it does not need a darker colour to sit quietly. */
+  const frame = M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 });
   const fw = 0.06, fd = 0.10;
   const pane = new THREE.PlaneGeometry(w - fw * 2, y1 - y0 - fw * 2);
   B.put(pane, glassMat, run === 'x' ? c : at, (y0 + y1) / 2, run === 'x' ? at : c,
@@ -243,14 +258,21 @@ function addWindow(B, M, o) {
     { cast: false, receive: true });
 }
 
-/* every lamp in the building shares two materials: a dark metal shade and a
-   warm emissive disc. The disc sits above the bloom threshold so the light
-   source itself glows, which is what makes a ceiling read as lit. */
+/* every lamp in the building shares two materials: a panel-shadow metal shade
+   and a warm emissive disc. The shade is the palette's panel-shadow and still
+   reads as a dark fitting, which is not a contradiction: it is metal, and the
+   environment map it has to reflect is held at a tenth strength, so a token
+   that would be white in daylight is a fitting in this building.
+   The disc is the one thing that has to clear the bloom threshold, because a
+   lamp you cannot see the face of makes a ceiling read as unlit. The
+   threshold is 0.70 now, not the 1.30 it was, so the intensity that used to
+   be needed to cross it would blow the disc out: the disc is set just over
+   the line instead. */
 function lampMats(M) {
   return {
-    shade: M.solid(0x2a2c31, { roughness: 0.45, metalness: 0.7 }),
+    shade: M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.7 }),
     glow: new THREE.MeshStandardMaterial({
-      color: 0x14161a, emissive: 0xffe3b8, emissiveIntensity: 1.2, roughness: 0.5, metalness: 0
+      color: 0x14161a, emissive: 0xffe3b8, emissiveIntensity: 0.95, roughness: 0.5, metalness: 0
     })
   };
 }
@@ -263,8 +285,13 @@ function lampMats(M) {
 function lampsFor(M, warm, o) {
   if (o.floor !== 'basement') return warm;
   if (!o._lamps) {
+    /* the tube keeps its cool phosphor rather than taking the palette's cyan:
+       the cyan is the station's own signalling, and a cellar that has gone
+       cyan is a cellar whose room colour — which a later step replaces — has
+       been painted over twice. the intensity is the same retune as the warm
+       set: over the 0.70 threshold, not over the 1.30 that is gone. */
     const glow = new THREE.MeshStandardMaterial({
-      color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 1.15, roughness: 0.35, metalness: 0
+      color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 0.95, roughness: 0.35, metalness: 0
     });
     if (o.flicker) {
       /* a failing starter, not a strobe: the tube holds steady and drops out
@@ -278,7 +305,7 @@ function lampsFor(M, warm, o) {
         glow.emissiveIntensity = r < k * 0.3 ? base * 0.16 : base * (0.9 + 0.1 * r);
       };
     }
-    o._lamps = { shade: M.solid(0x23262b, { roughness: 0.4, metalness: 0.75 }), glow };
+    o._lamps = { shade: M.solid(PALETTE.panelShadow, { roughness: 0.4, metalness: 0.75 }), glow };
   }
   return o._lamps;
 }
@@ -315,16 +342,20 @@ function addCeiling(B, L, M, room) {
       B.put(new THREE.BoxGeometry(w - 0.3, 0.26, 0.22), beamMat, 0, h - 0.13, (i / 5) * d, { cast: false });
     }
   } else if (key === 'coffer') {
-    const rib = M.solid(0x8d8980, { roughness: 0.72 });
+    const rib = M.solid(PALETTE.panelShadow, { roughness: 0.72 });
     for (let i = 1; i <= 2; i++) {
       B.put(new THREE.BoxGeometry(w - 0.4, 0.16, 0.14), rib, 0, h - 0.08, (i / 3) * d, { cast: false });
       B.put(new THREE.BoxGeometry(0.14, 0.16, d - 0.4), rib, (i - 1.5) * (w / 3), h - 0.08, zc, { cast: false });
     }
   } else if (key === 'tray') {
+    /* the recess stays the darkest thing in the ceiling and the bevel around
+       it takes panel-shadow: a tray ceiling reads because of that step, and
+       painting the recess the same token as the bevel is a flat ceiling with
+       a lip on it. */
     const panel = M.solid(0x191b20, { roughness: 0.9 });
     const iw = w - 2.4, id = d - 2.4;
     B.put(planeUV(iw, id, 2.6), panel, 0, h - 0.32, zc, { cast: false, rx: Math.PI / 2 });
-    const edge = M.solid(0x24262c, { roughness: 0.85 });
+    const edge = M.solid(PALETTE.panelShadow, { roughness: 0.85 });
     const rim = [
       [iw, 0.06, 0, zc - id / 2], [iw, 0.06, 0, zc + id / 2],
       [0.06, id, -iw / 2, zc], [0.06, id, iw / 2, zc]
@@ -706,8 +737,8 @@ function buildRotunda(parent, plan, M, pickables, L, kit, H) {
 
   /* ribs along the meridians: eight torus arcs, each one the curve the dome
      already follows, so the bowl reads as built rather than printed. they and
-     the cornice are the same stone, so they weld into one buffer. */
-  const ribMat = M.solid(0x8e897f, { roughness: 0.85 });
+     the cornice are the same fitting metal, so they weld into one buffer. */
+  const ribMat = M.solid(PALETTE.panelShadow, { roughness: 0.85 });
   for (let i = 0; i < 8; i++) {
     const arc = new THREE.TorusGeometry(R - 0.06, 0.11, 6, 22, Math.PI / 2 - thetaHole);
     arc.scale(S.DOME_RISE / R, 1, 1);
@@ -717,8 +748,12 @@ function buildRotunda(parent, plan, M, pickables, L, kit, H) {
   B.put(new THREE.TorusGeometry(R - 0.10, 0.14, 8, 64), ribMat, 0, h + 0.06, 0, { rx: Math.PI / 2 });
 
   const oculusR = R * Math.sin(thetaHole);
+  /* the ring the oculus is trimmed with was brass, which is what a museum puts
+     round a hole in its roof. this building is a station with a museum inside
+     it, and the fitting at the top of its drum is machined like every other
+     one: panel-shadow, polished. */
   B.put(new THREE.TorusGeometry(oculusR, 0.16, 10, 64),
-    M.solid(0xb9a06a, { roughness: 0.35, metalness: 0.8 }),
+    M.solid(PALETTE.panelShadow, { roughness: 0.35, metalness: 0.8 }),
     0, h + R * Math.cos(thetaHole) * (S.DOME_RISE / R), 0, { rx: Math.PI / 2 });
 
   /* the meridians, the cornice and the oculus ring are laid on after the
@@ -834,7 +869,7 @@ function buildStairHall(parent, plan, M, L) {
      an arc rather than a ring, because the gap is where the stair is */
   const collar = new THREE.TorusGeometry(lr + 0.09, 0.09, 8, 44, TAU - lg * 2);
   collar.rotateZ(lg - Math.PI / 2);
-  B.put(collar, M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
+  B.put(collar, M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
     { rx: Math.PI / 2, cast: false });
 
   /* the ceiling is the soffit of the rotunda floor, so it is at the same
@@ -965,8 +1000,11 @@ function buildStair(parent, plan, M, L) {
       at, 0.45, (zBack + zHall) / 2, { cast: true, receive: true });
   }
 
-  /* a handrail down one side, hung 0.90 above the nosing line */
-  const rail = M.solid(0x3c3f45, { roughness: 0.35, metalness: 0.75 });
+  /* a handrail down one side, hung 0.90 above the nosing line. Polished, and
+     so the one fitting in the cellar that takes `panel` rather than
+     `panel-shadow`: in this palette the brighter token is the highlights, and
+     a handrail is where a room puts them. */
+  const rail = M.solid(PALETTE.panel, { roughness: 0.35, metalness: 0.75 });
   const rx = s.x + s.w / 2 - 0.10;
   B.put(new THREE.CylinderGeometry(0.028, 0.028, len, 10), rail,
     rx, 0.9 - s.drop / 2, s.z + s.run / 2, { cast: true, rx: Math.atan2(s.run, -s.drop) });
@@ -1013,15 +1051,37 @@ function buildStair(parent, plan, M, L) {
 function hullMats(M) {
   return {
     skin: M.mat('hull', 1, 1),
-    /* the hard rim light: a strip of the cold tube colour laid along every
+    /* the hard rim light: a strip of the station's own cyan laid along every
        top edge of the skin. Out here there is no ground to bounce the lamps
        back, so without it the hull is a black mass on a black sky and the
        only thing that reads is the lit patch through a viewport. It is
        emissive geometry rather than a light — a real lamp would recompile
        every shader in the building and move the sun's shadow. */
+    /* The edge lighting is the palette's cyan, and it is two materials rather
+       than one because the same line has two jobs. Seen from outside, at
+       eighty metres, it is the station's silhouette. Seen from inside the
+       Cupola, three metres from your eye, it is a bar of light across the
+       photograph — and the bloom pass does not care which one you meant.
+       The intensity is what the 0.70 threshold wants: cyan at 1.15 is already
+       over the line, so the 2.4 that was needed to clear the old 1.30 is now
+       four times too much, and the strips are half as proud to match. */
     rim: new THREE.MeshStandardMaterial({
-      color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 2.4,
+      color: 0x0f1216, emissive: PALETTE.signalCyan, emissiveIntensity: 1.15,
       roughness: 0.4, metalness: 0.3
+    }),
+    /* the same edge where the room is the one looking at it: the well's lip,
+       the oculus's own ring. Held under the threshold on purpose, so it keeps
+       a lit edge you can follow without lending the gallery a haze. */
+    rimTrim: new THREE.MeshStandardMaterial({
+      color: 0x0f1216, emissive: PALETTE.signalCyan, emissiveIntensity: 0.60,
+      roughness: 0.4, metalness: 0.3
+    }),
+    /* and the marker at the upper corners of an end cap. In this palette a
+       warning is amber, and a marker whose only job is to say "the range
+       stops here" is a warning rather than a seam. */
+    rimWarn: new THREE.MeshStandardMaterial({
+      color: 0x1a1206, emissive: PALETTE.terminalAmber, emissiveIntensity: 1.25,
+      roughness: 0.5, metalness: 0.2
     })
   };
 }
@@ -1161,7 +1221,7 @@ function buildArmHull(B, H, plan, corridor) {
        runs on, so without an edge that makes its own light the station is a
        black mass on a black sky and the only part of it you can see is the
        lit patch through a viewport. */
-    const rw = 0.12, rp = 0.14, out = S.HULL_T / 2 - 0.03;
+    const rw = S.RIM_W, rp = S.RIM_T, out = S.HULL_T / 2 - 0.03;
     for (const sx of [1, -1]) {
       const at = (sx > 0 ? b.p : -b.n) + sx * out;
       for (const sy of [1, -1]) {
@@ -1178,7 +1238,7 @@ function buildArmHull(B, H, plan, corridor) {
          every module on a station carries one: at eighty metres out it is the
          only thing that says where the range stops */
       for (const sx of [1, -1]) {
-        B.put(new THREE.BoxGeometry(0.24, 0.24, 0.12), H.rim,
+        B.put(new THREE.BoxGeometry(S.RIM_MARK, S.RIM_MARK, S.RIM_W), H.rimWarn,
           (sx > 0 ? b.p : -b.n) - sx * 0.34, b.top - 0.42, b.t1 + out + 0.04, { cast: false });
       }
     }
@@ -1265,9 +1325,12 @@ function buildDrumHull(B, H, plan) {
     0, y0 - 0.02, 0, { rx: Math.PI / 2, cast: true, receive: true });
   /* the rim light round the hub: one ring at the top of the drum's skin and
      one at the keel, so the drum reads as a body with an edge rather than as
-     a shadow against the stars */
-  for (const y of [y1 - 0.02, y0 + 0.02]) {
-    B.put(new THREE.TorusGeometry(R + 0.06, 0.07, 6, 72), H.rim, 0, y, 0, { rx: Math.PI / 2 });
+     a shadow against the stars. The keel ring is the silhouette material; the
+     top one is the trim, because the top of the drum is the level the Cupola
+     gallery stands at, and a ring that glows hard enough to read from outside
+     is a ring the gallery is looking straight along. */
+  for (const [y, mat] of [[y1 - 0.02, H.rimTrim], [y0 + 0.02, H.rim]]) {
+    B.put(new THREE.TorusGeometry(R + 0.06, S.RIM_TUBE, 6, 72), mat, 0, y, 0, { rx: Math.PI / 2 });
   }
   return y1;
 }
@@ -1302,19 +1365,23 @@ function buildCupola(B, H, M, thetaHole) {
   /* the pressure ring, and the glazing. The pane is the same material the
      viewports use and keeps its depthWrite: false — a pane that writes depth
      here would be the last thing between the rotunda and the whole sky. */
-  const frame = M.solid(0x2b2f36, { roughness: 0.45, metalness: 0.6 });
+  const frame = M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 });
   B.put(new THREE.TorusGeometry(domeR + 0.09, 0.11, 8, 48), frame, 0, yDome + 0.05, 0,
     { rx: Math.PI / 2, cast: false });
   B.put(new THREE.TorusGeometry(holeR + 0.06, 0.09, 8, 48), frame, 0, yHole - 0.04, 0,
     { rx: Math.PI / 2, cast: false });
   B.put(new THREE.CircleGeometry(holeR - 0.02, 48), M.glass, 0, yHole - 0.10, 0,
     { rx: -Math.PI / 2, order: 5, userData: { window: true } });
-  B.put(new THREE.TorusGeometry(holeR + 0.02, 0.06, 6, 48), H.rim, 0, yHole + 0.02, 0,
+  B.put(new THREE.TorusGeometry(holeR + 0.02, S.RIM_TUBE, 6, 48), H.rim, 0, yHole + 0.02, 0,
     { rx: Math.PI / 2 });
   /* and the same lit edge at the room's end of the collar: from the rotunda
      floor the Cupola has to read as an opening with a frame, not as a hole
-     punched in a roof, and the only thing that says so at night is its edge */
-  B.put(new THREE.TorusGeometry(domeR + 0.16, 0.05, 6, 48), H.rim, 0, yDome + 0.16, 0,
+     punched in a roof, and the only thing that says so at night is its edge.
+     This one is the trim material, not the silhouette material: it hangs nine
+     metres above the gallery floor and the room is looking straight at it, so
+     an emissive sized to read at eighty metres would be the brightest thing
+     in the hall and the hall would be a bloom with a dome in it. */
+  B.put(new THREE.TorusGeometry(domeR + 0.16, S.RIM_TUBE_TRIM, 6, 48), H.rimTrim, 0, yDome + 0.16, 0,
     { rx: Math.PI / 2 });
 }
 
@@ -1342,9 +1409,12 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
   if (!room) return;
   const wz = S.CUPOLA_WELL_Z, wr = S.CUPOLA_WELL_R;
   const B = batch(g);
-  const deckMat = M.solid(0x2b3038, { roughness: 0.62, metalness: 0.45 });
-  const frame = M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 });
-  const steel = M.solid(0x3c3f45, { roughness: 0.35, metalness: 0.75 });
+  const deckMat = M.solid(PALETTE.panelShadow, { roughness: 0.62, metalness: 0.45 });
+  const frame = M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 });
+  /* the rails take `panel` rather than `panel-shadow`: they are the one thing
+     in this room that is polished rather than painted, and the token's own
+     description is highlights. A handrail is where a room puts its specular. */
+  const steel = M.solid(PALETTE.panel, { roughness: 0.35, metalness: 0.75 });
   const seat = M.solid(0x46443e, { roughness: 0.8, metalness: 0.05 });
 
   const gap = 41 * Math.PI / 180;
@@ -1370,7 +1440,12 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
     { rx: -Math.PI / 2, order: 6 });
   B.put(new THREE.TorusGeometry(wr + 0.09, 0.10, 8, 48), frame, 0, -0.01, wz,
     { rx: Math.PI / 2, cast: false });
-  B.put(new THREE.TorusGeometry(wr + 0.05, 0.05, 6, 48), H.rim, 0, 0.03, wz,
+  /* the lit lip. This is the ring that used to fog the Cupola: it sits at eye
+     height, three metres from the eye that is meant to be looking at a planet,
+     and it ran at the intensity an edge needs to read at eighty metres. Trim
+     material, and a tube a third the size: the lip still catches the eye, it
+     just stops being the subject of the photograph. */
+  B.put(new THREE.TorusGeometry(wr + 0.05, S.RIM_TUBE_TRIM, 6, 48), H.rimTrim, 0, 0.03, wz,
     { rx: Math.PI / 2 });
 
   /* the rail at the well's edge: a station's edge protection — two rails

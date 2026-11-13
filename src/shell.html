@@ -7,14 +7,29 @@
 <meta name="description" content="Twelve rooms, eighty-eight links, tonight's sky over the windows. A walkable museum in one file.">
 <style>
   :root {
-    --ink: #e8e2d6;
-    --dim: #8f96a3;
-    --line: rgba(232, 226, 214, 0.16);
-    --panel: rgba(12, 14, 18, 0.62);
-    --wing: #ffd9a0;
+    /* the same six tokens the hull is painted with, on the paper side of the
+       glass. panel is what you are meant to read; panel-shadow is the seams
+       and the secondary text, and it runs at an alpha because at full
+       strength it is nearly as loud as the ink and a HUD with no second voice
+       shouts; void is the ground everything sits on; the two accents are the
+       parts of the interface that are hardware rather than prose.
+       The panels sit a little more opaque than they were: the canvas behind
+       them now carries a 3% scanline, and at 0.62 the pattern showed through
+       the glass under 9px monospace. The type itself is untouched — that half
+       of the spec has not landed. */
+    --void: #0A0A0C;
+    --panel-face: #F4F4F5;
+    --panel-seam: #D6D6DA;
+    --signal: #00E5FF;
+    --amber: #FFB700;
+    --ink: #F4F4F5;
+    --dim: rgba(214, 214, 218, 0.72);
+    --line: rgba(244, 244, 245, 0.16);
+    --panel: rgba(10, 10, 12, 0.72);
+    --wing: #FFB700;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--void); }
   body {
     font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
     color: var(--ink);
@@ -32,12 +47,12 @@
   .card {
     position: absolute; left: 26px; top: 24px; max-width: 46vw;
     padding: 14px 18px 16px; border-left: 2px solid var(--wing);
-    background: linear-gradient(90deg, var(--panel), rgba(12, 14, 18, 0));
+    background: linear-gradient(90deg, var(--panel), rgba(10, 10, 12, 0));
     backdrop-filter: blur(3px);
   }
   .card.flash { animation: flash 900ms ease-out; }
   @keyframes flash {
-    0% { border-left-color: #fff; transform: translateX(-6px); opacity: 0.4; }
+    0% { border-left-color: var(--panel-face); transform: translateX(-6px); opacity: 0.4; }
     100% { border-left-color: var(--wing); transform: none; opacity: 1; }
   }
   .brand { font-size: 10px; letter-spacing: 0.3em; color: var(--dim); font-family: ui-monospace, monospace; }
@@ -51,15 +66,19 @@
     opacity: 0.34; transition: opacity 260ms ease;
   }
   .skybox:hover, .hud.sky-open .skybox { opacity: 1; pointer-events: auto; }
+  /* the track readout is live data, and live data is cyan in this palette.
+     only the label over the panel takes it: the seven buttons stay exactly
+     the chips they were, because they are controls, not readings. */
+  .skybox .kicker { color: var(--signal); }
   .sky-name { font-size: 19px; margin: 3px 0 1px; }
   .sky-clock { font-size: 11px; color: var(--dim); font-family: ui-monospace, monospace; }
   .dial { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0 8px; }
   .chip {
     font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.06em;
-    color: var(--ink); background: rgba(255, 255, 255, 0.05);
+    color: var(--ink); background: rgba(214, 214, 218, 0.06);
     border: 1px solid var(--line); padding: 4px 7px; cursor: pointer;
   }
-  .chip:hover { background: rgba(255, 255, 255, 0.14); }
+  .chip:hover { background: rgba(214, 214, 218, 0.16); }
   .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .mini { font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--dim); }
   .time { flex: 1 1 100%; height: 3px; appearance: none; background: var(--line); cursor: pointer; }
@@ -73,10 +92,10 @@
     background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(6px);
   }
   .mapbox svg { display: block; margin-top: 6px; }
-  .mapbox .rot { fill: rgba(232, 226, 214, 0.07); stroke: rgba(232, 226, 214, 0.35); stroke-width: 0.35; }
-  .mapbox .corr { fill: none; stroke: rgba(232, 226, 214, 0.3); stroke-width: 0.3; }
+  .mapbox .rot { fill: rgba(214, 214, 218, 0.07); stroke: rgba(214, 214, 218, 0.35); stroke-width: 0.35; }
+  .mapbox .corr { fill: none; stroke: rgba(214, 214, 218, 0.30); stroke-width: 0.3; }
   .mapbox .roomrect { stroke-width: 0.3; }
-  .mapbox .you { fill: #fff; }
+  .mapbox .you { fill: var(--panel-face); }
   .map-hint { font-family: ui-monospace, monospace; font-size: 9px; color: var(--dim); letter-spacing: 0.1em; }
 
   /* ── plaque ── */
@@ -97,12 +116,12 @@
   .bar {
     position: absolute; left: 0; right: 0; bottom: 0; height: 42px;
     display: flex; align-items: center; gap: 16px; padding: 0 26px;
-    background: linear-gradient(0deg, rgba(5, 6, 10, 0.86), rgba(5, 6, 10, 0));
+    background: linear-gradient(0deg, rgba(10, 10, 12, 0.86), rgba(10, 10, 12, 0));
   }
   .keys { font-size: 11.5px; color: var(--dim); }
   .keys b { color: var(--ink); font-family: ui-monospace, monospace; font-size: 10.5px; font-weight: 600; }
   .meter { display: flex; gap: 2px; margin-left: auto; }
-  .meter i { width: 3px; height: 9px; background: rgba(232, 226, 214, 0.14); }
+  .meter i { width: 3px; height: 9px; background: rgba(214, 214, 218, 0.14); }
   .meter i.on { background: var(--wing); }
   .stats { font-family: ui-monospace, monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.08em; }
 
@@ -119,24 +138,24 @@
   .help {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: min(620px, 86vw); max-height: 78vh; overflow: auto; padding: 26px 30px 30px;
-    background: rgba(8, 10, 14, 0.9); border: 1px solid var(--line);
+    background: rgba(10, 10, 12, 0.92); border: 1px solid var(--line);
     pointer-events: auto; backdrop-filter: blur(10px);
   }
   .help h2 { margin: 0 0 12px; font-size: 26px; }
-  .help p { font-size: 14px; line-height: 1.62; color: #c9c4bb; }
+  .help p { font-size: 14px; line-height: 1.62; color: rgba(214, 214, 218, 0.82); }
   .help b { color: var(--ink); }
 
   /* ── intro ── */
   .intro {
     position: absolute; inset: 0; display: grid; place-items: center;
-    background: radial-gradient(120% 90% at 50% 40%, rgba(5, 6, 10, 0.5), rgba(5, 6, 10, 0.94));
+    background: radial-gradient(120% 90% at 50% 40%, rgba(10, 10, 12, 0.5), rgba(10, 10, 12, 0.94));
     pointer-events: auto; transition: opacity 900ms ease;
   }
   .intro.gone { opacity: 0; pointer-events: none; }
   .intro-inner { text-align: center; max-width: 640px; padding: 0 24px; }
   .intro-kicker { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.34em; color: var(--dim); }
   .intro h1 { font-size: clamp(38px, 7vw, 76px); line-height: 1.02; margin: 14px 0 16px; font-weight: 400; }
-  .intro p { font-size: 15px; color: #b9b4ab; font-style: italic; }
+  .intro p { font-size: 15px; color: rgba(214, 214, 218, 0.78); font-style: italic; }
   .intro-keys {
     margin-top: 26px; font-family: ui-monospace, monospace; font-size: 11px;
     letter-spacing: 0.28em; color: var(--wing);

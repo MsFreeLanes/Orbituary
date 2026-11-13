@@ -9,6 +9,7 @@
    machine has room. */
 import * as THREE from 'three';
 import { S } from './scale.js';
+import { PALETTE } from './materials.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -21,7 +22,7 @@ const GrainShader = {
     uTime: { value: 0 },
     uGrain: { value: 0.055 },
     uVignette: { value: 1.06 },
-    uScan: { value: 0.02 },
+    uScan: { value: 0.03 },
     uAberration: { value: 0.0016 }
   },
   vertexShader: `
@@ -43,7 +44,16 @@ const GrainShader = {
       col.b = texture2D(tDiffuse, uv - off).b;
       float vig = smoothstep(0.92, 0.18, r2 * uVignette);
       col *= mix(0.62, 1.0, vig);
-      float scan = 1.0 - uScan * (0.5 + 0.5 * sin(uv.y * 1200.0));
+      /* scanlines at 3%. The HUD is DOM over the canvas, so this pass cannot
+         reach its text at all — what it does reach is the building's own
+         words: the door plates, the plinth labels, the acquisitions board.
+         Those are the brightest thin detail in the frame, and a scanline that
+         cuts 3% out of a stroke is a label that has gone grey. So the depth is
+         carried by everything that is not already bright: full in the shadow
+         and mid tones the walls live in, off on the ink. */
+      float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      float ink = 1.0 - smoothstep(0.52, 0.90, luma);
+      float scan = 1.0 - uScan * (0.5 + 0.5 * sin(uv.y * 1200.0)) * ink;
       col *= scan;
       float g = (hash(uv * 1024.0 + fract(uTime) * 137.0) - 0.5) * uGrain;
       col += g;
@@ -65,7 +75,14 @@ export function createRender(canvas) {
   renderer.shadowMap.autoUpdate = true;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0b0d12, 0.010);
+  /* the fog stays exponential and stays per-room — main.js and plan.js still
+     hand a density to every space, and the owner wants that depth to keep
+     changing as you walk. Only its colour moves, to the palette's void: the
+     haze used to be a blue-grey of its own, which meant the far end of a
+     corridor faded toward a colour the station does not have, and the space
+     outside the hull — which is the same distance, and is genuinely black —
+     read as a different atmosphere from the air you are standing in. */
+  scene.fog = new THREE.FogExp2(PALETTE.void, 0.010);
 
   /* ── what the building is willing to show ──────────────────────────────
      building.js hangs the museum in ranges and hands back a cull that says
@@ -156,8 +173,20 @@ export function createRender(canvas) {
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, null));
+  /* the threshold is 0.70, and it used to be 1.30. At 1.30 nothing in this
+     building glowed: the palette's cyan and amber, and the lamp faces that
+     were tuned before either existed, all land between 0.7 and 1.2 of linear
+     luminance, so the bloom pass was throwing away every emissive surface in
+     the station and the fittings read as painted white discs. The intensities
+     that were set to clear 1.30 — the hull's rim strips most of all — have
+     come down to match, or the same photograph that used to have no glow in
+     it now has nothing else in it either. The radius comes down with them,
+     0.5 to 0.4: at the wider blur a fitting that is only just over the line
+     spreads its few points across the whole frame, and in the Cupola the
+     brightest thing that glows is a planet filling the floor, where that
+     spread is the difference between a planet and a wash. */
   const bloom = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.5, 1.30);
+    new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.4, 0.70);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const grain = new ShaderPass(GrainShader);

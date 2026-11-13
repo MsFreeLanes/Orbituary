@@ -8,6 +8,23 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const TAU = Math.PI * 2;
 
+/* ── the palette ─────────────────────────────────────────────────────────
+   The six tokens the station is dressed in. They live here rather than in
+   scale.js because scale.js is metres and these are not, and every file that
+   paints the building already reaches for this one. They are the paint, not
+   the light: what a room looks like once its lamps have had their say is
+   still the room's own key colour, and that half of the spec has not landed
+   yet — the per-room hues in data.js are replaced by a separate step and have
+   to keep working until it does. */
+export const PALETTE = {
+  void: 0x0a0a0c,           // background, deep space, shadow
+  panel: 0xf4f4f5,          // intact surfaces, primary text, highlights
+  panelShadow: 0xd6d6da,    // panel depth, seams, bevels
+  signalCyan: 0x00e5ff,     // live data, fibre optics, scanning lasers
+  terminalAmber: 0xffb700,  // analogue hardware, warnings, the gas-giant rings
+  rust: 0x6b3a2e            // corrosion, exposed copper, distressing
+};
+
 function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -162,18 +179,21 @@ function brushedTexture(base) {
    mid-panel still ends at a joint. */
 function hullPlateTexture() {
   const W = 512, { c, x } = canvas(W, W);
-  x.fillStyle = '#767b82'; x.fillRect(0, 0, W, W);
+  x.fillStyle = '#d6d6da'; x.fillRect(0, 0, W, W);
   const rand = rng(131);
   const cell = 128;
   for (let r = 0; r * cell < W; r++) {
     for (let col = 0; col * cell < W; col++) {
       const t = rand();
-      x.fillStyle = 'rgb(' + (112 + t * 26 | 0) + ',' + (118 + t * 24 | 0) + ',' + (126 + t * 22 | 0) + ')';
+      /* panel and panel-shadow, and nothing between the two: the plate is the
+         token, and the shift from one to the other is what gives a 40 m spoke
+         its scale now that the joints are no longer doing it on their own */
+      x.fillStyle = 'rgb(' + (214 + t * 30 | 0) + ',' + (214 + t * 30 | 0) + ',' + (218 + t * 27 | 0) + ')';
       x.fillRect(col * cell + 3, r * cell + 3, cell - 6, cell - 6);
       /* one panel in five is a stencilled access plate, which is where a
          station's surface stops being decoration and starts being plumbing */
       if (rand() < 0.22) {
-        x.strokeStyle = 'rgba(232,236,240,0.10)';
+        x.strokeStyle = 'rgba(244,244,245,0.10)';
         x.lineWidth = 2;
         x.strokeRect(col * cell + 26, r * cell + 26, cell - 52, cell - 52);
       }
@@ -181,13 +201,29 @@ function hullPlateTexture() {
   }
   /* the joints themselves, and the fasteners along them */
   for (let g = 0; g <= W; g += cell) {
-    x.fillStyle = 'rgba(14,16,20,0.55)';
+    x.fillStyle = 'rgba(10,10,12,0.55)';
     x.fillRect(g - 2, 0, 4, W);
     x.fillRect(0, g - 2, W, 4);
-    x.fillStyle = 'rgba(226,232,238,0.16)';
+    x.fillStyle = 'rgba(244,244,245,0.16)';
     for (let p = 12; p < W; p += 26) {
       x.beginPath(); x.arc(g, p, 2.1, 0, TAU); x.fill();
       x.beginPath(); x.arc(p, g, 2.1, 0, TAU); x.fill();
+    }
+  }
+  /* corrosion. a painted plate in orbit goes at the seam first, where water
+     sits and the coating is thinnest, so the rust starts at the fasteners and
+     runs downhill from them rather than being spattered over everything. kept
+     under a quarter alpha: the plate still has to read as panel, and distress-
+     ing that you cannot see is not distressing, it is a different colour. */
+  for (let g = 0; g <= W; g += cell) {
+    for (let p = 12; p < W; p += 26) {
+      if (rand() > 0.30) continue;
+      const a = 0.08 + rand() * 0.16;
+      x.fillStyle = 'rgba(107,58,46,' + a.toFixed(3) + ')';
+      x.fillRect(g - 2.5, p, 5, 9 + rand() * 24);
+      x.beginPath(); x.arc(g, p, 3.2 + rand() * 2.4, 0, TAU); x.fill();
+      x.fillStyle = 'rgba(107,58,46,' + (a * 0.55).toFixed(3) + ')';
+      x.fillRect(p, g - 2.5, 9 + rand() * 24, 5);
     }
   }
   /* brushed, the way every other metal face in this building is finished */
@@ -233,15 +269,18 @@ const SPECS = {
   oakParquet: { paint: () => woodTexture('#6d4a2c', '#452c18', '#966a3d'), rough: 0.38, metal: 0.0, tint: 0xffffff },
   woodPanel: { paint: () => panelTexture(), rough: 0.42, metal: 0.0, tint: 0xffffff },
   brick: { paint: () => brickTexture(), rough: 0.82, metal: 0.0, tint: 0xb4aca8 },
-  steel: { paint: () => brushedTexture('#8b9096'), rough: 0.30, metal: 0.85, tint: 0xdfe3e8 },
+  steel: { paint: () => brushedTexture('#d6d6da'), rough: 0.30, metal: 0.85, tint: PALETTE.panel },
   /* the same brushed steel the lamps are made of, jointed into plates: the
      hull is not a new colour in this building, it is the old one built up.
      It runs far less metallic than the lamp shades, and that is not a style
      call: a metal face in three.js is lit almost entirely by the environment
      map, which this scene keeps at a tenth strength, and a hull that is only
      lit by the map is a hull that disappears against a night sky. Plate on a
-     station is painted, and painted plate is a diffuse surface with a sheen. */
-  hull: { paint: () => hullPlateTexture(), rough: 0.62, metal: 0.26, tint: 0xcfd4da },
+     station is painted, and painted plate is a diffuse surface with a sheen.
+     The tint is panel rather than white: the painting already carries the
+     shift from panel to panel-shadow, and the tint only pulls the whole plate
+     back to the token instead of letting it drift off into its own grey. */
+  hull: { paint: () => hullPlateTexture(), rough: 0.62, metal: 0.26, tint: PALETTE.panel },
   carpet: { paint: () => carpetTexture(), rough: 0.95, metal: 0.0, tint: 0xffffff },
   velvet: { paint: () => carpetTexture(), rough: 0.92, metal: 0.0, tint: 0x6a2a3a },
   gravel: { paint: () => concreteTexture('#4a4c46', 37), rough: 0.9, metal: 0.0, tint: 0x3a3e39 }
@@ -284,9 +323,18 @@ export function makeMaterials(renderer) {
 
   const plain = new Map();
   function solid(key, opts) {
-    if (plain.has(key)) return plain.get(key);
-    const m = new THREE.MeshStandardMaterial(Object.assign({ color: key, roughness: 0.6, metalness: 0 }, opts || {}));
-    plain.set(key, m);
+    /* the cache used to key on the colour alone, which was sound while every
+       colour named exactly one fitting. once the palette reuses one token for
+       the frames, the deck, the linings and the lamp shades, the finish has to
+       be part of the key as well: a DoubleSide shaft lining that quietly
+       inherits a single-sided window frame is the right colour and invisible
+       from inside. */
+    const o = opts || {};
+    const id = key + '|' + (o.roughness === undefined ? '' : o.roughness) +
+      '|' + (o.metalness === undefined ? '' : o.metalness) + '|' + (o.side || 0);
+    if (plain.has(id)) return plain.get(id);
+    const m = new THREE.MeshStandardMaterial(Object.assign({ color: key, roughness: 0.6, metalness: 0 }, o));
+    plain.set(id, m);
     return m;
   }
 

@@ -128,6 +128,19 @@ export const S = {
   VIEW_FLANGE: 0.16,      // the hole in the hull is this much wider and taller
                           // than the glazing: the space the pressure frame fills
 
+  /* the lit edge of the skin (2026-11-13: the palette's cyan, and a bloom
+     threshold of 0.70). The strip used to be 0.12 wide and stand 0.14 proud,
+     which was a size chosen for an emissive that had to clear a 1.30
+     threshold — it only had to be bright enough to see, so it was allowed to
+     be a bar. At 0.70 the same cross-section is a bar of light three metres
+     from the eye, and from inside the Cupola it fogs the whole gallery. Half
+     as proud: what reads at eighty metres is the line, not the depth. */
+  RIM_W: 0.10,            // across the skin
+  RIM_T: 0.05,            // how far it stands proud of it
+  RIM_TUBE: 0.045,        // the same edge where it runs as a ring, outside
+  RIM_TUBE_TRIM: 0.028,   // ... and where it is seen from inside the room
+  RIM_MARK: 0.20,         // the amber marker at each upper corner of an end cap
+
   /* the Cupola gallery (2026-11-13: the oculus gets a floor under it). The
      well is the room's window and it is in the floor: the sky dial puts the
      ground track's zenith at the building's +Y, so Earth hangs straight

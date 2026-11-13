@@ -56,9 +56,14 @@ export function createHUD(plan, actions = {}) {
   card.appendChild(roomSub);
   root.appendChild(card);
 
-  /* ── sky dial ── */
+  /* ── the ground track ──
+     The panel used to be labelled SKY, which on a station is not what it is
+     showing: the museum is not standing under a sky, it is flying over a
+     place, and the seven buttons pick which place the hull is passing. The
+     dial's own labels come from sky.js and are untouched — a region is still
+     a region — only the word over the top of the panel tells the truth. */
   const sky = el('div', 'skybox');
-  sky.appendChild(el('div', 'kicker', 'SKY'));
+  sky.appendChild(el('div', 'kicker', 'GROUND TRACK'));
   const skyName = el('div', 'sky-name', 'USA — East');
   const skyClock = el('div', 'sky-clock', '');
   const dial = el('div', 'dial');

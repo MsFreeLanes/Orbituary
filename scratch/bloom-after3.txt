@@ -1,0 +1,5 @@
+cupola-down     bloom on {"mean":128.6,"clip":2.38,"hot":10.54} off {"mean":110.5,"clip":0.32,"hot":6.62} haze 18.1 · thr 0.7 strength 0.54
+   emissives: #00e5ff i0.60 luma0.38 | #00e5ff i1.15 luma0.73 | #a9c8e8 i0.95 luma0.53 | #ffb347 i1.60 luma0.86 | #ffb347 i2.20 luma1.19 | #ffb700 i1.25 luma0.69 | #ffe3b8 i0.95 luma0.76 | #ffffff i0.40 luma0.40 | #ffffff i0.42 luma0.42 | #ffffff i0.50 luma0.50
+cupola-across   bloom on {"mean":88.8,"clip":1.13,"hot":4.3} off {"mean":75.6,"clip":0.45,"hot":2.33} haze 13.2 · thr 0.7 strength 0.53
+rotunda-floor   bloom on {"mean":93.7,"clip":2.75,"hot":6.23} off {"mean":75.7,"clip":1.06,"hot":4.02} haze 18 · thr 0.7 strength 0.53
+corridor-night  bloom on {"mean":97.7,"clip":0.11,"hot":0.51} off {"mean":92.5,"clip":0.03,"hot":0.09} haze 5.2 · thr 0.7 strength 0.51

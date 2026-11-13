@@ -1,0 +1,13 @@
+pinned to 07:47 · slider 467 (asked 467) · sun altitude 10.3° · key 2.22
+rotunda     floor 116 (clip 2%, dark 0%) mid 78 (clip 0%, dark 0%)  key y5.70 i18.0
+corridor    floor 78 (clip 0%, dark 19%) mid 94 (clip 0%, dark 5%)  key y2.60 i22.0
+gaming      floor 53 (clip 0%, dark 3%)  mid 23 (clip 0%, dark 41%) key y4.40 i24.2
+privacy     floor 52 (clip 0%, dark 0%)  mid 32 (clip 0%, dark 9%)  key y4.40 i17.6
+reading     floor 90 (clip 0%, dark 12%) mid 52 (clip 1%, dark 11%) key y2.60 i19.8
+linux       floor 42 (clip 0%, dark 0%)  mid 24 (clip 0%, dark 18%) key y2.60 i22.0
+cellar      floor 50 (clip 0%, dark 0%)  mid 48 (clip 0%, dark 0%)  key y-2.00 i12.8
+cellar-dim  floor 43 (clip 0%, dark 0%)  mid 6 (clip 0%, dark 87%)  key y-2.00 i9.8
+cellar-arm  floor 53 (clip 0%, dark 2%)  mid 49 (clip 0%, dark 8%)  key y-2.00 i10.0
+stair-hall  floor 85 (clip 0%, dark 15%) mid 30 (clip 0%, dark 40%) key y-1.10 i9.0
+stair-flight floor 57 (clip 0%, dark 0%)  mid 31 (clip 0%, dark 5%)  key y1.90 i11.0
+mood exposure 0.94 bloom 0.61 env 0.1
