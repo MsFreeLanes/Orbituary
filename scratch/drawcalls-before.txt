@@ -1,6 +1,6 @@
-draw calls — before — 2026-11-13T13:26:18.320Z
+draw calls — before — 2026-11-13T13:32:16.682Z
 
-whole building, nothing culled: {"calls":388,"tris":96647,"geoms":295,"texs":48,"programs":41,"objects":788,"submitted":587,"texMB":79.16,"atlasCount":4,"atlasMB":14.96,"atlasMax":"1536x768","lights":12,"poolLit":10,"casters":1}
+whole building, nothing culled: {"calls":390,"tris":96899,"geoms":295,"texs":48,"programs":41,"objects":788,"submitted":587,"texMB":79.16,"atlasCount":4,"atlasMB":14.96,"atlasMax":"1536x768","lights":12,"poolLit":10,"casters":1}
 
 rotunda-centre         at 0,0 (ground, rotunda)
      174 calls ·   56959 tris · 139/788 objects submitted · 48 texs · 41 programs

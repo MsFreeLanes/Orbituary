@@ -453,15 +453,38 @@ function buildRoom(parent, plan, M, room, pickables, L, kit) {
   const B = batch(g);
 
   /* floor and ceiling */
-  B.put(planeUV(room.w, room.d, 2.2), floorMat, 0, 0, room.d / 2,
-    { rx: -Math.PI / 2, receive: true });
+  if (room.floorHole) {
+    /* the Cupola's floor carries the well: the same circle the deck ring
+       runs around, cut out of the room's own sheet — otherwise the gallery
+       has a marble floor with a view painted on top of it. The sheet is
+       drawn in x/y and turned over, so a hole at room-local z sits at
+       shape y = -z, exactly as the rotunda disc does. */
+    const shp = new THREE.Shape();
+    shp.moveTo(-room.w / 2, 0);
+    shp.lineTo(room.w / 2, 0);
+    shp.lineTo(room.w / 2, -room.d);
+    shp.lineTo(-room.w / 2, -room.d);
+    shp.closePath();
+    const hole = new THREE.Path();
+    hole.absarc(room.floorHole.x, -room.floorHole.z, room.floorHole.r, 0, TAU, true);
+    shp.holes.push(hole);
+    B.put(uvScale(new THREE.ShapeGeometry(shp, 32), 1 / 2.2, 1 / 2.2), floorMat, 0, 0, 0,
+      { rx: -Math.PI / 2, receive: true });
+  } else {
+    B.put(planeUV(room.w, room.d, 2.2), floorMat, 0, 0, room.d / 2,
+      { rx: -Math.PI / 2, receive: true });
+  }
   /* the ceiling has to cast: the moon is a directional light, and a roof that
      throws no shadow is a roof that lets the whole sky pour into the room.
      for a cellar room this one sheet is the slab the ground floor stands on,
      so it stays unbroken: the corridor ceiling out there is at the same height
-     on the same storey, and the joint at the doorway lets no light through */
-  B.put(planeUV(room.w, room.d, 2.6), ceilMat, 0, h, room.d / 2,
-    { rx: Math.PI / 2, cast: true, receive: true });
+     on the same storey, and the joint at the doorway lets no light through.
+     the Cupola is the exception: its ceiling is the dome, and a flat sheet at
+     rotunda height would close the oculus and wall off the planet. */
+  if (!room.noCeil) {
+    B.put(planeUV(room.w, room.d, 2.6), ceilMat, 0, h, room.d / 2,
+      { rx: Math.PI / 2, cast: true, receive: true });
+  }
 
   /* four walls: door wall at z=0, window wall at z=d, sides at x=±w/2 */
   addWall(B, wallMat, {
@@ -616,6 +639,13 @@ function buildRotunda(parent, plan, M, pickables, L, kit, H) {
   cut.lineTo(well.x0, -well.z1);
   cut.closePath();
   disc.holes.push(cut);
+  /* the Cupola well: the glazed opening under the oculus. It shares this
+     sheet with the stair well, and it sits north of the drum's centre on
+     purpose — the two holes must not meet, or they are one hole with a
+     thread of marble across it instead of two rooms' windows. */
+  const cupWell = new THREE.Path();
+  cupWell.absarc(0, -S.CUPOLA_WELL_Z, S.CUPOLA_WELL_R, 0, TAU, true);
+  disc.holes.push(cupWell);
   B.put(uvScale(new THREE.ShapeGeometry(disc, 64), 1 / 2.4, 1 / 2.4), marble, 0, 0, 0,
     { rx: -Math.PI / 2, receive: true });
 
@@ -704,6 +734,12 @@ function buildRotunda(parent, plan, M, pickables, L, kit, H) {
   buildCupola(HB, H, M, thetaHole);
   HB.flush();
 
+  /* the gallery under the oculus — deck, rail, benches, plinth ring — hung
+     on the hub, because the hub is the thing the cull switches and the
+     gallery is part of the hub: you see the well exactly when you see the
+     drum */
+  buildCupolaGallery(g, plan, M, H, kit, pickables);
+
   plan.rotunda.group = g;
   return g;
 }
@@ -737,20 +773,52 @@ function buildStairHall(parent, plan, M, L) {
 
   /* laid concrete, and laid a centimetre low: the last tread of the flight
      lands flush on this sheet, and two up-facing sheets at the same height
-     flicker wherever they overlap */
-  B.put(planeUV(hw * 2, hd * 2, 2.2), M.mat('concrete', 1, 1), 0, -0.012, 0,
-    { rx: -Math.PI / 2, receive: true });
+     flicker wherever they overlap. The Cupola well pierces this sheet too:
+     the well is a two-storey shaft, and the planet under the keel is meant
+     to be read from the gallery above and from this hall below. The opening
+     is glazed at slab level as well — flush, so it is a floor you walk on
+     and the hall keeps its whole floor, not a hole you fall through. */
+  const slab = new THREE.Shape();
+  slab.moveTo(-hw, -hd);
+  slab.lineTo(hw, -hd);
+  slab.lineTo(hw, hd);
+  slab.lineTo(-hw, hd);
+  slab.closePath();
+  const floorWell = new THREE.Path();
+  floorWell.absarc(0, -S.CUPOLA_WELL_Z, S.CUPOLA_WELL_R + 0.10, 0, TAU, true);
+  slab.holes.push(floorWell);
+  B.put(uvScale(new THREE.ShapeGeometry(slab, 24), 1 / 2.2, 1 / 2.2), M.mat('concrete', 1, 1),
+    0, -0.012, 0, { rx: -Math.PI / 2, receive: true });
+  B.put(new THREE.CircleGeometry(S.CUPOLA_WELL_R - 0.02, 48), M.glass, 0, 0.05, S.CUPOLA_WELL_Z,
+    { rx: -Math.PI / 2, order: 5, userData: { window: true } });
+  B.put(new THREE.TorusGeometry(S.CUPOLA_WELL_R + 0.09, 0.09, 8, 48),
+    M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
+    { rx: Math.PI / 2, cast: false });
 
   /* the ceiling is the soffit of the rotunda floor, so it is at the same
      height as the cellar corridors' and runs away under the drum. three
      sheets rather than one pierced one because the well runs off the south
      edge of the hall: the flight comes in through that wall, so the notch
-     reaches the boundary and is not a hole */
+     reaches the boundary and is not a hole. The north sheet carries the
+     Cupola well as a real hole, though — the well is cut through four
+     sheets (the rotunda floor, this ceiling, this hall's own slab, and the
+     keel under the drum), and earthlight that stops at any one of them
+     never reaches the stair hall. */
+  const north = new THREE.Shape();
+  north.moveTo(-hw, well.z1);
+  north.lineTo(hw, well.z1);
+  north.lineTo(hw, hd);
+  north.lineTo(-hw, hd);
+  north.closePath();
+  const cupWell = new THREE.Path();
+  cupWell.absarc(0, S.CUPOLA_WELL_Z, S.CUPOLA_WELL_R + 0.10, 0, TAU, true);
+  north.holes.push(cupWell);
   const sheets = [
-    [hw * 2, hd - well.z1, 0, (well.z1 + hd) / 2],
     [well.x0 + hw, well.z1 + hd, (-hw + well.x0) / 2, (-hd + well.z1) / 2],
     [hw - well.x1, well.z1 + hd, (well.x1 + hw) / 2, (-hd + well.z1) / 2]
   ];
+  B.put(uvScale(new THREE.ShapeGeometry(north, 24), 1 / 2.6, 1 / 2.6), wallMat, 0, h, 0,
+    { rx: Math.PI / 2, cast: true, receive: true });
   for (const [w, d, cx, cz] of sheets) {
     B.put(planeUV(w, d, 2.6), wallMat, cx, h, cz, { rx: Math.PI / 2, cast: true, receive: true });
   }
@@ -778,17 +846,19 @@ function buildStairHall(parent, plan, M, L) {
     }
   }
 
-  /* one cold tube, north of the well so it lights the hall and the doors off
-     it rather than shining down the stair. it carries a light of its own:
+  /* one cold tube, south of the well so it lights the hall and the doors off
+     it rather than shining down the stair — and clear of the well's own
+     circle, because a lamp hung over a glazed floor is a lamp in front of
+     the planet for anyone looking down. it carries a light of its own:
      lighting.js lays its pool out from plan.rooms and plan.corridors, and the
      stair hall is neither — the plan only records it as a walkable rect — so
      nothing else in the building knows to light it. this is one static light
      added at boot, not a member of the pool, so the pool's count, and the
      shaders that depend on it, never change. */
-  addPendant(B, lamps, 0, h - 0.5, 1.4, h, 0.2);
+  addPendant(B, lamps, 0, h - 0.5, S.CUPOLA_WELL_Z + 2.1, h, 0.2);
   B.flush();
   const lamp = new THREE.PointLight(0xa9c8e8, 30, 12, 2);
-  lamp.position.set(0, h - 0.62, 1.4);
+  lamp.position.set(0, h - 0.62, S.CUPOLA_WELL_Z + 2.1);
   g.add(lamp);
   return g;
 }
@@ -1138,6 +1208,11 @@ function buildDrumHull(B, H, plan) {
   cut.lineTo(well.x0, well.z1);
   cut.closePath();
   disc.holes.push(cut);
+  /* and the Cupola well: the keel is the third sheet the well passes
+     through, and a plate across it is a lid on the station's other window */
+  const cupWell = new THREE.Path();
+  cupWell.absarc(0, S.CUPOLA_WELL_Z, S.CUPOLA_WELL_R + 0.12, 0, TAU, true);
+  disc.holes.push(cupWell);
   B.put(uvScale(new THREE.ShapeGeometry(disc, 48), 1 / 1.6, 1 / 1.6), H.skin,
     0, y0 - 0.02, 0, { rx: Math.PI / 2, cast: true, receive: true });
   /* the rim light round the hub: one ring at the top of the drum's skin and
@@ -1193,6 +1268,101 @@ function buildCupola(B, H, M, thetaHole) {
      punched in a roof, and the only thing that says so at night is its edge */
   B.put(new THREE.TorusGeometry(domeR + 0.16, 0.05, 6, 48), H.rim, 0, yDome + 0.16, 0,
     { rx: Math.PI / 2 });
+}
+
+/* ── the Cupola gallery ──────────────────────────────────────────────────
+   The oculus has had a sky over it since the first drawing and nothing under
+   it: you looked up and saw a hole. This is the floor under the hole — a
+   ring of deck around a glazed well, a rail at the well's edge, benches
+   facing down into it, and the Observatory's plinth ring.
+
+   The well is the room's window and it is in the floor. The sky dial is the
+   sky above the region the station is over, which puts that region's zenith
+   at the building's +Y and the planet itself on the -Y axis; so the one
+   opening in this building you look *down* through is the one that shows
+   Earth, and the benches face it. The well is lined with a steel shaft,
+   because it pierces the rotunda slab, the stair hall's ceiling and the
+   keel — and a hole through a pressure hull wants a collar, not a cut edge.
+
+   The deck is a ring with a sector missing, not a full annulus: the stair
+   well is under its south side, and a deck floating over the way down is a
+   floor the plan cannot see. In the ring's own parameter the world bearing
+   θ runs as t + 90°, so an 82° gap centred on south is the slot over the
+   flight. */
+function buildCupolaGallery(g, plan, M, H, kit, pickables) {
+  const room = plan.byId('cupola');
+  if (!room) return;
+  const wz = S.CUPOLA_WELL_Z, wr = S.CUPOLA_WELL_R;
+  const B = batch(g);
+  const deckMat = M.solid(0x2b3038, { roughness: 0.62, metalness: 0.45 });
+  const frame = M.solid(0x24272c, { roughness: 0.45, metalness: 0.6 });
+  const steel = M.solid(0x3c3f45, { roughness: 0.35, metalness: 0.75 });
+  const seat = M.solid(0x46443e, { roughness: 0.8, metalness: 0.05 });
+
+  const gap = 41 * Math.PI / 180;
+  B.put(new THREE.RingGeometry(wr + 0.10, S.CUPOLA_RING_R, 72, 1,
+    Math.PI / 2 + gap, TAU - gap * 2), deckMat, 0, 0.016, wz,
+    { rx: -Math.PI / 2, receive: true });
+
+  /* the shaft, the glazing and the collars. The pane keeps the depthWrite:
+     false every window in this building has: a pane that writes depth here
+     is the last thing between the gallery and a planet 300 m below. */
+  B.put(new THREE.CylinderGeometry(wr, wr, 0.42, 40, 1, true),
+    M.solid(0x30343a, { roughness: 0.5, metalness: 0.6, side: THREE.DoubleSide }),
+    0, -0.19, wz, { cast: false });
+  B.put(new THREE.CircleGeometry(wr - 0.02, 48), M.glass, 0, -0.05, wz,
+    { rx: -Math.PI / 2, order: 5, userData: { window: true } });
+  B.put(new THREE.TorusGeometry(wr + 0.09, 0.10, 8, 48), frame, 0, -0.01, wz,
+    { rx: Math.PI / 2, cast: false });
+  B.put(new THREE.TorusGeometry(wr + 0.05, 0.05, 6, 48), H.rim, 0, 0.03, wz,
+    { rx: Math.PI / 2 });
+
+  /* the rail at the well's edge: a station's edge protection — two rails
+     and posts — not a museum's balustrade */
+  for (const [ry, tube] of [[1.02, 0.028], [0.52, 0.016]]) {
+    B.put(new THREE.TorusGeometry(S.CUPOLA_RAIL_R, tube, 8, 48), steel, 0, ry, wz,
+      { rx: Math.PI / 2, cast: true });
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    B.put(new THREE.CylinderGeometry(0.022, 0.022, 1.02, 8), steel,
+      Math.sin(a) * S.CUPOLA_RAIL_R, 0.51, wz + Math.cos(a) * S.CUPOLA_RAIL_R, { cast: true });
+  }
+
+  /* four benches facing the well. They face down, not up: the window is in
+     the floor, and the room's whole point is that the planet comes up at
+     you from under your feet. */
+  for (const deg of [45, 120, 240, 315]) {
+    const a = deg * Math.PI / 180;
+    const bx = Math.sin(a) * 2.55, bz = wz + Math.cos(a) * 2.55;
+    B.put(new THREE.BoxGeometry(1.50, 0.09, 0.44), seat, bx, 0.45, bz,
+      { ry: a, cast: true, receive: true });
+    for (const sx of [-1, 1]) {
+      B.put(new THREE.BoxGeometry(0.08, 0.45, 0.40), seat,
+        bx + sx * 0.62 * Math.cos(a), 0.225, bz - sx * 0.62 * Math.sin(a), { ry: a, cast: true });
+    }
+  }
+
+  /* the name plate over the room's mouth, facing the arch you came in by */
+  if (!room._signMat) {
+    const signTex = roomSign(Object.assign({ no: plan.rooms.indexOf(room) + 1 }, room), THREE, 4);
+    signTex.userData.room = room.id;
+    room._signMat = new THREE.MeshStandardMaterial({
+      map: signTex, emissive: 0xffffff, emissiveMap: signTex,
+      emissiveIntensity: 0.5, roughness: 0.8, side: THREE.DoubleSide
+    });
+  }
+  const sz = wz + S.CUPOLA_RING_R + 0.12;
+  B.put(new THREE.PlaneGeometry(1.44, 0.36), room._signMat, 0, 1.86, sz);
+  for (const sx of [-1, 1]) {
+    B.put(boxUV(0.06, 1.68, 0.06, 1.6), steel, sx * 0.66, 0.84, sz, { cast: true });
+  }
+
+  /* the Observatory's exhibits: acquisition slots for now — Astronomy holds
+     nothing yet — standing in a ring that faces the well rather than a wall */
+  addPlinths(g, B, kit, room, pickables, room.plinths,
+    (r, i, spot) => ({ room: r.id, link: r.items[i] === undefined ? null : r.items[i], spot }));
+  B.flush();
 }
 
 /* ── culling by spoke ────────────────────────────────────────────────────

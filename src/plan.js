@@ -36,6 +36,18 @@ const TAU = Math.PI * 2;
    number at fifteen; the *identity* of those fifteen is computed below. */
 const BASEMENT_SLOTS = 15;
 
+/* A space the building fixes to one place. The Cupola gallery is the ring of
+   deck around the oculus well: it can only be where the oculus is, and the
+   sky it stands under is the whole reason it exists. The rule below ranks
+   categories by how little they hold and shelves the emptiest under the
+   floor — and the emptiest category in the data is Astronomy, with nothing
+   on its plinths yet. Left to the rule it lands in a cellar room with no
+   window in it, which is the wrong place for the one room whose exhibit is
+   the sky. So the pin outranks the ranking: a pinned category keeps its
+   storey whatever the counts say, and it is placed by hand where the
+   architecture puts it. Nothing else about the rule moves. */
+const PINNED = { Astronomy: 'cupola' };
+
 /* The twelve spokes, named in order anticlockwise from north: +Z is north and
    +X is west, so the first step off north is a north-north-west range. */
 const RANGE_NAMES = [
@@ -179,6 +191,13 @@ const CHARACTER = {
   Hobbies: { floorMat: 'oak', wall: 'brick', ceilKey: 'beam', key: 0xffe2b4, keyI: 1.8, accent: 1.3, fog: 0.012, tone: 'workshop' },
   Charity: { floorMat: 'oakParquet', wall: 'plaster', ceilKey: 'gallery', key: 0xffeacb, keyI: 2.0, accent: 0.8, fog: 0.008, tone: 'library' },
 
+  /* Astronomy is pinned to the Cupola gallery, so it gets the character of
+     the room it actually stands in: a steel deck, clear air — the exhibits
+     are 300 m below and on the roof, and museum haze in the room would be
+     weather on the window — and a cool key that does not compete with the
+     planet for the visitor's eye. */
+  Astronomy: { floorMat: 'concrete', wall: 'steel', ceilKey: 'flat', key: 0xbcc8e0, keyI: 1.2, accent: 1.6, fog: 0.006, tone: 'vault' },
+
   /* the four spaces with no exhibits in them */
   'Box Office': { floorMat: 'marble', wall: 'marbleDark', ceilKey: 'coffer', key: 0xffe8c8, keyI: 2.6, accent: 0.9, fog: 0.006, tone: 'grand' },
   'Acquisitions Hall': { floorMat: 'terrazzo', wall: 'brick', ceilKey: 'beam', key: 0xffe6c4, keyI: 2.0, accent: 1.0, fog: 0.012, tone: 'printshop' },
@@ -200,7 +219,6 @@ const CHARACTER = {
   Journalism: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xd2d6da, keyI: 1.2, accent: 0.9, fog: 0.022, tone: 'cellar', flicker: 0.45 },
   Psychology: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xd0cfe0, keyI: 0.9, accent: 0.8, fog: 0.026, tone: 'cellar', flicker: 0.08 },
   Philosophy: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xc9cfe0, keyI: 0.9, accent: 0.9, fog: 0.028, tone: 'cellar', flicker: 0.15 },
-  Astronomy: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xbcc8e0, keyI: 0.8, accent: 1.6, fog: 0.030, tone: 'cellar', flicker: 0.50 },
   Paid: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xe0d2b4, keyI: 1.0, accent: 1.1, fog: 0.024, tone: 'cellar', flicker: 0.25 },
   Music: { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xcdd0dc, keyI: 1.0, accent: 1.2, fog: 0.024, tone: 'cellar', flicker: 0.33 },
   'Web Extension': { floorMat: 'concreteDark', wall: 'plasterDark', ceilKey: 'flat', key: 0xc6d4e6, keyI: 1.1, accent: 1.3, fog: 0.022, tone: 'cellar', flicker: 0.28 },
@@ -368,6 +386,7 @@ export function buildPlan() {
   const downstairs = new Set(ranked.slice(0, BASEMENT_SLOTS).map((r) => r.name));
   trunk.forEach((r) => { if (!held(r.name)) downstairs.add(r.name); });
   const floorOf = (cat) => {
+    if (PINNED[cat]) return 'ground';   // the pin outranks the ranking
     const room = ROOM_BY_NAME[cat];
     if (!room || room.parent) return 'ground';
     return downstairs.has(cat) ? 'basement' : 'ground';
@@ -469,9 +488,11 @@ export function buildPlan() {
   });
 
   /* If the rule moved a room upstairs since the allocation was written, it
-     takes the first empty slot in ring order rather than vanishing. */
+     takes the first empty slot in ring order rather than vanishing. A pinned
+     room is not one of those: the spoke slots are not where it lives, and
+     the Cupola is built for it below. */
   ROOMS.forEach((r) => {
-    if (placed.has(r.name) || floorOf(r.name) !== 'ground') return;
+    if (placed.has(r.name) || PINNED[r.name] || floorOf(r.name) !== 'ground') return;
     const slot = spare.shift();
     if (!slot) { unplaced.push(r.name); return; }
     const i = slot.spoke;
@@ -554,6 +575,65 @@ export function buildPlan() {
     });
   });
   cellar.forEach((cat) => { if (!placed.has(cat)) unplaced.push(cat); });
+
+  /* ── the Cupola gallery ────────────────────────────────────────────────
+     The pinned room, placed where the oculus is rather than where the
+     ranking would put it. building.js lays the deck, the rail, the benches
+     and the glazed well; this is the plan's record of the space: the frame
+     the light pool and the card read, the walkable rect, and the plinth
+     ring. The frame faces south off the north side of the drum, because the
+     way you walk into the gallery is the way you came in from the North
+     arch — and the tour route to it never crosses the stair well. The
+     plinths are acquisition slots, since Astronomy holds nothing yet, and
+     they stand in a ring facing the well: the exhibits here look down at
+     the planet, not along a wall. The ring leaves its gap at the south for
+     the same reason the deck does — the stair well is under that side. */
+  let cupola = null;
+  const pinnedCat = Object.keys(PINNED)[0];
+  if (pinnedCat && ROOM_BY_NAME[pinnedCat]) {
+    const meta = metaOf(pinnedCat);
+    const items = counts[pinnedCat] || [];
+    /* the mouth stands 0.9 m off the North range's axis on purpose: the
+       route network puts a staithe on the corridor axis level with every
+       door, and a door that sits on the axis gives a zero-length leg and
+       drops the room out of the graph — which is how a gallery in the exact
+       centre of the plan can have no route to it. */
+    const entry = { x: 0.9, z: S.CUPOLA_WELL_Z + S.CUPOLA_RING_R };
+    cupola = makeRoom(walkable, {
+      id: PINNED[pinnedCat], cat: pinnedCat, range: 'Centre', side: null,
+      floor: 'ground', parent: meta.parent,
+      name: meta.name, sub: meta.sub, hex: meta.hex, color: meta.color,
+      kind: 'cupola',
+      w: 6.4, d: S.CUPOLA_WELL_Z + S.CUPOLA_RING_R + 1.0,
+      /* the walls stop at 3.6 m — above the big doorway, below the dome's
+         springing — so the gallery reads as a low drum you walk into and
+         the oculus stays visible from every arch. a full-height room here
+         would be a tower in the middle of the rotunda. */
+      ceil: 3.60, items,
+      entry, n: { x: 0, z: -1 },
+      doorW: S.DOOR_BIG, doorH: S.DOOR_BIG_H,
+      winCount: 0, winW: 0, winH: 0, sill: 0
+    });
+    cupola.plinths = [35, 80, 124, 236, 280, 325].map((deg) => {
+      const a = deg * Math.PI / 180, r = 3.2;
+      const px = Math.sin(a) * r, pz = S.CUPOLA_WELL_Z + Math.cos(a) * r;
+      /* the room's u runs west and its v runs south from the entry; the
+         plaque faces the well, and the room itself is turned π, so the face
+         angle is the world bearing of the plinth — the way the rotunda's
+         plinths carry a+π when their room carries no turn */
+      return { u: entry.x - px, v: entry.z - pz, face: a };
+    });
+    /* the well is the gallery's floor opening, and the dome is its ceiling.
+       both facts belong to the plan so the builder can honour them without
+       inventing a special case: the hole is given in the room's own frame
+       (the room is turned π, so a world offset from the entry flips sign),
+       and noCeil tells the builder not to lay a flat sheet under the dome —
+       a ceiling there would close the oculus and wall off the planet. */
+    cupola.floorHole = { x: -(0 - entry.x), z: -(S.CUPOLA_WELL_Z - entry.z), r: S.CUPOLA_WELL_R };
+    cupola.noCeil = true;
+    rooms.push(cupola);
+    placed.add(pinnedCat);
+  }
 
   /* ── the stair ─────────────────────────────────────────────────────────
      A straight flight down the south side of the rotunda into the middle of
@@ -645,6 +725,10 @@ export function buildPlan() {
     mine.sort((p, q) => (rank[p.side] ?? 3) - (rank[q.side] ?? 3));
     mine.forEach((room) => order.push(room.id));
   });
+  /* the Cupola is not on a spoke, so the tour reaches it last upstairs —
+     and the descent follows it, since the well and the stair are the two
+     holes in the same floor */
+  if (cupola) order.push(cupola.id);
   BASE_ARMS.forEach((arm) => {
     (cellarOrder[arm.range] || []).forEach((id) => order.push(id));
   });

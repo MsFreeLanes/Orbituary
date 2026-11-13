@@ -65,6 +65,28 @@ export const S = {
      to be there. */
   HEMI_NIGHT: 0.72,
 
+  /* Earth, seen from the station (2026-11-13: a station has a planet under
+     it). The sky dial is the sky above one of seven regions and the museum
+     floats over that region's ground track, so the region's zenith is the
+     building's +Y and the planet hangs on the -Y axis whatever the hour: the
+     stars swing over the roof and the Earth stays below. When the dial says
+     the ground track is Asia, Earth is under Asia. The disc is sized for the
+     Cupola well — 240 m across at 300 m down fills the opening as a body
+     rather than as a coin in it. */
+  EARTH_DROP: 300.00,     // the disc's centre below the rotunda floor
+  EARTH_R: 120.00,        // its radius
+  EARTH_LIMB: 3.20,       // the atmospheric ring standing off the limb
+
+  /* earthshine: the lit planet below is a second window for the interior,
+     and it is not allowed a lamp of its own — a thirteenth light would
+     recompile every shader in the building the moment it was switched on.
+     It borrows the viewports' anchors instead: this is the multiplier they
+     reach for when the sun is up over the region, and the altitude band the
+     fill fades across on the way into the planet's night side. */
+  EARTH_FILL: 2.40,
+  EARTH_FILL_DUSK: -15 * Math.PI / 180,   // below this the visible disc is dark
+  EARTH_FILL_DAY: 6 * Math.PI / 180,      // above this the fill is at full strength
+
   /* windows */
   SILL_H: 0.90,
   WIN_W: 1.20,
@@ -96,6 +118,18 @@ export const S = {
   HULL_CUPOLA: 8.72,      // the cupola's shell, one skin clear of the dome
   VIEW_FLANGE: 0.16,      // the hole in the hull is this much wider and taller
                           // than the glazing: the space the pressure frame fills
+
+  /* the Cupola gallery (2026-11-13: the oculus gets a floor under it). The
+     well is the room's window and it is in the floor: the sky dial puts the
+     ground track's zenith at the building's +Y, so Earth hangs straight
+     below and the one opening you look *down* through is the one that shows
+     it. The well sits north of the drum's centre on purpose — it shares the
+     rotunda floor sheet and the keel with the stair well, and the two holes
+     must not meet. */
+  CUPOLA_WELL_R: 1.45,    // the glazed well, comfortably inside the oculus ring
+  CUPOLA_WELL_Z: 0.80,    // its centre: 0.35 m clear of the stair well's edge
+  CUPOLA_RING_R: 4.60,    // the gallery deck's outer edge
+  CUPOLA_RAIL_R: 1.62,    // the rail standing at the well's edge
 
   /* the plan: a twelve-spoke wheel (2026-11-13 revision) */
   ROTUNDA_R: 8.00,        // interior radius of the central hall

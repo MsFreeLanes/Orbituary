@@ -13,8 +13,15 @@
    The same arithmetic answers a second question, for lighting.js rather than
    for the windows: where the sun actually is, in the building's own axes.
    That is the only sun the museum has — the key light is hung off it, so a
-   new region or a new hour moves the shadows down the corridors with it. */
+   new region or a new hour moves the shadows down the corridors with it.
+
+   And because the museum is a station, the vault owes one more body: the
+   planet itself. The dial is the sky above one of seven regions and the
+   building floats over that region's ground track, so the region's zenith is
+   the building's +Y and Earth hangs on the -Y axis — always below whichever
+   region the card names. Its terminator is swept by the same real sun. */
 import * as THREE from 'three';
+import { S } from './scale.js';
 
 const TAU = Math.PI * 2;
 const D2R = Math.PI / 180;
@@ -170,6 +177,89 @@ function dotTexture() {
   return tex;
 }
 
+/* ── Earth ───────────────────────────────────────────────────────────────
+   The planet is painted here, not downloaded: the one thing that could
+   leave the station with no Earth is a texture that fails to arrive. The
+   day map — ocean, land, the lights of the inhabited coasts, banded cloud —
+   is painted once from a fixed seed, and the terminator is swept over it by
+   the real sun the way the moon's phase is.
+
+   Seen from above the ground track, the planet is a disc, not a globe: the
+   terminator projects to an ellipse whose narrow axis is r·|sin(altitude)|,
+   a line across the middle when the sun is on the region's horizon and the
+   limb itself when the sun is at its zenith. */
+const EARTH_S = 512;
+
+function paintEarthBase(cv) {
+  const x = cv.getContext('2d');
+  const C = EARTH_S, c = C / 2, r = C * 0.47;
+  const rand = rng(20261113);
+  const sea = x.createRadialGradient(C * 0.42, C * 0.40, r * 0.1, c, c, r);
+  sea.addColorStop(0, '#2e5f8f');
+  sea.addColorStop(0.7, '#1d4468');
+  sea.addColorStop(1, '#12293f');
+  x.fillStyle = sea;
+  x.beginPath(); x.arc(c, c, r, 0, TAU); x.fill();
+  /* land: closed random walks, half forest half dust, and the coast lights
+     that will glow through the night wash a few pixels further down */
+  const coasts = [];
+  for (let i = 0; i < 13; i++) {
+    const a = rand() * TAU, d = rand() * r * 0.8;
+    const px = c + Math.cos(a) * d, py = c + Math.sin(a) * d;
+    const rad = r * (0.09 + rand() * 0.16);
+    x.fillStyle = rand() < 0.6 ? '#3f6b3a' : '#77643f';
+    x.beginPath();
+    const n = 8 + ((rand() * 6) | 0);
+    for (let k = 0; k <= n; k++) {
+      const ang = (k / n) * TAU, rr = rad * (0.55 + rand() * 0.8);
+      x.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr * 0.75);
+    }
+    x.closePath(); x.fill();
+    coasts.push([px, py, rad]);
+  }
+  x.fillStyle = 'rgba(255,196,120,0.55)';
+  for (const [px, py, rad] of coasts) {
+    for (let k = 0; k < 5; k++) {
+      x.beginPath();
+      x.arc(px + (rand() - 0.5) * rad * 1.4, py + (rand() - 0.5) * rad, 0.9 + rand(), 0, TAU);
+      x.fill();
+    }
+  }
+  /* cloud: banded smears with a spin to them, the way weather organises
+     into fronts and cyclones rather than confetti */
+  x.lineCap = 'round';
+  for (let i = 0; i < 46; i++) {
+    const a = rand() * TAU, d = rand() * r * 0.95;
+    x.strokeStyle = `rgba(238,244,250,${0.16 + rand() * 0.22})`;
+    x.lineWidth = 3 + rand() * 9;
+    x.beginPath();
+    x.arc(c + Math.cos(a) * d, c + Math.sin(a) * d, 6 + rand() * 26,
+      rand() * TAU, rand() * TAU + 1.2 + rand() * 2.4);
+    x.stroke();
+  }
+}
+
+/* the atmospheric limb: one thin ring of blue standing off the edge of the
+   disc. It is a gradient on a disc rather than geometry because the whole
+   point is that it is thinner than any tube that would still read at this
+   distance — and it has to stay under the bloom threshold, or the planet
+   gets a halo the size of the corridor. */
+function limbTexture() {
+  const N = 256, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(N / 2, N / 2, N * 0.4, N / 2, N / 2, N / 2);
+  const edge = 1 - S.EARTH_LIMB / (S.EARTH_R + S.EARTH_LIMB);
+  g.addColorStop(0, 'rgba(120,170,235,0)');
+  g.addColorStop(edge - 0.004, 'rgba(120,170,235,0)');
+  g.addColorStop(edge + 0.002, 'rgba(150,196,255,0.5)');
+  g.addColorStop(1, 'rgba(120,170,235,0)');
+  x.fillStyle = g; x.fillRect(0, 0, N, N);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export function createSky(THREE) {
   const group = new THREE.Group();
   const vault = new THREE.Mesh(
@@ -275,8 +365,72 @@ export function createSky(THREE) {
   group.add(haze);
   haze.renderOrder = 1;
 
-  const state = { lat: 40.7, lon: -74.0, alwaysNight: true, sunAlt: 0, sunDir: null, lst: 0, phase: 0 };
+  /* Earth, hung at the building's nadir. It is a child of the vault group
+     only because main.js adds one object to the scene and that file is not
+     here to be rewritten; like the haze it counter-rotates every frame, so
+     the stars ride the vault and the planet stays on the -Y axis. It is
+     opaque and it writes depth, and its renderOrder says draw it before the
+     vault — that depth is what keeps the vault's inside face from painting
+     over the disc, and what lets the additive star field depth-test itself
+     out behind the planet without the field's own treatment changing at all.
+     fog: false for the same reason the stars have it: the scene's fog is
+     museum air, and at 300 m it would erase the planet. toneMapped stays on:
+     the day side runs at plaster brightness, under the bloom threshold, so
+     the Earth lights the room rather than blowing the photograph. */
+  const earthBase = document.createElement('canvas');
+  earthBase.width = earthBase.height = EARTH_S;
+  paintEarthBase(earthBase);
+  const earthCanvas = document.createElement('canvas');
+  earthCanvas.width = earthCanvas.height = EARTH_S;
+  const earthCtx = earthCanvas.getContext('2d');
+  const earthTex = new THREE.CanvasTexture(earthCanvas);
+  earthTex.colorSpace = THREE.SRGBColorSpace;
+  const earthGeo = new THREE.CircleGeometry(S.EARTH_R, 96);
+  earthGeo.rotateX(-Math.PI / 2);            // face the station: +Y
+  const earth = new THREE.Mesh(earthGeo,
+    new THREE.MeshBasicMaterial({ map: earthTex, fog: false }));
+  earth.renderOrder = -2;
+  group.add(earth);
+
+  const limbGeo = new THREE.CircleGeometry(S.EARTH_R + S.EARTH_LIMB, 96);
+  limbGeo.rotateX(-Math.PI / 2);
+  const limb = new THREE.Mesh(limbGeo, new THREE.MeshBasicMaterial({
+    map: limbTexture(), transparent: true, depthWrite: false, fog: false
+  }));
+  limb.renderOrder = -1;
+  group.add(limb);
+
+  /* sweep the terminator: the night side is the half-disc away from the sun
+     plus or minus the projected terminator ellipse, exactly as the moon's
+     phase is painted, with the sun's bearing under the station turning the
+     whole thing round the disc. */
+  function paintEarth(alt, sunAz) {
+    const C = EARTH_S, c = C / 2, r = C * 0.47, k = Math.sin(alt);
+    earthCtx.clearRect(0, 0, C, C);
+    earthCtx.save();
+    earthCtx.beginPath(); earthCtx.arc(c, c, r, 0, TAU); earthCtx.clip();
+    earthCtx.drawImage(earthBase, 0, 0);
+    if (k < 0.995) {
+      earthCtx.save();
+      earthCtx.translate(c, c);
+      earthCtx.rotate(sunAz + Math.PI);      // +x now points away from the sun
+      earthCtx.fillStyle = 'rgba(5,8,15,0.94)';
+      earthCtx.beginPath();
+      earthCtx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+      earthCtx.ellipse(0, 0, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0);
+      earthCtx.fill();
+      earthCtx.restore();
+    }
+    earthCtx.restore();
+    earthTex.needsUpdate = true;
+  }
+  paintEarth(0, 0);
+
+  const state = { lat: 40.7, lon: -74.0, alwaysNight: true, sunAlt: 0, sunDir: null, lst: 0, phase: 0,
+    earthDir: [0, -1, 0] };
   const m4 = new THREE.Matrix4();
+  const iq = new THREE.Quaternion();
+  let lastEarthAlt = Number.NaN, lastEarthAz = Number.NaN;
 
   function paintMoon(phase) {
     const x = moonCanvas.getContext('2d');
@@ -340,6 +494,24 @@ export function createSky(THREE) {
     state.sunDir = [e[0] * sv[0] + e[1] * sv[1] + e[2] * sv[2],
       u[0] * sv[0] + u[1] * sv[1] + u[2] * sv[2],
       nv[0] * sv[0] + nv[1] * sv[1] + nv[2] * sv[2]];
+    /* Earth: the nadir of the ground track. The frame above maps the region's
+       zenith onto the building's +Y, so the planet under the region is under
+       the station on -Y — the disc counter-rotates off the group's inverse
+       quaternion, exactly as the haze does, and stays there whatever the
+       dial says. The terminator turns with the sun's bearing under the
+       station: on the map +x runs west and +y runs south, so the anti-sun
+       direction is atan2(-z, x) + pi in room axes. */
+    iq.copy(group.quaternion).invert();
+    earth.quaternion.copy(iq);
+    limb.quaternion.copy(iq);
+    earth.position.set(0, -S.EARTH_DROP, 0).applyQuaternion(iq);
+    limb.position.copy(earth.position);
+    const earthAz = Math.atan2(-state.sunDir[2], state.sunDir[0]);
+    if (Math.abs(earthAz - lastEarthAz) > 0.01 || Math.abs(state.sunAlt - lastEarthAlt) > 0.01) {
+      paintEarth(state.sunAlt, earthAz);
+      lastEarthAz = earthAz;
+      lastEarthAlt = state.sunAlt;
+    }
     const night = state.alwaysNight || state.sunAlt < -6 * D2R;
 
     /* moon */
@@ -382,6 +554,11 @@ export function createSky(THREE) {
     haze.material.opacity = night ? 0.32 : 0.7;
     return state;
   }
+
+  /* the vault should be right the moment it is added, not one frame later:
+     the first update also puts Earth on its nadir, and a disc that has not
+     been put there yet is a planet sitting in the middle of the rotunda */
+  update(Date.now());
 
   return { group, update, state, SKY_R };
 }

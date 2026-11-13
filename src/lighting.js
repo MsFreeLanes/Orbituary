@@ -33,7 +33,15 @@
    hung off that answer. When the sun is under the horizon the light is off
    and the station runs on its own fittings, which is the night the museum has
    always had — with the hemisphere taking up the slack the windows used to
-   hand over, so the night does not go darker for the loss. */
+   hand over, so the night does not go darker for the loss.
+
+   And when the sun is up, the planet under the station lends the interior a
+   second fill — earthshine, the light that makes a station feel like a
+   station. It does not get a lamp of its own: a thirteenth light would
+   recompile every shader in the building the moment it was switched on. It
+   borrows the viewports' anchors instead, which work harder, go cooler and
+   drop toward the sill when the sun is over the region. The pool stays at
+   exactly ten anchors, and the sun stays the only shadow caster. */
 import * as THREE from 'three';
 import { S } from './scale.js';
 
@@ -118,6 +126,21 @@ function roomAnchors(room, skyTint) {
     y: fixtureY(room, 2.6), color: room.key, i: 3.0, r: 6.5, room: room.id, wash: true
   });
   return A;
+}
+
+/* the Cupola gallery. its window is the well in its floor, so the room's
+   cold anchor sits at sill height on the glass — the same `cold` flag the
+   viewports carry, which is what lets earthshine take it over when the
+   planet is lit. the lamp over the deck is deliberately the dimmest key in
+   the building: the bright thing in this room is 300 m below it, and a lamp
+   that competes with that loses. */
+function cupolaAnchors(room, skyTint) {
+  return [
+    { x: room.center.x, z: room.center.z, y: S.CEIL_ROTUNDA - 2.4,
+      color: room.key, i: room.keyI * 6, r: 10, room: room.id },
+    { x: 0, z: S.CUPOLA_WELL_Z, y: 0.35, color: skyTint, i: 2.6, r: 9,
+      room: room.id, cold: true }
+  ];
 }
 
 function corridorAnchors(c, start) {
@@ -213,7 +236,7 @@ function spacesFor(plan, skyTint) {
          still reaches the anchors of the room whose door you are in */
       { cx: room.entry.x, cz: room.entry.z, halfX: room.door.w / 2, halfZ: S.DOOR_DEPTH, angle: room.angle }
     ]);
-    s.anchors = roomAnchors(room, skyTint);
+    s.anchors = room.id === 'cupola' ? cupolaAnchors(room, skyTint) : roomAnchors(room, skyTint);
   });
 
   plan.corridors.forEach((c) => {
@@ -327,6 +350,16 @@ export function createLighting(THREE, plan) {
      12° up has not crossed much of it */
   const lowSun = new THREE.Color(0xffb877);
   const highSun = new THREE.Color(0xfff3dd);
+  /* earthshine. the lit planet under the station is a second window for the
+     interior, and it is not allowed a lamp of its own — a thirteenth light
+     would recompile every shader in the building the moment it was switched
+     on — so it borrows the viewports' anchors: when the sun is up over the
+     region, the cold anchors at the windows work harder, go cooler, and drop
+     toward the sill, which is where light coming off a planet under your
+     feet arrives from. the pool stays at ten anchors and the sun stays the
+     only shadow caster. */
+  let earthGain = 0;
+  const earthRgb = new THREE.Color(0x86b6e8);
 
   function placeSun() {
     const x = Math.round(visitor.x / SNAP) * SNAP;
@@ -374,6 +407,13 @@ export function createLighting(THREE, plan) {
     const k = Math.sqrt(up);
     sun.intensity = S.SUN_I * k;
     sun.color.copy(lowSun).lerp(highSun, k);
+    /* the planet under the station is lit by the same sun: the fill fades in
+       as the sun clears the region's horizon and fades out over the first
+       degrees of its night, which is the dusk a station actually sits in —
+       the local sky dark, the planet below still bright enough to read the
+       hull by. */
+    earthGain = Math.max(0, Math.min(1,
+      (alt - S.EARTH_FILL_DUSK) / (S.EARTH_FILL_DAY - S.EARTH_FILL_DUSK)));
     /* and the night keeps the brightness the windows used to lend it: with no
        sunlight through the hull the fittings' own bounce is the only thing
        between the cellar and a black room. */
@@ -442,13 +482,19 @@ export function createLighting(THREE, plan) {
          is deliberate: the object this used to build was ten allocations a
          frame, every frame, for as long as the visitor stood still. */
       const k = Math.min(1, dt * 4);
+      /* earthshine rides the cold anchors: brighter, cooler, and half a metre
+         lower than the window it belongs to, so the fill arrives from below.
+         the gain is folded in at read time, not written into the anchor, so
+         the anchor table stays what the plan built and the pool stays ten. */
+      const cold = want && want.cold && earthGain > 0.01;
       l.position.x += ((want ? want.x : l.position.x) - l.position.x) * k;
-      l.position.y += ((want ? want.y : l.position.y) - l.position.y) * k;
+      l.position.y += ((want ? want.y - (cold ? 0.55 * earthGain : 0) : l.position.y) - l.position.y) * k;
       l.position.z += ((want ? want.z : l.position.z) - l.position.z) * k;
       l.distance += ((want ? want.r : 12) - l.distance) * k;
-      l.userData.base += ((want ? want.i : 0) - l.userData.base) * k;
+      l.userData.base += ((want ? (cold ? want.i * (1 + (S.EARTH_FILL - 1) * earthGain) : want.i) : 0)
+        - l.userData.base) * k;
       l.intensity = l.userData.base * (want && want.flicker ? flicker(want) : 1);
-      l.color.lerp(want ? want.rgb : white, k);
+      l.color.lerp(want ? (cold ? earthRgb : want.rgb) : white, k);
     }
   }
 
