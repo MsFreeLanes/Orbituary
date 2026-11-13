@@ -5,13 +5,22 @@
    Walls are built as runs of boxes with the texture tiling baked into the
    geometry UVs, so one material per surface type serves the whole building
    and nothing is stretched. Every wall opening is a real hole — you can walk
-   through it, and the light outside comes through it. */
+   through it, and the light outside comes through it.
+
+   Both storeys come out of the same builder: the plan says what floor a room
+   or a corridor is on, and one offset puts its whole shell on that floor. */
 import * as THREE from 'three';
 import { S } from './scale.js';
 import { LINKS } from './data.js';
 import { plaqueAtlas, roomSign, uvRect } from './signage.js';
 
 const TAU = Math.PI * 2;
+
+/* which storey an object's shell is drawn on. the plan says what floor a room
+   or a corridor is on; this is the only place that turns that into a height,
+   and every room and corridor below hangs its whole group off it, so the
+   cellar can sit under the rotunda without a second copy of the builder. */
+const yOf = (o) => (o.floor === 'basement' ? S.FLOOR_BASE : 0);
 
 /* a box whose UVs repeat the texture every `scale` metres on every face */
 function boxUV(w, h, d, scale) {
@@ -138,6 +147,34 @@ function lampMats(M) {
   };
 }
 
+/* Downstairs the lamps are a different fitting: a cold tube in a steel shade,
+   because there is no window to blend with and no colour in the room to warm
+   up. Where the plan says the tube is failing (`room.flicker`) the room gets
+   its own material so it can fail on its own; the warm set stays shared by
+   the whole ground floor, so nothing upstairs recompiles. */
+function lampsFor(M, warm, o) {
+  if (o.floor !== 'basement') return warm;
+  if (!o._lamps) {
+    const glow = new THREE.MeshStandardMaterial({
+      color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 1.15, roughness: 0.35, metalness: 0
+    });
+    if (o.flicker) {
+      /* a failing starter, not a strobe: the tube holds steady and drops out
+         now and then, more often the harder it is trying, and never goes fully
+         dark — a dead lamp leaves a black hole in every photograph of the room */
+      const base = glow.emissiveIntensity, k = o.flicker;
+      const seed = (o.id || '').split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+      glow.onBeforeRender = () => {
+        const slot = Math.floor(performance.now() / 90);
+        const r = Math.abs(Math.sin(slot * 12.9898 + seed) * 43758.5453) % 1;
+        glow.emissiveIntensity = r < k * 0.3 ? base * 0.16 : base * (0.9 + 0.1 * r);
+      };
+    }
+    o._lamps = { shade: M.solid(0x23262b, { roughness: 0.4, metalness: 0.75 }), glow };
+  }
+  return o._lamps;
+}
+
 /* a pendant: stem from the ceiling, a shallow shade, a glowing face under it */
 function addPendant(g, L, x, y, z, ceil, r) {
   mesh(g, new THREE.CylinderGeometry(0.014, 0.014, ceil - y, 6), L.shade, x, (y + ceil) / 2, z, { cast: false });
@@ -242,10 +279,14 @@ function addPlinth(parent, M, room, spot, i) {
 
 function buildRoom(parent, plan, M, room, pickables, L) {
   const g = new THREE.Group();
-  g.position.set(room.entry.x, 0, room.entry.z);
+  /* one offset for the whole room: the slab, the four walls, the ceiling, the
+     plinths, the sign and the pendant all hang off this group, so a cellar
+     room goes down a storey without a single mesh having to know about it */
+  g.position.set(room.entry.x, yOf(room), room.entry.z);
   g.rotation.y = room.angle;
   parent.add(g);
 
+  const lamps = lampsFor(M, L, room);
   const wallMat = M.mat(room.wall, 1, 1);
   /* room.floor is now which storey the room is on; room.floorMat is what the
      surface underfoot is made of. The fallback is for any room still carrying
@@ -262,7 +303,10 @@ function buildRoom(parent, plan, M, room, pickables, L) {
     { receive: true });
   floor.rotation.set(-Math.PI / 2, 0, 0);
   /* the ceiling has to cast: the moon is a directional light, and a roof that
-     throws no shadow is a roof that lets the whole sky pour into the room */
+     throws no shadow is a roof that lets the whole sky pour into the room.
+     for a cellar room this one sheet is the slab the ground floor stands on,
+     so it stays unbroken: the corridor ceiling out there is at the same height
+     on the same storey, and the joint at the doorway lets no light through */
   const ceil = mesh(g, planeUV(room.w, room.d, 2.6), ceilMat, 0, h, room.d / 2,
     { cast: true, receive: true });
   ceil.rotation.set(Math.PI / 2, 0, 0);
@@ -311,10 +355,13 @@ function buildRoom(parent, plan, M, room, pickables, L) {
       0, signY, -S.WALL_T / 2 - 0.02, { cast: false, ry: Math.PI });
   }
 
+  addCeiling(g, lamps, M, room);
   /* the pendant the room's key light hangs from. The group origin is the door,
-     local +Z runs into the room, so the room centre is (0, ?, d/2) */
-  addCeiling(g, L, M, room);
-  addPendant(g, L, 0, room.ceil - 1.6, room.d / 2, room.ceil, room.kind === 'hall' ? 0.26 : 0.17);
+     local +Z runs into the room, so the room centre is (0, ?, d/2). A cellar
+     ceiling is too low to hang anything from, so there the tube sits back
+     against the slab the way a service room's does. */
+  addPendant(g, lamps, 0, room.ceil - (room.ceil > S.CEIL_BASE ? 1.6 : 0.5),
+    room.d / 2, room.ceil, room.kind === 'hall' ? 0.26 : 0.17);
 
   room.plinths.forEach((spot, i) => {
     const node = addPlinth(g, M, room, spot, i);
@@ -326,18 +373,39 @@ function buildRoom(parent, plan, M, room, pickables, L) {
   return g;
 }
 
-function buildCorridor(parent, M, corridor, L) {
+/* Where a corridor's shell begins. The plan puts a corridor's own start (`t0`)
+   at the centre of whatever it grows out of, so the walls have to begin
+   further out, at that hall's wall. The stair hall is already in the plan's
+   walkable record — reading the edge there is what keeps the shell and the
+   walkable union from disagreeing about where the four cellar doors are. */
+function hallWall(plan, c) {
+  const hall = plan.walkable.rects.find((r) => r.room === plan.stair.to);
+  if (!hall) return c.t0;
+  const st = Math.sin(hall.angle), ct = Math.cos(hall.angle);
+  const lx = Math.abs(c.dir.x * ct - c.dir.z * st);   // the arm, in the hall's frame
+  const lz = Math.abs(c.dir.x * st + c.dir.z * ct);
+  return c.t0 + Math.min(lx > 1e-6 ? hall.halfX / lx : Infinity,
+    lz > 1e-6 ? hall.halfZ / lz : Infinity);
+}
+
+function buildCorridor(parent, M, corridor, L, plan) {
   const g = new THREE.Group();
-  g.position.set(0, 0, 0);
+  g.position.set(0, yOf(corridor), 0);
   g.rotation.y = Math.atan2(corridor.dir.x, corridor.dir.z);
   parent.add(g);
 
+  const lamps = lampsFor(M, L, corridor);
   const t = S.WALL_T, h = corridor.ceil, half = corridor.half;
-  const z0 = S.ROTUNDA_R - 0.4, z1 = corridor.t1;
+  /* a ground range starts inside the drum, under the arch; a cellar arm starts
+     at the wall of the stair hall it opens off */
+  const z0 = corridor.floor === 'basement' ? hallWall(plan, corridor) : S.ROTUNDA_R - 0.4;
+  const z1 = corridor.t1;
 
   const floor = mesh(g, planeUV(half * 2, z1 - z0, 2.2), M.mat('terrazzo', 1, 1), 0, 0, (z0 + z1) / 2);
   floor.rotation.set(-Math.PI / 2, 0, 0);
   floor.receiveShadow = true;
+  /* the same sheet the cellar rooms' ceilings are cut from, at the same height,
+     so the slab over your head runs the length of the arm without a joint */
   const ceil = mesh(g, planeUV(half * 2, z1 - z0, 2.6), M.mat('plasterDark', 1, 1), 0, h, (z0 + z1) / 2,
     { cast: true, receive: true });
   ceil.rotation.set(Math.PI / 2, 0, 0);
@@ -345,8 +413,12 @@ function buildCorridor(parent, M, corridor, L) {
   addWall(g, M.mat('plaster', 1, 1), { run: 'z', at: -half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
   addWall(g, M.mat('plaster', 1, 1), { run: 'z', at: half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
 
-  /* the same downlights the light pool follows, so the black ceiling reads as lit */
-  for (let p = S.ROTUNDA_R + 1.5; p < corridor.t1; p += 3.6) addDownlight(g, L, 0, h - 0.01, p, 0.11);
+  /* the same downlights the light pool follows, so the black ceiling reads as
+     lit. the pool's anchors are still laid out for the ground ranges, so the
+     cellar lamps keep their own spacing from the near end of the shell. */
+  const first = corridor.floor === 'basement' ? z0 + 1.4 : S.ROTUNDA_R + 1.5;
+  for (let p = first; p < corridor.t1; p += 3.6) addDownlight(g, lamps, 0, h - 0.01, p, 0.11);
+  corridor.group = g;
   return g;
 }
 
@@ -472,7 +544,7 @@ export function buildBuilding(THREE, plan, M) {
   const L = lampMats(M);
   buildGrounds(group, M, plan);
   buildRotunda(group, plan, M, pickables, L);
-  plan.corridors.forEach((corridor) => buildCorridor(group, M, corridor, L));
+  plan.corridors.forEach((corridor) => buildCorridor(group, M, corridor, L, plan));
   plan.rooms.forEach((room) => buildRoom(group, plan, M, room, pickables, L));
   return { group, pickables };
 }
