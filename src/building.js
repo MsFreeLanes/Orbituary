@@ -12,11 +12,26 @@
    or a corridor is on, and one offset puts its whole shell on that floor. The
    two storeys are joined by one thing, the stair, and it is joined by a hole:
    the same rectangle missing from the courtyard slab, the rotunda floor and
-   the stair hall's ceiling. */
+   the stair hall's ceiling.
+
+   Fifty-one spaces is a great many boxes, and a box that is its own mesh
+   costs a draw call — which, not the triangles, is what a walk pays for. So
+   the pieces are no longer handed to the renderer one at a time: each one is
+   filed under its material and welded into a single buffer per room
+   (`batch`), and anything repeated at the same size — a plinth, a pilaster —
+   becomes an InstancedMesh instead. A wall run and a window frame cannot be
+   instances of one geometry, because they are not the same size; they can
+   still be one buffer, because the transform is baked in before the weld and
+   the UVs were written before that.
+
+   And the twelve ranges are independent of each other, so the frame no longer
+   submits the eleven you cannot see from where you are standing. That is
+   `spokeCull`, at the bottom of the file. */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { S } from './scale.js';
 import { LINKS } from './data.js';
-import { plaqueAtlas, roomSign, uvRect } from './signage.js';
+import { plaqueSheets, roomSign, uvRect } from './signage.js';
 
 const TAU = Math.PI * 2;
 
@@ -61,27 +76,83 @@ function planeUV(w, d, scale) {
   return g;
 }
 
-function mesh(parent, geo, mat, x, y, z, opts) {
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(x, y, z);
-  if (opts && opts.cast !== undefined) m.castShadow = opts.cast;
-  if (opts && opts.receive !== undefined) m.receiveShadow = opts.receive;
-  if (opts && opts.ry !== undefined) m.rotation.y = opts.ry;
-  parent.add(m);
-  return m;
+/* ── welding the shell ───────────────────────────────────────────────────
+   `put` takes a piece of shell, bakes its transform into the vertices and
+   files it under its material; `flush` welds each pile into one mesh and
+   hands it to the group. The weld happens after the UVs are written, so the
+   tiling a wall was given survives it, and it happens in the group's own
+   frame, so a room's whole shell is still one transform on the CPU.
+
+   One mesh per (group, material) is the floor for anything whose pieces are
+   all different sizes. The shadow flags are the pile's, not the piece's: a
+   wall that casts and a shelf that does not are different materials, so in
+   practice no pile ever mixes them, and where one did the cast wins. */
+function batch(parent) {
+  const piles = new Map();
+  const p = new THREE.Vector3(), e = new THREE.Euler(),
+    q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1),
+    m = new THREE.Matrix4();
+  return {
+    put(geo, mat, x, y, z, o) {
+      o = o || {};
+      e.set(o.rx || 0, o.ry || 0, o.rz || 0);
+      q.setFromEuler(e);
+      m.compose(p.set(x, y, z), q, one);
+      /* kit geometries are shared between rooms, so a weld must not bend the
+         copy everybody else is standing on */
+      const g = o.kit ? geo.clone() : geo;
+      g.applyMatrix4(m);
+      let pile = piles.get(mat.uuid);
+      if (!pile) {
+        pile = { mat, parts: [], cast: false, receive: false, order: 0, userData: null };
+        piles.set(mat.uuid, pile);
+      }
+      pile.parts.push(g);
+      if (o.cast) pile.cast = true;
+      if (o.receive) pile.receive = true;
+      if (o.order !== undefined) pile.order = o.order;
+      if (o.userData) pile.userData = Object.assign(pile.userData || {}, o.userData);
+    },
+    flush() {
+      for (const pile of piles.values()) {
+        let geo = null;
+        if (pile.parts.length > 1) geo = mergeGeometries(pile.parts);
+        if (!geo) {
+          /* a weld that could not happen (a geometry with an attribute the
+             others have not got) leaves the pieces as they were rather than
+             quietly deleting the room */
+          for (const part of pile.parts) {
+            const loose = new THREE.Mesh(part, pile.mat);
+            loose.castShadow = pile.cast;
+            loose.receiveShadow = pile.receive;
+            loose.renderOrder = pile.order;
+            parent.add(loose);
+          }
+          continue;
+        }
+        const welded = new THREE.Mesh(geo, pile.mat);
+        welded.castShadow = pile.cast;
+        welded.receiveShadow = pile.receive;
+        welded.renderOrder = pile.order;
+        if (pile.userData) Object.assign(welded.userData, pile.userData);
+        parent.add(welded);
+      }
+      piles.clear();
+    }
+  };
 }
 
 /* A wall running along `run` ('x' or 'z') at the perpendicular coordinate
    `at`, spanning from→to, pierced by openings [{ c, w, y0, y1 }] where c is
-   measured along the run. Returns nothing; the boxes go straight into the
-   parent group, which keeps the transform stack shallow. */
-function addWall(parent, mat, o) {
+   measured along the run. Returns nothing; the pieces go into the batch,
+   which keeps the transform stack shallow and the draw calls at one. */
+function addWall(B, mat, o) {
   const { run, at, from, to, h, t, openings = [], scale = 2.4 } = o;
   const along = (a, b) => {
     if (b - a < 0.01) return;
     const len = b - a, mid = (a + b) / 2;
     const geo = run === 'x' ? boxUV(len, h, t, scale) : boxUV(t, h, len, scale);
-    mesh(parent, geo, mat,
+    B.put(geo, mat,
       run === 'x' ? mid : at, h / 2, run === 'x' ? at : mid,
       { cast: true, receive: true });
   };
@@ -92,13 +163,13 @@ function addWall(parent, mat, o) {
     along(cursor, lo);
     if (op.y0 > 0.01) {
       const geo = run === 'x' ? boxUV(op.w, op.y0, t, scale) : boxUV(t, op.y0, op.w, scale);
-      mesh(parent, geo, mat, run === 'x' ? op.c : at, op.y0 / 2, run === 'x' ? at : op.c,
+      B.put(geo, mat, run === 'x' ? op.c : at, op.y0 / 2, run === 'x' ? at : op.c,
         { cast: true, receive: true });
     }
     if (op.y1 < h - 0.01) {
       const gh = h - op.y1;
       const geo = run === 'x' ? boxUV(op.w, gh, t, scale) : boxUV(t, gh, op.w, scale);
-      mesh(parent, geo, mat, run === 'x' ? op.c : at, op.y1 + gh / 2, run === 'x' ? at : op.c,
+      B.put(geo, mat, run === 'x' ? op.c : at, op.y1 + gh / 2, run === 'x' ? at : op.c,
         { cast: true, receive: true });
     }
     cursor = hi;
@@ -107,21 +178,17 @@ function addWall(parent, mat, o) {
 }
 
 /* frame + glazing sitting in an opening */
-function addWindow(parent, M, o) {
+function addWindow(B, M, o) {
   const { run, at, c, w, y0, y1, t } = o;
   const glassMat = M.glass;
   const frame = M.solid(0x2b2f36, { roughness: 0.45, metalness: 0.6 });
   const fw = 0.06, fd = 0.10;
-  const pane = run === 'x'
-    ? new THREE.PlaneGeometry(w - fw * 2, y1 - y0 - fw * 2)
-    : new THREE.PlaneGeometry(w - fw * 2, y1 - y0 - fw * 2);
-  const m = mesh(parent, pane, glassMat, run === 'x' ? c : at, (y0 + y1) / 2, run === 'x' ? at : c,
-    { ry: run === 'x' ? 0 : Math.PI / 2 });
-  m.userData.window = true;
+  const pane = new THREE.PlaneGeometry(w - fw * 2, y1 - y0 - fw * 2);
+  B.put(pane, glassMat, run === 'x' ? c : at, (y0 + y1) / 2, run === 'x' ? at : c,
+    { ry: run === 'x' ? 0 : Math.PI / 2, order: 5, userData: { window: true } });
   /* the pane must not write depth. it is drawn in the transparent pass, and a
      pane that writes depth at eight metres quietly deletes the entire night
      sky standing three hundred and eighty metres behind it. */
-  m.renderOrder = 5;
   const bars = [
     [w, fw, c, y0 + fw / 2], [w, fw, c, y1 - fw / 2],
     [fw, y1 - y0, c - w / 2 + fw / 2, (y0 + y1) / 2], [fw, y1 - y0, c + w / 2 - fw / 2, (y0 + y1) / 2],
@@ -129,13 +196,13 @@ function addWindow(parent, M, o) {
   ];
   for (const [bw, bh, bx, by] of bars) {
     const geo = run === 'x' ? new THREE.BoxGeometry(bw, bh, fd) : new THREE.BoxGeometry(fd, bh, bw);
-    mesh(parent, geo, frame, run === 'x' ? bx : at, by, run === 'x' ? at : bx, { cast: false });
+    B.put(geo, frame, run === 'x' ? bx : at, by, run === 'x' ? at : bx, { cast: false });
   }
   /* a sill lip, the way a real window has one */
   const sillGeo = run === 'x'
     ? new THREE.BoxGeometry(w + 0.16, 0.05, t + 0.14)
     : new THREE.BoxGeometry(t + 0.14, 0.05, w + 0.16);
-  mesh(parent, sillGeo, M.solid(0x8a857c, { roughness: 0.6 }),
+  B.put(sillGeo, M.solid(0x8a857c, { roughness: 0.6 }),
     run === 'x' ? c : at, y0 - 0.02, run === 'x' ? at : c, { cast: false, receive: true });
 }
 
@@ -180,92 +247,100 @@ function lampsFor(M, warm, o) {
 }
 
 /* a pendant: stem from the ceiling, a shallow shade, a glowing face under it */
-function addPendant(g, L, x, y, z, ceil, r) {
-  mesh(g, new THREE.CylinderGeometry(0.014, 0.014, ceil - y, 6), L.shade, x, (y + ceil) / 2, z, { cast: false });
-  mesh(g, new THREE.CylinderGeometry(r, r * 0.62, 0.07, 20), L.shade, x, y, z, { cast: false });
-  const face = mesh(g, new THREE.CircleGeometry(r * 0.66, 20), L.glow, x, y - 0.038, z, { cast: false });
-  face.rotation.x = Math.PI / 2;
+function addPendant(B, L, x, y, z, ceil, r) {
+  B.put(new THREE.CylinderGeometry(0.014, 0.014, ceil - y, 6), L.shade, x, (y + ceil) / 2, z, { cast: false });
+  B.put(new THREE.CylinderGeometry(r, r * 0.62, 0.07, 20), L.shade, x, y, z, { cast: false });
+  B.put(new THREE.CircleGeometry(r * 0.66, 20), L.glow, x, y - 0.038, z, { cast: false, rx: Math.PI / 2 });
 }
 
 /* a downlight recessed into a ceiling: a ring and a glowing disc */
-function addDownlight(g, L, x, y, z, r) {
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.15, 0.022, 6, 20), L.shade);
-  ring.position.set(x, y - 0.012, z);
-  ring.rotation.x = Math.PI / 2;
-  g.add(ring);
-  const face = mesh(g, new THREE.CircleGeometry(r, 16), L.glow, x, y - 0.02, z, { cast: false });
-  face.rotation.x = Math.PI / 2;
+function addDownlight(B, L, x, y, z, r) {
+  B.put(new THREE.TorusGeometry(r * 1.15, 0.022, 6, 20), L.shade, x, y - 0.012, z,
+    { cast: false, rx: Math.PI / 2 });
+  B.put(new THREE.CircleGeometry(r, 16), L.glow, x, y - 0.02, z, { cast: false, rx: Math.PI / 2 });
 }
 
 /* a wall sconce: a small metal box with a glowing lip, for the rotunda piers */
-function addSconce(g, L, x, y, z, a) {
-  const body = mesh(g, new THREE.BoxGeometry(0.16, 0.30, 0.09), L.shade, x, y, z, { cast: false, ry: a });
-  const lip = mesh(g, new THREE.BoxGeometry(0.13, 0.03, 0.07), L.glow, x, y + 0.17, z, { cast: false, ry: a });
-  return [body, lip];
+function addSconce(B, L, x, y, z, a) {
+  B.put(new THREE.BoxGeometry(0.16, 0.30, 0.09), L.shade, x, y, z, { cast: false, ry: a });
+  B.put(new THREE.BoxGeometry(0.13, 0.03, 0.07), L.glow, x, y + 0.17, z, { cast: false, ry: a });
 }
 
 /* each room type gets a different ceiling, so twelve rooms do not read as one.
    Everything hangs below the ceiling plane, so the light anchors stay valid. */
-function addCeiling(g, L, M, room) {
+function addCeiling(B, L, M, room) {
   const w = room.w, d = room.d, h = room.ceil, zc = d / 2;
   const key = room.ceilKey;
 
   if (key === 'beam') {
     const beamMat = M.solid(0x3e3126, { roughness: 0.78, metalness: 0.02 });
     for (let i = 1; i <= 4; i++) {
-      mesh(g, new THREE.BoxGeometry(w - 0.3, 0.26, 0.22), beamMat, 0, h - 0.13, (i / 5) * d, { cast: false });
+      B.put(new THREE.BoxGeometry(w - 0.3, 0.26, 0.22), beamMat, 0, h - 0.13, (i / 5) * d, { cast: false });
     }
   } else if (key === 'coffer') {
     const rib = M.solid(0x8d8980, { roughness: 0.72 });
     for (let i = 1; i <= 2; i++) {
-      mesh(g, new THREE.BoxGeometry(w - 0.4, 0.16, 0.14), rib, 0, h - 0.08, (i / 3) * d, { cast: false });
-      mesh(g, new THREE.BoxGeometry(0.14, 0.16, d - 0.4), rib, (i - 1.5) * (w / 3), h - 0.08, zc, { cast: false });
+      B.put(new THREE.BoxGeometry(w - 0.4, 0.16, 0.14), rib, 0, h - 0.08, (i / 3) * d, { cast: false });
+      B.put(new THREE.BoxGeometry(0.14, 0.16, d - 0.4), rib, (i - 1.5) * (w / 3), h - 0.08, zc, { cast: false });
     }
   } else if (key === 'tray') {
     const panel = M.solid(0x191b20, { roughness: 0.9 });
     const iw = w - 2.4, id = d - 2.4;
-    const p = mesh(g, planeUV(iw, id, 2.6), panel, 0, h - 0.32, zc, { cast: false });
-    p.rotation.x = Math.PI / 2;
+    B.put(planeUV(iw, id, 2.6), panel, 0, h - 0.32, zc, { cast: false, rx: Math.PI / 2 });
     const edge = M.solid(0x24262c, { roughness: 0.85 });
     const rim = [
       [iw, 0.06, 0, zc - id / 2], [iw, 0.06, 0, zc + id / 2],
       [0.06, id, -iw / 2, zc], [0.06, id, iw / 2, zc]
     ];
     for (const [bw, bd, bx, bz] of rim) {
-      mesh(g, new THREE.BoxGeometry(bw, 0.32, bd), edge, bx, h - 0.16, bz, { cast: false });
-      mesh(g, new THREE.BoxGeometry(bw * 0.94, 0.04, bd * 0.94), L.glow, bx, h - 0.31, bz, { cast: false });
+      B.put(new THREE.BoxGeometry(bw, 0.32, bd), edge, bx, h - 0.16, bz, { cast: false });
+      B.put(new THREE.BoxGeometry(bw * 0.94, 0.04, bd * 0.94), L.glow, bx, h - 0.31, bz, { cast: false });
     }
   } else if (key === 'gallery') {
     for (const sx of [-1, 1]) {
-      for (let i = 1; i <= 3; i++) addDownlight(g, L, sx * (w / 4), h - 0.01, (i / 4) * d, 0.08);
+      for (let i = 1; i <= 3; i++) addDownlight(B, L, sx * (w / 4), h - 0.01, (i / 4) * d, 0.08);
     }
   } else if (key === 'clerestory') {
     for (const sx of [-1, 1]) {
-      mesh(g, new THREE.BoxGeometry(0.05, 0.11, d - 1.4), L.glow, sx * (w / 2 - 0.16), h - 0.46, zc, { cast: false });
+      B.put(new THREE.BoxGeometry(0.05, 0.11, d - 1.4), L.glow, sx * (w / 2 - 0.16), h - 0.46, zc, { cast: false });
     }
   }
 }
 
-function addPlinth(parent, M, room, spot, i) {
+/* ── the plinth kit ──────────────────────────────────────────────────────
+   The plinth is the one thing repeated 198 times, and every one of them is
+   the same three boxes at the same size — so it is the one thing that can be
+   an InstancedMesh outright. One welded geometry, one instance per exhibit,
+   one draw call for the room's whole row of pedestals.
+
+   The wall label and the colour puck stay per-room and get welded rather
+   than instanced: each room's labels are one plaque sheet and each room's
+   pucks are one material, which is what lets an ambient event light a whole
+   room at once. */
+function plinthKit(M) {
   const h = S.PLINTH_H, w = S.PLINTH_W;
-  const g = new THREE.Group();
-  g.position.set(spot.u, 0, spot.v);
-  g.rotation.y = spot.face;
-  const body = M.solid(0x6f6b62, { roughness: 0.55, metalness: 0.02 });
-  mesh(g, boxUV(w, h, w, 1.2), body, 0, h / 2, 0, { cast: true, receive: true });
-  mesh(g, boxUV(w + 0.08, 0.05, w + 0.08, 1.2), body, 0, h + 0.025, 0, { cast: true });
-  mesh(g, boxUV(w + 0.12, 0.07, w + 0.12, 1.2), body, 0, 0.035, 0, { cast: true, receive: true });
-  /* the wall label, on the face that looks back at the door. one atlas per
-     room, so 88 labels are 12 textures and one material each */
-  if (room._cells && room._cells[i] && room._labelMat) {
-    const geo = uvRect(new THREE.PlaneGeometry(0.44, 0.22), room._cells[i]);
-    mesh(g, geo, room._labelMat, 0, 0.66, w / 2 + 0.008, { cast: false });
-  }
-  /* the colour puck: this is how you know which room you are in from a glance.
-     one material per room, so an ambient event can light a whole room at once.
-     it is an inlay, not a lamp — the room colour mixed back toward stone, and
-     just enough emissive to find in the dark. at full saturation these read as
-     neon plates and the room stops looking like a building. */
+  return {
+    body: mergeGeometries([
+      boxUV(w, h, w, 1.2).translate(0, h / 2, 0),
+      boxUV(w + 0.08, 0.05, w + 0.08, 1.2).translate(0, h + 0.025, 0),
+      boxUV(w + 0.12, 0.07, w + 0.12, 1.2).translate(0, 0.035, 0)
+    ]),
+    /* the pointer's target: a box the size of the plinth with a material the
+       renderer is told not to draw. aiming at an exhibit and pressing enter
+       still works, and the weld did not take the thing you aim at away. */
+    pick: new THREE.BoxGeometry(w, h + 0.12, w),
+    pickMat: new THREE.MeshBasicMaterial({ color: 0x000000, visible: false }),
+    puck: new THREE.CylinderGeometry(0.09, 0.09, 0.012, 24),
+    bodyMat: M.solid(0x6f6b62, { roughness: 0.55, metalness: 0.02 })
+  };
+}
+
+/* the colour puck: this is how you know which room you are in from a glance.
+   one material per room, so an ambient event can light a whole room at once.
+   it is an inlay, not a lamp — the room colour mixed back toward stone, and
+   just enough emissive to find in the dark. at full saturation these read as
+   neon plates and the room stops looking like a building. */
+function puckMat(room) {
   if (!room._puckMat) {
     const c = room.color, k = 0.5, g = 82;
     const mix = (v) => Math.round(v * k + g * (1 - k));
@@ -276,12 +351,49 @@ function addPlinth(parent, M, room, spot, i) {
       emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.1
     });
   }
-  mesh(g, new THREE.CylinderGeometry(0.09, 0.09, 0.012, 24), room._puckMat, 0, h + 0.055, 0);
-  parent.add(g);
-  return g;
+  return room._puckMat;
 }
 
-function buildRoom(parent, plan, M, room, pickables, L) {
+/* One space's row of plinths: the stone instanced, the labels and the pucks
+   welded into the room's batch, and an invisible box each for the pointer. */
+function addPlinths(g, B, kit, room, pickables, spots, linkAt) {
+  if (!spots.length) return;
+  const inst = new THREE.InstancedMesh(kit.body, kit.bodyMat, spots.length);
+  inst.castShadow = true;
+  inst.receiveShadow = true;
+  const m = new THREE.Matrix4(), e = new THREE.Euler(),
+    p = new THREE.Vector3(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+  const puck = puckMat(room);
+  const labelD = S.PLINTH_W / 2 + 0.008;
+  spots.forEach((spot, i) => {
+    e.set(0, spot.face, 0);
+    q.setFromEuler(e);
+    p.set(spot.u, 0, spot.v);
+    inst.setMatrixAt(i, m.compose(p, q, one));
+
+    /* the wall label, on the face that looks back at the door. one plaque
+       sheet per room — per sixteen labels, rather — so the words cost a
+       texture each, not one per plinth */
+    const cell = room._cells && room._cells[i];
+    if (cell && room._labelMats) {
+      B.put(uvRect(new THREE.PlaneGeometry(0.44, 0.22), cell), room._labelMats[cell.sheet],
+        Math.sin(spot.face) * labelD, 0.66, Math.cos(spot.face) * labelD, { ry: spot.face });
+    }
+    B.put(kit.puck, puck, spot.u, S.PLINTH_H + 0.055, spot.v, { kit: true, cast: false });
+
+    const node = new THREE.Mesh(kit.pick, kit.pickMat);
+    node.position.set(spot.u, S.PLINTH_H / 2, spot.v);
+    node.rotation.y = spot.face;
+    node.userData.exhibit = linkAt(room, i, spot);
+    spot.node = node;
+    pickables.push(node);
+    g.add(node);
+  });
+  inst.instanceMatrix.needsUpdate = true;
+  g.add(inst);
+}
+
+function buildRoom(parent, plan, M, room, pickables, L, kit) {
   const g = new THREE.Group();
   /* one offset for the whole room: the slab, the four walls, the ceiling, the
      plinths, the sign and the pendant all hang off this group, so a cellar
@@ -301,78 +413,75 @@ function buildRoom(parent, plan, M, room, pickables, L) {
      overhead is the surest way to flatten the whole picture */
   const ceilMat = M.mat('plasterDark', 1, 1);
   const t = S.WALL_T, h = room.ceil;
+  const B = batch(g);
 
   /* floor and ceiling */
-  const floor = mesh(g, planeUV(room.w, room.d, 2.2), floorMat, 0, 0, room.d / 2,
-    { receive: true });
-  floor.rotation.set(-Math.PI / 2, 0, 0);
+  B.put(planeUV(room.w, room.d, 2.2), floorMat, 0, 0, room.d / 2,
+    { rx: -Math.PI / 2, receive: true });
   /* the ceiling has to cast: the moon is a directional light, and a roof that
      throws no shadow is a roof that lets the whole sky pour into the room.
      for a cellar room this one sheet is the slab the ground floor stands on,
      so it stays unbroken: the corridor ceiling out there is at the same height
      on the same storey, and the joint at the doorway lets no light through */
-  const ceil = mesh(g, planeUV(room.w, room.d, 2.6), ceilMat, 0, h, room.d / 2,
-    { cast: true, receive: true });
-  ceil.rotation.set(Math.PI / 2, 0, 0);
+  B.put(planeUV(room.w, room.d, 2.6), ceilMat, 0, h, room.d / 2,
+    { rx: Math.PI / 2, cast: true, receive: true });
 
   /* four walls: door wall at z=0, window wall at z=d, sides at x=±w/2 */
-  addWall(g, wallMat, {
+  addWall(B, wallMat, {
     run: 'x', at: 0, from: -room.w / 2, to: room.w / 2, h, t,
     openings: [{ c: 0, w: room.door.w, y0: 0, y1: room.door.h }], scale: 2.4
   });
-  addWall(g, wallMat, {
+  addWall(B, wallMat, {
     run: 'x', at: room.d, from: -room.w / 2, to: room.w / 2, h, t,
     openings: room.windows.map((win) => ({
       c: win.u, w: room.winW, y0: room.winSill, y1: room.winSill + room.winH
     })), scale: 2.4
   });
-  addWall(g, wallMat, { run: 'z', at: -room.w / 2, from: -t, to: room.d + t, h, t, openings: [], scale: 2.4 });
-  addWall(g, wallMat, { run: 'z', at: room.w / 2, from: -t, to: room.d + t, h, t, openings: [], scale: 2.4 });
+  addWall(B, wallMat, { run: 'z', at: -room.w / 2, from: -t, to: room.d + t, h, t, openings: [], scale: 2.4 });
+  addWall(B, wallMat, { run: 'z', at: room.w / 2, from: -t, to: room.d + t, h, t, openings: [], scale: 2.4 });
 
   for (const win of room.windows) {
-    addWindow(g, M, {
+    addWindow(B, M, {
       run: 'x', at: room.d, c: win.u, w: room.winW,
       y0: room.winSill, y1: room.winSill + room.winH, t
     });
   }
 
   /* words on the walls: a plate over the door for the corridor, and one
-     atlas of wall labels for every plinth in here */
-  if (room.items.length && !room._labelMat) {
-    const atlas = plaqueAtlas(room, LINKS, THREE, 4);
+     plaque sheet per sixteen plinth labels in here */
+  if (room.items.length && !room._labelMats) {
+    const atlas = plaqueSheets(room, LINKS, THREE, 4);
     room._cells = atlas.cells;
-    room._labelMat = new THREE.MeshStandardMaterial({
-      map: atlas.tex, emissive: 0xffffff, emissiveMap: atlas.tex,
+    room._labelMats = atlas.texs.map((tex) => new THREE.MeshStandardMaterial({
+      map: tex, emissive: 0xffffff, emissiveMap: tex,
       emissiveIntensity: 0.40, roughness: 0.7, metalness: 0
-    });
+    }));
   }
   const signY = room.door.h + 0.32;
   if (signY < room.ceil - 0.45) {
     if (!room._signMat) {
       const signTex = roomSign(Object.assign({ no: plan.rooms.indexOf(room) + 1 }, room), THREE, 4);
+      signTex.userData.room = room.id;
       room._signMat = new THREE.MeshStandardMaterial({
         map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.5,
         roughness: 0.8, side: THREE.DoubleSide
       });
     }
-    mesh(g, new THREE.PlaneGeometry(1.44, 0.36), room._signMat,
-      0, signY, -S.WALL_T / 2 - 0.02, { cast: false, ry: Math.PI });
+    B.put(new THREE.PlaneGeometry(1.44, 0.36), room._signMat,
+      0, signY, -S.WALL_T / 2 - 0.02, { ry: Math.PI });
   }
 
-  addCeiling(g, lamps, M, room);
+  addCeiling(B, lamps, M, room);
   /* the pendant the room's key light hangs from. The group origin is the door,
      local +Z runs into the room, so the room centre is (0, ?, d/2). A cellar
      ceiling is too low to hang anything from, so there the tube sits back
      against the slab the way a service room's does. */
-  addPendant(g, lamps, 0, room.ceil - (room.ceil > S.CEIL_BASE ? 1.6 : 0.5),
+  addPendant(B, lamps, 0, room.ceil - (room.ceil > S.CEIL_BASE ? 1.6 : 0.5),
     room.d / 2, room.ceil, room.kind === 'hall' ? 0.26 : 0.17);
 
-  room.plinths.forEach((spot, i) => {
-    const node = addPlinth(g, M, room, spot, i);
-    node.userData.exhibit = { room: room.id, link: room.items[i], spot };
-    spot.node = node;
-    pickables.push(node);
-  });
+  addPlinths(g, B, kit, room, pickables, room.plinths,
+    (r, i, spot) => ({ room: r.id, link: r.items[i], spot }));
+  B.flush();
   room.group = g;
   return g;
 }
@@ -392,6 +501,19 @@ function hallWall(plan, c) {
     lz > 1e-6 ? hall.halfZ / lz : Infinity);
 }
 
+/* the same line, as a rect: the range's own shell, from its first wall to its
+   last. the cull reads this to know whether the visitor is standing in a
+   range, and the walkable union deliberately starts further back than it. */
+function shellRect(plan, c) {
+  const a0 = c.floor === 'basement' ? hallWall(plan, c) : S.ROTUNDA_R - 0.4;
+  const mid = (a0 + c.t1) / 2;
+  return {
+    cx: c.dir.x * mid, cz: c.dir.z * mid,
+    halfX: c.half, halfZ: (c.t1 - a0) / 2,
+    angle: Math.atan2(c.dir.x, c.dir.z)
+  };
+}
+
 function buildCorridor(parent, M, corridor, L, plan) {
   const g = new THREE.Group();
   g.position.set(0, yOf(corridor), 0);
@@ -404,39 +526,40 @@ function buildCorridor(parent, M, corridor, L, plan) {
      at the wall of the stair hall it opens off */
   const z0 = corridor.floor === 'basement' ? hallWall(plan, corridor) : S.ROTUNDA_R - 0.4;
   const z1 = corridor.t1;
+  const B = batch(g);
 
   /* the cellar arms are swept concrete, not the terrazzo the processional
      ranges are laid in: these are service corridors, and the same floor runs
      on into the stair hall and the rooms off the arm */
   const floorMat = corridor.floor === 'basement' ? M.mat('concrete', 1, 1) : M.mat('terrazzo', 1, 1);
-  const floor = mesh(g, planeUV(half * 2, z1 - z0, 2.2), floorMat, 0, 0, (z0 + z1) / 2);
-  floor.rotation.set(-Math.PI / 2, 0, 0);
-  floor.receiveShadow = true;
+  B.put(planeUV(half * 2, z1 - z0, 2.2), floorMat, 0, 0, (z0 + z1) / 2,
+    { rx: -Math.PI / 2, receive: true });
   /* the same sheet the cellar rooms' ceilings are cut from, at the same height,
      so the slab over your head runs the length of the arm without a joint */
-  const ceil = mesh(g, planeUV(half * 2, z1 - z0, 2.6), M.mat('plasterDark', 1, 1), 0, h, (z0 + z1) / 2,
-    { cast: true, receive: true });
-  ceil.rotation.set(Math.PI / 2, 0, 0);
+  B.put(planeUV(half * 2, z1 - z0, 2.6), M.mat('plasterDark', 1, 1), 0, h, (z0 + z1) / 2,
+    { rx: Math.PI / 2, cast: true, receive: true });
 
-  addWall(g, M.mat('plaster', 1, 1), { run: 'z', at: -half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
-  addWall(g, M.mat('plaster', 1, 1), { run: 'z', at: half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
+  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: -half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
+  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
 
   /* the same downlights the light pool follows, so the black ceiling reads as
      lit. the pool's anchors are still laid out for the ground ranges, so the
      cellar lamps keep their own spacing from the near end of the shell. */
   const first = corridor.floor === 'basement' ? z0 + 1.4 : S.ROTUNDA_R + 1.5;
-  for (let p = first; p < corridor.t1; p += 3.6) addDownlight(g, lamps, 0, h - 0.01, p, 0.11);
+  for (let p = first; p < corridor.t1; p += 3.6) addDownlight(B, lamps, 0, h - 0.01, p, 0.11);
+  B.flush();
   corridor.group = g;
   return g;
 }
 
-function buildRotunda(parent, plan, M, pickables, L) {
+function buildRotunda(parent, plan, M, pickables, L, kit) {
   const g = new THREE.Group();
   parent.add(g);
   const R = S.ROTUNDA_R, h = S.CEIL_ROTUNDA;
   const marble = M.mat('marble', 1, 1);
   const wallMat = M.mat('marbleDark', 1, 1);
   const well = wellOf(plan);
+  const B = batch(g);
 
   /* the floor is a disc with the stair well cut out of it. ShapeGeometry
      hands back UVs in the shape's own metres, so the tiling is a plain
@@ -452,34 +575,48 @@ function buildRotunda(parent, plan, M, pickables, L) {
   cut.lineTo(well.x0, -well.z1);
   cut.closePath();
   disc.holes.push(cut);
-  const floor = mesh(g, uvScale(new THREE.ShapeGeometry(disc, 64), 1 / 2.4, 1 / 2.4), marble, 0, 0, 0);
-  floor.rotation.set(-Math.PI / 2, 0, 0);
-  floor.receiveShadow = true;
+  B.put(uvScale(new THREE.ShapeGeometry(disc, 64), 1 / 2.4, 1 / 2.4), marble, 0, 0, 0,
+    { rx: -Math.PI / 2, receive: true });
 
   /* the drum, pierced by one arch per range: twelve ranges at 30°, not the
      four the first building had, so every corridor meets a doorway instead of
      a wall. what is left between the arches is a pier of R*(step - 2*half)
      ≈ 1.6 m, which is where the pilasters below stand. */
   const half = Math.asin(S.CORRIDOR_W / 2 / R);
+  /* the drum is seen from both sides — from the rotunda floor and from the
+     courtyard outside a window — and the material is the shared marble, so
+     the double side is set on the material, as it always was */
+  wallMat.side = THREE.DoubleSide;
   for (let i = 0; i < S.SPOKE_COUNT; i++) {
     const a = i * S.SPOKE_STEP;
     const start = a + half, span = S.SPOKE_STEP - half * 2;
     const seg = uvScale(new THREE.CylinderGeometry(R, R, h, 12, 1, true, start, span),
       (R * span) / 2.4, h / 2.4);
-    const m = new THREE.Mesh(seg, wallMat);
-    m.position.y = h / 2;
-    m.material.side = THREE.DoubleSide;
-    m.castShadow = true; m.receiveShadow = true;
-    g.add(m);
+    B.put(seg, wallMat, 0, h / 2, 0, { cast: true, receive: true });
 
     /* the arch above each doorway */
     const lintelH = h - S.DOOR_BIG_H;
     const lintel = uvScale(new THREE.CylinderGeometry(R, R, lintelH, 4, 1, true, a - half, half * 2),
       (R * half * 2) / 2.4, lintelH / 2.4);
-    const lm = new THREE.Mesh(lintel, wallMat);
-    lm.position.y = S.DOOR_BIG_H + lintelH / 2;
-    g.add(lm);
+    B.put(lintel, wallMat, 0, S.DOOR_BIG_H + lintelH / 2, 0, { cast: true, receive: true });
   }
+
+  /* pilasters on the piers between the arches, so the twelve doorways read as
+     doorways. one per pier, at the bisector between two ranges — at the old
+     eight the piers would have stood in the middle of the arches. */
+  for (let i = 0; i < S.SPOKE_COUNT; i++) {
+    const a = i * S.SPOKE_STEP + S.SPOKE_STEP / 2;
+    B.put(boxUV(0.5, h, 0.5, 1.6), M.solid(0xa9a49a, { roughness: 0.5 }),
+      Math.sin(a) * (R - 0.28), h / 2, Math.cos(a) * (R - 0.28), { cast: true, receive: true, ry: a });
+    addSconce(B, L, Math.sin(a) * (R - 0.66), 2.6, Math.cos(a) * (R - 0.66), a);
+  }
+
+  /* one big pendant under the oculus, so the hall has a single bright object */
+  addPendant(B, L, 0, S.CEIL_ROTUNDA - 0.8, 0, S.CEIL_ROTUNDA + S.DOME_RISE, 0.34);
+
+  addPlinths(g, B, kit, plan.rotunda, pickables, plan.rotunda.plinths,
+    (r, i, spot) => ({ room: 'rotunda', link: null, spot }));
+  B.flush();
 
   /* dome with an oculus, sitting on the drum. the oculus is the one place in
      this building where the sky is not framed by a window: stand in the middle
@@ -497,47 +634,21 @@ function buildRotunda(parent, plan, M, pickables, L) {
   g.add(dome);
 
   /* ribs along the meridians: eight torus arcs, each one the curve the dome
-     already follows, so the bowl reads as built rather than printed */
+     already follows, so the bowl reads as built rather than printed. they and
+     the cornice are the same stone, so they weld into one buffer. */
   const ribMat = M.solid(0x8e897f, { roughness: 0.85 });
   for (let i = 0; i < 8; i++) {
-    const rib = new THREE.Mesh(new THREE.TorusGeometry(R - 0.06, 0.11, 6, 22, Math.PI / 2 - thetaHole), ribMat);
-    rib.scale.y = S.DOME_RISE / R;
-    rib.position.y = h;
-    rib.rotation.y = (i / 8) * TAU + TAU / 16;
-    g.add(rib);
+    const arc = new THREE.TorusGeometry(R - 0.06, 0.11, 6, 22, Math.PI / 2 - thetaHole);
+    arc.scale(S.DOME_RISE / R, 1, 1);
+    B.put(arc, ribMat, 0, h, 0, { ry: (i / 8) * TAU + TAU / 16 });
   }
   /* a cornice ring where the dome meets the drum, the usual place for a moulding */
-  const cornice = new THREE.Mesh(new THREE.TorusGeometry(R - 0.10, 0.14, 8, 64), ribMat);
-  cornice.position.y = h + 0.06;
-  cornice.rotation.x = Math.PI / 2;
-  g.add(cornice);
+  B.put(new THREE.TorusGeometry(R - 0.10, 0.14, 8, 64), ribMat, 0, h + 0.06, 0, { rx: Math.PI / 2 });
 
   const oculusR = R * Math.sin(thetaHole);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(oculusR, 0.16, 10, 64), M.solid(0xb9a06a, { roughness: 0.35, metalness: 0.8 }));
-  ring.position.y = h + R * Math.cos(thetaHole) * (S.DOME_RISE / R);
-  ring.rotation.x = Math.PI / 2;
-  g.add(ring);
-
-  /* pilasters on the piers between the arches, so the twelve doorways read as
-     doorways. one per pier, at the bisector between two ranges — at the old
-     eight the piers would have stood in the middle of the arches. */
-  for (let i = 0; i < S.SPOKE_COUNT; i++) {
-    const a = i * S.SPOKE_STEP + S.SPOKE_STEP / 2;
-    const p = mesh(g, boxUV(0.5, h, 0.5, 1.6), M.solid(0xa9a49a, { roughness: 0.5 }),
-      Math.sin(a) * (R - 0.28), h / 2, Math.cos(a) * (R - 0.28), { cast: true, receive: true });
-    p.rotation.y = a;
-    addSconce(g, L, Math.sin(a) * (R - 0.66), 2.6, Math.cos(a) * (R - 0.66), a);
-  }
-
-  /* one big pendant under the oculus, so the hall has a single bright object */
-  addPendant(g, L, 0, S.CEIL_ROTUNDA - 0.8, 0, S.CEIL_ROTUNDA + S.DOME_RISE, 0.34);
-
-  plan.rotunda.plinths.forEach((spot, i) => {
-    const node = addPlinth(g, M, plan.rotunda, spot);
-    node.userData.exhibit = { room: 'rotunda', link: null, spot };
-    spot.node = node;
-    pickables.push(node);
-  });
+  B.put(new THREE.TorusGeometry(oculusR, 0.16, 10, 64),
+    M.solid(0xb9a06a, { roughness: 0.35, metalness: 0.8 }),
+    0, h + R * Math.cos(thetaHole) * (S.DOME_RISE / R), 0, { rx: Math.PI / 2 });
   plan.rotunda.group = g;
   return g;
 }
@@ -567,13 +678,13 @@ function buildStairHall(parent, plan, M, L) {
   const well = wellOf(plan);
   const wallMat = M.mat('plasterDark', 1, 1);
   const lamps = lampsFor(M, L, { floor: 'basement', id: 'stair-hall', flicker: 0.12 });
+  const B = batch(g);
 
   /* laid concrete, and laid a centimetre low: the last tread of the flight
      lands flush on this sheet, and two up-facing sheets at the same height
      flicker wherever they overlap */
-  const floor = mesh(g, planeUV(hw * 2, hd * 2, 2.2), M.mat('concrete', 1, 1), 0, -0.012, 0,
-    { receive: true });
-  floor.rotation.set(-Math.PI / 2, 0, 0);
+  B.put(planeUV(hw * 2, hd * 2, 2.2), M.mat('concrete', 1, 1), 0, -0.012, 0,
+    { rx: -Math.PI / 2, receive: true });
 
   /* the ceiling is the soffit of the rotunda floor, so it is at the same
      height as the cellar corridors' and runs away under the drum. three
@@ -586,8 +697,7 @@ function buildStairHall(parent, plan, M, L) {
     [hw - well.x1, well.z1 + hd, (well.x1 + hw) / 2, (-hd + well.z1) / 2]
   ];
   for (const [w, d, cx, cz] of sheets) {
-    const c = mesh(g, planeUV(w, d, 2.6), wallMat, cx, h, cz, { cast: true, receive: true });
-    c.rotation.set(Math.PI / 2, 0, 0);
+    B.put(planeUV(w, d, 2.6), wallMat, cx, h, cz, { rx: Math.PI / 2, cast: true, receive: true });
   }
 
   /* four walls, each pierced where a cellar arm starts. the arm shells begin
@@ -597,10 +707,10 @@ function buildStairHall(parent, plan, M, L) {
      corridor's: the flight is wider than the arm it lands in. */
   const mouth = S.BASE_CORRIDOR_W;
   const stairMouth = Math.max(S.STAIR_W, mouth);
-  addWall(g, wallMat, { run: 'x', at: hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
-  addWall(g, wallMat, { run: 'x', at: -hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: stairMouth, y0: 0, y1: h }], scale: 2.4 });
-  addWall(g, wallMat, { run: 'z', at: -hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
-  addWall(g, wallMat, { run: 'z', at: hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(B, wallMat, { run: 'x', at: hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(B, wallMat, { run: 'x', at: -hd, from: -hw, to: hw, h, t, openings: [{ c: 0, w: stairMouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(B, wallMat, { run: 'z', at: -hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
+  addWall(B, wallMat, { run: 'z', at: hw, from: -hd - t, to: hd + t, h, t, openings: [{ c: 0, w: mouth, y0: 0, y1: h }], scale: 2.4 });
 
   /* the arm is 2.20 wide and the stair 3.00, so at the south mouth the arm's
      walls finish 0.40 short of the stair's. without these returns the hall
@@ -608,7 +718,7 @@ function buildStairHall(parent, plan, M, L) {
   const ret = S.STAIR_W / 2 - S.BASE_CORRIDOR_W / 2;
   if (ret > 0.01) {
     for (const sx of [-1, 1]) {
-      mesh(g, boxUV(ret, h, t, 2.4), wallMat, sx * (S.BASE_CORRIDOR_W / 2 + ret / 2), h / 2, -hd,
+      B.put(boxUV(ret, h, t, 2.4), wallMat, sx * (S.BASE_CORRIDOR_W / 2 + ret / 2), h / 2, -hd,
         { cast: true, receive: true });
     }
   }
@@ -620,7 +730,8 @@ function buildStairHall(parent, plan, M, L) {
      nothing else in the building knows to light it. this is one static light
      added at boot, not a member of the pool, so the pool's count, and the
      shaders that depend on it, never change. */
-  addPendant(g, lamps, 0, h - 0.5, 1.4, h, 0.2);
+  addPendant(B, lamps, 0, h - 0.5, 1.4, h, 0.2);
+  B.flush();
   const lamp = new THREE.PointLight(0xa9c8e8, 30, 12, 2);
   lamp.position.set(0, h - 0.62, 1.4);
   g.add(lamp);
@@ -638,6 +749,7 @@ function buildStair(parent, plan, M, L) {
   const well = wellOf(plan);
   const zBack = s.z - S.STAIR_LAND / 2;                     // back of the top landing
   const zHall = -S.STAIR_HALL_D / 2;                        // the hall wall the flight comes through
+  const B = batch(g);
 
   /* twenty treads cut into one sloping slab. the underside stays straight,
      not stepped and not filled to the cellar floor, because the south cellar
@@ -648,12 +760,11 @@ function buildStair(parent, plan, M, L) {
      corridor and not a processional one. */
   const slope = Math.atan(s.drop / s.run);
   const len = Math.hypot(s.run, s.drop);
-  const slab = mesh(g, boxUV(s.w, 0.22, len, 1.6), stone, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
-    { cast: true, receive: true });
-  slab.rotation.x = slope;
+  B.put(boxUV(s.w, 0.22, len, 1.6), stone, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
+    { cast: true, receive: true, rx: slope });
   for (let i = 1; i <= steps; i++) {
     const top = -i * rise;
-    mesh(g, boxUV(s.w, 0.07, tread, 1.6), stone, s.x, top - 0.035, s.z + (i - 0.5) * tread,
+    B.put(boxUV(s.w, 0.07, tread, 1.6), stone, s.x, top - 0.035, s.z + (i - 0.5) * tread,
       { cast: true, receive: true });
   }
 
@@ -666,7 +777,7 @@ function buildStair(parent, plan, M, L) {
     [s.z + s.run, s.z + s.run + S.STAIR_LAND / 2, S.FLOOR_BASE + 0.012]
   ];
   for (const [z0, z1, y] of land) {
-    mesh(g, boxUV(s.w, 0.024, z1 - z0, 2.2), stone, s.x, y - 0.012, (z0 + z1) / 2,
+    B.put(boxUV(s.w, 0.024, z1 - z0, 2.2), stone, s.x, y - 0.012, (z0 + z1) / 2,
       { cast: false, receive: true });
   }
 
@@ -676,31 +787,31 @@ function buildStair(parent, plan, M, L) {
      plastered in. */
   for (const sx of [-1, 1]) {
     const at = s.x + sx * (s.w / 2 + S.WALL_T / 2);
-    mesh(g, boxUV(S.WALL_T, -S.FLOOR_BASE, zHall - zBack, 2.4), M.mat('plasterDark', 1, 1),
+    B.put(boxUV(S.WALL_T, -S.FLOOR_BASE, zHall - zBack, 2.4), M.mat('plasterDark', 1, 1),
       at, S.FLOOR_BASE / 2, (zBack + zHall) / 2, { cast: true, receive: true });
-    mesh(g, boxUV(S.WALL_T, 0.9, zHall - zBack, 2.4), M.mat('marbleDark', 1, 1),
+    B.put(boxUV(S.WALL_T, 0.9, zHall - zBack, 2.4), M.mat('marbleDark', 1, 1),
       at, 0.45, (zBack + zHall) / 2, { cast: true, receive: true });
   }
 
   /* a handrail down one side, hung 0.90 above the nosing line */
   const rail = M.solid(0x3c3f45, { roughness: 0.35, metalness: 0.75 });
   const rx = s.x + s.w / 2 - 0.10;
-  const bar = mesh(g, new THREE.CylinderGeometry(0.028, 0.028, len, 10), rail,
-    rx, 0.9 - s.drop / 2, s.z + s.run / 2, { cast: true });
-  bar.rotation.x = Math.atan2(s.run, -s.drop);
+  B.put(new THREE.CylinderGeometry(0.028, 0.028, len, 10), rail,
+    rx, 0.9 - s.drop / 2, s.z + s.run / 2, { cast: true, rx: Math.atan2(s.run, -s.drop) });
   for (let k = 0; k <= 5; k++) {
     const z = s.z + (k / 5) * s.run;
     const y = -(z - s.z) / s.run * s.drop;
-    mesh(g, new THREE.CylinderGeometry(0.022, 0.022, 0.9, 8), rail, rx, y + 0.45, z, { cast: true });
+    B.put(new THREE.CylinderGeometry(0.022, 0.022, 0.9, 8), rail, rx, y + 0.45, z, { cast: true });
   }
 
   /* the slab edge round the well: the 0.40 m between the top of the ground
      slab and the cellar soffit, lined on the two ends. the sides are already
      lined by the well walls above. */
   for (const z of [well.z0, well.z1]) {
-    mesh(g, boxUV(well.x1 - well.x0, -SOFFIT, 0.2, 2.4), M.mat('marbleDark', 1, 1),
+    B.put(boxUV(well.x1 - well.x0, -SOFFIT, 0.2, 2.4), M.mat('marbleDark', 1, 1),
       (well.x0 + well.x1) / 2, SOFFIT / 2, z, { cast: false, receive: true });
   }
+  B.flush();
   return g;
 }
 
@@ -733,25 +844,160 @@ function buildGrounds(parent, M, plan) {
      to look at before the planting goes in */
   const low = M.solid(0x54564f, { roughness: 0.85 });
   const q = plan.reach * 0.72;
+  const B = batch(parent);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * TAU + Math.PI / 4;
-    const wall = mesh(parent, boxUV(16, 1.6, 0.4, 2.4), low,
-      Math.sin(a) * q, 0.8, Math.cos(a) * q, { cast: true, receive: true });
-    wall.rotation.y = a;
+    B.put(boxUV(16, 1.6, 0.4, 2.4), low, Math.sin(a) * q, 0.8, Math.cos(a) * q,
+      { cast: true, receive: true, ry: a });
   }
+  B.flush();
   return ground;
 }
 
+/* ── culling by spoke ────────────────────────────────────────────────────
+   The twelve ranges do not touch each other: from inside one you cannot look
+   down another, and the wedge between two is a wall rather than a window. So
+   the frame does not submit the eleven you are not standing in.
+
+   This is deliberately not left to the frustum. The rotunda is a hub with
+   twelve arches off it, and a camera in the middle of it has all twelve
+   ranges inside its frustum even though the visitor can see down three of
+   them; and a 40 m corridor keeps its bounding sphere touching the visitor
+   from wherever they stand, so the frustum never drops it either. So the
+   building is hung in explicit groups — one per range, one per cellar arm,
+   one for the hub and one for the cellar floor — and this says which of them
+   are on, from where the visitor is standing and which way they are facing.
+
+   Two rules, both cheap:
+     · a range is on if the visitor is in it or within REACH of its shell.
+       REACH is not small on purpose: the side rooms lean out into the wedge
+       between ranges, four or five metres from the next range's wall, and
+       their windows look straight at it. a range culled while you are reading
+       the room next door is a hole in the building.
+     · while the visitor is in the hub, the ranges whose arch they are facing
+       are on — three of them at 30° apart, which is what standing in the
+       middle of a drum actually shows you.
+   The cellar is gated by storey as well: nothing under the slab is submitted
+   while you are walking upstairs, except the flight and the hall under the
+   well, which you can see straight down at from the rotunda floor.
+
+   What this does not do is keep the moon honest. The shadow map is one pass
+   over whatever is on the list, so a wall in a range that is off stops
+   throwing its shadow into the range that is on. It is a soft difference in
+   a patch of light you are not looking at, and it is the price of the frame. */
+const REACH = 6.0;                        // metres of shell either side of you
+const HUB_REACH = 12.0;                   // how far down a range you still see the drum
+const CONE = 55 * Math.PI / 180;          // ±two ranges either side of the way you face
+
+/* distance from a point to a rotated rect, 0 when inside it */
+function distToRect(x, z, r) {
+  const st = Math.sin(r.angle), ct = Math.cos(r.angle);
+  const dx = x - r.cx, dz = z - r.cz;
+  const lx = Math.abs(dx * ct - dz * st) - r.halfX;
+  const lz = Math.abs(dx * st + dz * ct) - r.halfZ;
+  const ax = lx > 0 ? lx : 0, az = lz > 0 ? lz : 0;
+  return Math.sqrt(ax * ax + az * az);
+}
+
+function spokeCull(o) {
+  const { wings, hub, cellarHub, grounds, hall, well } = o;
+  let on = true;
+  const groups = [hub, cellarHub, grounds].concat(wings.map((w) => w.group));
+  return {
+    /* the probe wants the whole building on the GPU at once, once, to have
+       something to compare the standing positions against */
+    off() { on = false; groups.forEach((g) => { g.visible = true; }); },
+    enable() { on = true; },
+    update(pos, fwd) {
+      if (!on) return;
+      /* the same storey line lighting.js draws for the light pool, so the
+         rooms you can see and the rooms that light you are one answer */
+      const basement = (pos.y - S.EYE_H) < S.FLOOR_BASE / 2;
+      const r0 = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+      const inHub = !basement && r0 < S.ROTUNDA_R;
+      const inHall = basement && hall && distToRect(pos.x, pos.z, hall) < 1.0;
+      const nearWell = distToRect(pos.x, pos.z, well) < 9.0;
+      const facing = Math.atan2(fwd.x, fwd.z);
+      for (const w of wings) {
+        if ((w.storey === 'basement') !== basement) { w.group.visible = false; continue; }
+        let show = false;
+        for (const r of w.rects) {
+          if (distToRect(pos.x, pos.z, r) < REACH) { show = true; break; }
+        }
+        if (!show && (inHub || inHall)) {
+          let d = Math.atan2(w.dir.x, w.dir.z) - facing;
+          while (d > Math.PI) d -= TAU;
+          while (d < -Math.PI) d += TAU;
+          show = Math.abs(d) < CONE;
+        }
+        w.group.visible = show;
+      }
+      /* the drum is visible from the first metres of every range, through the
+         arch you came out of, and from the head of the stair looking down */
+      hub.visible = nearWell || (basement ? false : r0 < S.ROTUNDA_R + HUB_REACH);
+      cellarHub.visible = nearWell || (basement && hall && distToRect(pos.x, pos.z, hall) < REACH);
+      grounds.visible = true;
+    }
+  };
+}
 
 export function buildBuilding(THREE, plan, M) {
   const group = new THREE.Group();
   const pickables = [];
   const L = lampMats(M);
-  buildGrounds(group, M, plan);
-  buildRotunda(group, plan, M, pickables, L);
-  buildStairHall(group, plan, M, L);
-  buildStair(group, plan, M, L);
-  plan.corridors.forEach((corridor) => buildCorridor(group, M, corridor, L, plan));
-  plan.rooms.forEach((room) => buildRoom(group, plan, M, room, pickables, L));
-  return { group, pickables };
+  const kit = plinthKit(M);
+
+  /* the building is hung in the spaces the visitor moves between, not in the
+     order they were built: a hub, a cellar floor, and one group per range and
+     per cellar arm, so the cull has something to switch off */
+  const hub = new THREE.Group();
+  const cellarHub = new THREE.Group();
+  const grounds = new THREE.Group();
+  group.add(hub, cellarHub, grounds);
+
+  buildGrounds(grounds, M, plan);
+  buildRotunda(hub, plan, M, pickables, L, kit);
+  buildStairHall(cellarHub, plan, M, L);
+  buildStair(cellarHub, plan, M, L);
+
+  const wings = plan.corridors.map((c) => {
+    const g = new THREE.Group();
+    group.add(g);
+    return {
+      storey: c.floor === 'basement' ? 'basement' : 'ground',
+      dir: c.dir,
+      group: g,
+      rects: [shellRect(plan, c)]
+    };
+  });
+  const wingOf = new Map();
+  plan.corridors.forEach((c, i) => {
+    wingOf.set(c.range, wings[i]);
+    buildCorridor(wings[i].group, M, c, L, plan);
+  });
+  plan.rooms.forEach((room) => {
+    const w = wingOf.get(room.range) || wings[0];
+    /* the room's own footprint, so standing in a side room that leans out of
+       its range still counts as being in that range */
+    w.rects.push({
+      cx: room.center.x, cz: room.center.z,
+      halfX: room.w / 2, halfZ: room.d / 2, angle: room.angle
+    });
+    buildRoom(w.group, plan, M, room, pickables, L, kit);
+  });
+
+  const well = wellOf(plan);
+  const cull = spokeCull({
+    wings, hub, cellarHub, grounds,
+    hall: plan.walkable.rects.find((r) => r.room === plan.stair.to),
+    well: {
+      cx: (well.x0 + well.x1) / 2, cz: (well.z0 + well.z1) / 2,
+      halfX: (well.x1 - well.x0) / 2, halfZ: (well.z1 - well.z0) / 2, angle: 0
+    }
+  });
+  /* render.js finds this by name off the group it is handed, so the frame
+     asks the building what it can see whether the composer or a probe is
+     holding the renderer */
+  group.userData.cull = cull;
+  return { group, pickables, cull };
 }

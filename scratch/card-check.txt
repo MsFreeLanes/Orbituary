@@ -1,0 +1,42 @@
+at rest {"links":192,"withThings":31,"waitingDownstairs":15,"intro":"192 LINKS, 31 ROOMS, AND A CELLAR"}
+storeys {"rooms":51,"roomsDown":15,"roomsUp":36,"roomsSittingRight":51,"armsSittingRight":16,"arms":[{"range":"Basement North","shellStartsAt":4,"hallWall":4,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement East","shellStartsAt":5,"hallWall":5,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement South","shellStartsAt":4,"hallWall":4,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement West","shellStartsAt":5,"hallWall":5,"ceilAt":-0.4,"slabAt":-0.4}],"cellarRoomsWithWindows":[]}
+stair {"treads":20,"rise":0.18,"treadDepth":0.28,"treadY":[-0.21,-3.63],"drop":3.6,"arches":12,"well":[-1.5,-6.6,1.5,-1],"rays":[{"at":[0,0],"fromAbove":0,"fromBelow":-0.4},{"at":[0,-3.8],"fromAbove":-1.8,"fromBelow":-2.06},{"at":[0,-6],"fromAbove":-0.38,"fromBelow":-0.65}]}
+cellar room {"id":"apple-dev","cat":"Apple Dev","items":0,"flicker":0.3,"entry":{"x":1.1,"z":9}}
+stop rotunda, looking at the stair opening {"x":0.6,"z":3,"yaw":0.12,"storey":"ground","level":0,"camY":1.66,"eyeOverSlab":1.66,"room":"rotunda","roomAt":"rotunda","onFlight":false}
+card in the rotunda {"room":"rotunda","storey":"ground","name":"The Rotunda","sub":"no links yet · acquisitions board","accent":"rgb(232, 226, 214)","kicker":"FLOOR PLAN · GROUND","here":"you are here: centre","other":"↓ the stair · 15 rooms downstairs","viewBox":"-53.00000000000001 -53.00000000000001 106.00000000000001 106.00000000000001","layersDrawn":1,"roomsDrawn":48}
+wrote probe-stair-rotunda.png
+walk south to the head of the stair {"moved":9.57,"steps":131}
+stop south to the head of the stair {"x":0.6,"z":-6.57,"yaw":0,"storey":"ground","level":-0.02,"camY":1.67,"eyeOverSlab":1.68,"room":"stair","roomAt":"stair","onFlight":true}
+card at the head of the stair {"room":"stair","storey":"ground","name":"The Stair","sub":"20 steps down to the cellar","accent":"rgb(195, 204, 216)","kicker":"FLOOR PLAN · GROUND","here":"you are here: Centre","other":"↓ the stair · 15 rooms downstairs","viewBox":"-53.00000000000001 -53.00000000000001 106.00000000000001 106.00000000000001","layersDrawn":1,"roomsDrawn":48}
+wrote probe-stair-head.png
+walk down the flight {"moved":3.41,"steps":46}
+stop down the flight {"x":0.6,"z":-3.16,"yaw":3.14,"storey":"basement","level":-2.21,"camY":-0.54,"eyeOverSlab":1.67,"room":"stair","roomAt":"stair","onFlight":true}
+stop on the stair {"x":0.6,"z":-3.16,"yaw":3.14,"storey":"basement","level":-2.21,"camY":-0.51,"eyeOverSlab":1.7,"room":"stair","roomAt":"stair","onFlight":true}
+card mid-flight {"room":"stair","storey":"basement","name":"The Stair","sub":"20 steps down to the cellar","accent":"rgb(195, 204, 216)","kicker":"FLOOR PLAN · CELLAR","here":"you are here: Centre","other":"↑ the stair · 36 rooms upstairs","viewBox":"-34.477445296096946 -34.477445296096946 68.95489059219389 68.95489059219389","layersDrawn":1,"roomsDrawn":22}
+wrote probe-stair-flight.png
+walk to the foot of the stair {"moved":4.2,"steps":57}
+stop to the foot of the stair {"x":0.6,"z":1.04,"yaw":3.14,"storey":"basement","level":-3.6,"camY":-1.96,"eyeOverSlab":1.64,"room":"stair-hall","roomAt":"stair-hall","onFlight":false}
+stop in the Stair Hall, looking back up the flight {"x":0.6,"z":1.04,"yaw":0,"storey":"basement","level":-3.6,"camY":-1.97,"eyeOverSlab":1.63,"room":"stair-hall","roomAt":"stair-hall","onFlight":false}
+card in the Stair Hall {"room":"stair-hall","storey":"basement","name":"The Stair Hall","sub":"15 rooms off four cellar corridors","accent":"rgb(169, 182, 196)","kicker":"FLOOR PLAN · CELLAR","here":"you are here: Cellar","other":"↑ the stair · 36 rooms upstairs","viewBox":"-34.477445296096946 -34.477445296096946 68.95489059219389 68.95489059219389","layersDrawn":1,"roomsDrawn":22}
+wrote probe-stair-hall.png
+walk along the north cellar arm {"moved":7.9,"steps":108}
+stop along the north cellar arm {"x":0.6,"z":8.94,"yaw":3.14,"storey":"basement","level":-3.6,"camY":-1.95,"eyeOverSlab":1.65,"room":"corridor","roomAt":"corridor","onFlight":false}
+stop on the north cellar arm {"x":0.6,"z":8.94,"yaw":3.14,"storey":"basement","level":-3.6,"camY":-1.95,"eyeOverSlab":1.65,"room":"corridor","roomAt":"corridor","onFlight":false}
+card on the north cellar arm {"room":"corridor","storey":"basement","name":"The Basement North Corridor","sub":"4 doors off it · Basement North","accent":"rgb(159, 176, 194)","kicker":"FLOOR PLAN · CELLAR","here":"you are here: Basement North","other":"↑ the stair · 36 rooms upstairs","viewBox":"-34.477445296096946 -34.477445296096946 68.95489059219389 68.95489059219389","layersDrawn":1,"roomsDrawn":22}
+walk through the door {"moved":2.25,"steps":30}
+stop through the door {"x":2.85,"z":8.94,"yaw":-1.57,"storey":"basement","level":-3.6,"camY":-1.95,"eyeOverSlab":1.65,"room":"apple-dev","roomAt":"apple-dev","onFlight":false}
+stop in Apple Dev {"x":2.85,"z":8.94,"yaw":-1.57,"storey":"basement","level":-3.6,"camY":-1.96,"eyeOverSlab":1.64,"room":"apple-dev","roomAt":"apple-dev","onFlight":false}
+card in Apple Dev {"room":"apple-dev","storey":"basement","name":"The Orchard","sub":"Apple Dev · 0 links · Basement North","accent":"rgb(150, 222, 115)","kicker":"FLOOR PLAN · CELLAR","here":"you are here: Basement North","other":"↑ the stair · 36 rooms upstairs","viewBox":"-34.477445296096946 -34.477445296096946 68.95489059219389 68.95489059219389","layersDrawn":1,"roomsDrawn":22}
+wrote probe-cellar-room.png
+cellar room pick {"id":"apple-dev","cat":"Apple Dev","items":0,"flicker":0.3,"entry":{"x":1.1,"z":9}} ended in {"x":2.85,"z":8.94,"yaw":-1.57,"storey":"basement","level":-3.6,"camY":-1.96,"eyeOverSlab":1.64,"room":"apple-dev","roomAt":"apple-dev","onFlight":false}
+card, on the way down:
+  rotunda  [rotunda/ground] "The Rotunda" — "no links yet · acquisitions board"
+  head     [stair/ground] "The Stair" — "20 steps down to the cellar"
+  flight   [stair/basement] "The Stair" — "20 steps down to the cellar"
+  hall     [stair-hall/basement] "The Stair Hall" — "15 rooms off four cellar corridors"
+  arm      [corridor/basement] "The Basement North Corridor" — "4 doors off it · Basement North"
+  room     [apple-dev/basement] "The Orchard" — "Apple Dev · 0 links · Basement North"
+card: never says "The Rotunda" once the rig is off the rotunda floor
+map: two spans, one per storey — FLOOR PLAN · GROUND -53.00000000000001 -53.00000000000001 106.00000000000001 106.00000000000001 | FLOOR PLAN · CELLAR -34.477445296096946 -34.477445296096946 68.95489059219389 68.95489059219389
+sound {"started":true,"level":0,"cellar":{"floor":"basement","floorMat":"concreteDark","tone":"cellar"},"upstairs":{"floor":"ground","floorMat":"concrete","tone":"arcade"}}
+console: clean

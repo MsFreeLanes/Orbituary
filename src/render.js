@@ -66,6 +66,26 @@ export function createRender(canvas) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x0b0d12, 0.010);
 
+  /* ── what the building is willing to show ──────────────────────────────
+     building.js hangs the museum in ranges and hands back a cull that says
+     which of them the visitor can see from where they are standing. The frame
+     asks it from the scene's own onBeforeRender, which three calls after the
+     matrices are up and before it walks the graph — the only moment where
+     saying "not this one" still saves the draw call. It lives here rather
+     than in the frame loop so the answer is the same whether the composer or
+     a scratch probe is holding the renderer. */
+  let cullers = null;
+  let childCount = -1;
+  const fwd = new THREE.Vector3();
+  scene.onBeforeRender = (renderer, sc, camera) => {
+    if (cullers === null || scene.children.length !== childCount) {
+      cullers = [];
+      scene.traverse((o) => { if (o.userData && o.userData.cull) cullers.push(o.userData.cull); });
+      childCount = scene.children.length;
+    }
+    for (const c of cullers) c.update(camera.position, camera.getWorldDirection(fwd));
+  };
+
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, null));
   const bloom = new UnrealBloomPass(
@@ -126,6 +146,9 @@ export function createRender(canvas) {
 
   return {
     renderer, scene, composer, bloom, grain,
+    /* the probe wants to put the whole building on the GPU once, to have a
+       number to compare the standing positions against */
+    get cull() { return cullers && cullers.length ? cullers[0] : null; },
     get fps() { return fps; },
     get tier() { return tier; },
     render(dt, camera) {

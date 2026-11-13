@@ -1,8 +1,10 @@
 /* ── signage ─────────────────────────────────────────────────────────────
    Everything in a museum that has words on it. Two kinds:
 
-   · a wall label on the face of every plinth — one canvas atlas per room,
-     so 88 labels cost 12 textures instead of 88;
+   · a wall label on the face of every plinth — packed onto a canvas sheet
+     holding up to sixteen of them, so 192 labels cost 33 textures instead
+     of 192, and a room that needs more than one sheet gets another sheet
+     rather than a taller one;
    · a name plate over every door, so you can read where you are going
      before you walk into it.
 
@@ -60,103 +62,129 @@ let THREEref = null;
 
 /* ── plinth labels ─────────────────────────────────────────────────────── */
 
-const CELL_W = 384, CELL_H = 192, COLS = 4;
+const CELL_W = 384, CELL_H = 192, COLS = 4, MAX_ROWS = 4;
 
-export function plaqueAtlas(room, links, THREE, aniso) {
+/* A plaque sheet stops at 1536 × 768. It used to grow downwards for as long
+   as the room was long, and the biggest room in the building paid for a
+   1536 × 1152 canvas — the single largest texture upload in the museum, for
+   one wall of words. Past sixteen labels a room spills onto a second sheet
+   of its own rather than making the first one taller, and a sheet is never
+   wider than the labels it holds: a room with two of them gets a 768 × 192
+   canvas, not a 1536 × 192 one with two empty cells on it. */
+export function plaqueSheets(room, links, THREE, aniso) {
   THREEref = THREE;
   const items = room.items || [];
-  const rows = Math.max(1, Math.ceil(items.length / COLS));
-  const cv = canvas(COLS * CELL_W, rows * CELL_H);
-  const ctx = cv.getContext('2d');
   const hex = room.hex || '#ffd9a0';
+  const cells = new Array(items.length);
+  const texs = [];
 
-  items.forEach((idx, i) => {
-    const cx = (i % COLS) * CELL_W, cy = Math.floor(i / COLS) * CELL_H;
-    ctx.save();
-    ctx.translate(cx, cy);
+  for (let first = 0; first < items.length; first += COLS * MAX_ROWS) {
+    const mine = items.slice(first, first + COLS * MAX_ROWS);
+    const cols = Math.min(COLS, mine.length);
+    const rows = Math.ceil(mine.length / cols);
+    const cv = canvas(cols * CELL_W, rows * CELL_H);
+    const ctx = cv.getContext('2d');
 
-    /* plate: near-black with a top-to-bottom sheen, like an acrylic label */
-    const bg = ctx.createLinearGradient(0, 0, 0, CELL_H);
-    bg.addColorStop(0, '#191b22');
-    bg.addColorStop(1, '#0d0e13');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, CELL_W, CELL_H);
-    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, CELL_W - 2, CELL_H - 2);
-    ctx.fillStyle = hex;
-    ctx.fillRect(0, 0, 7, CELL_H);
+    mine.forEach((idx, j) => {
+      const col = j % cols, row = Math.floor(j / cols);
+      ctx.save();
+      ctx.translate(col * CELL_W, row * CELL_H);
+      paintLabel(ctx, room, links[idx] || null, hex);
+      ctx.restore();
+      /* cells are addressed in texture space; three flips canvas textures, so
+         the row at canvas top sits at the top of v, which is v = 1 */
+      cells[idx] = {
+        sheet: texs.length,
+        u0: col / cols, u1: (col + 1) / cols,
+        v0: 1 - (row + 1) / rows, v1: 1 - row / rows
+      };
+    });
 
-    const link = links[idx] || null;
-    const name = (link && link.n) || 'Untitled';
-    const url = (link && link.u) || '';
-    const note = (link && link.d) || '';
+    const tex = texture(cv, aniso);
+    tex.userData.kind = 'plaque';
+    tex.userData.cells = mine.length;
+    texs.push(tex);
+  }
+  return { texs, cells };
+}
 
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = hex;
-    ctx.font = `600 17px ${MONO}`;
-    spaced(ctx, `${room.cat || room.category || ''}`.toUpperCase(), 24, 34, 2.4);
+/* one label, painted at the canvas origin so a sheet of any width can lay its
+   cells out around it */
+function paintLabel(ctx, room, link, hex) {
+  /* plate: near-black with a top-to-bottom sheen, like an acrylic label */
+  const bg = ctx.createLinearGradient(0, 0, 0, CELL_H);
+  bg.addColorStop(0, '#191b22');
+  bg.addColorStop(1, '#0d0e13');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CELL_W, CELL_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, CELL_W - 2, CELL_H - 2);
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, 7, CELL_H);
 
-    const tpx = fitText(ctx, name, (p) => `${p}px ${SERIF}`, CELL_W - 48, 34);
-    ctx.font = `${tpx}px ${SERIF}`;
-    ctx.fillStyle = '#f4f1ea';
-    const nameLines = wrap(ctx, name, CELL_W - 48).slice(0, 2);
-    let y = 34 + tpx * 0.95;
-    for (const ln of nameLines) { ctx.fillText(ln, 24, y); y += tpx * 1.08; }
+  const name = (link && link.n) || 'Untitled';
+  const url = (link && link.u) || '';
+  const note = (link && link.d) || '';
 
-    ctx.font = `15px ${SANS}`;
-    ctx.fillStyle = '#98a0ae';
-    const noteLines = wrap(ctx, note, CELL_W - 48);
-    let ny = Math.max(y + 12, CELL_H - 66);
-    for (const ln of noteLines.slice(0, 3)) {
-      if (ny > CELL_H - 34) break;
-      ctx.fillText(ln, 24, ny); ny += 19;
-    }
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = hex;
+  ctx.font = `600 17px ${MONO}`;
+  spaced(ctx, `${room.cat || room.category || ''}`.toUpperCase(), 24, 34, 2.4);
 
-    ctx.font = `14px ${MONO}`;
-    ctx.fillStyle = '#5f6875';
-    let host = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    while (ctx.measureText(host).width > CELL_W - 48 && host.length > 4) host = host.slice(0, -2);
-    ctx.fillText(host.length < url.replace(/^https?:\/\//, '').length ? host + '…' : host, 24, CELL_H - 18);
+  const tpx = fitText(ctx, name, (p) => `${p}px ${SERIF}`, CELL_W - 48, 34);
+  ctx.font = `${tpx}px ${SERIF}`;
+  ctx.fillStyle = '#f4f1ea';
+  const nameLines = wrap(ctx, name, CELL_W - 48).slice(0, 2);
+  let y = 34 + tpx * 0.95;
+  for (const ln of nameLines) { ctx.fillText(ln, 24, y); y += tpx * 1.08; }
 
-    ctx.restore();
-  });
+  ctx.font = `15px ${SANS}`;
+  ctx.fillStyle = '#98a0ae';
+  const noteLines = wrap(ctx, note, CELL_W - 48);
+  let ny = Math.max(y + 12, CELL_H - 66);
+  for (const ln of noteLines.slice(0, 3)) {
+    if (ny > CELL_H - 34) break;
+    ctx.fillText(ln, 24, ny); ny += 19;
+  }
 
-  /* cells are addressed in texture space; three flips canvas textures, so
-     the row at canvas top sits at the top of v, which is v = 1 */
-  const cells = items.map((_, i) => {
-    const col = i % COLS, row = Math.floor(i / COLS);
-    return {
-      u0: col / COLS, u1: (col + 1) / COLS,
-      v0: 1 - (row + 1) / rows, v1: 1 - row / rows
-    };
-  });
-  return { tex: texture(cv, aniso), cells };
+  ctx.font = `14px ${MONO}`;
+  ctx.fillStyle = '#5f6875';
+  let host = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  while (ctx.measureText(host).width > CELL_W - 48 && host.length > 4) host = host.slice(0, -2);
+  ctx.fillText(host.length < url.replace(/^https?:\/\//, '').length ? host + '…' : host, 24, CELL_H - 18);
 }
 
 /* ── door name plates ──────────────────────────────────────────────────── */
 
 export function roomSign(room, THREE, aniso) {
   THREEref = THREE;
-  const W = 1024, H = 256;
+  /* The plate is 1.44 × 0.36 m of wall over a door, and it is read from a
+     couple of metres: 1024 px across it was more texture than the screen has
+     pixels for it, times forty-seven doors. The canvas is scaled rather than
+     the metrics, so the layout and the size of the letters in the world are
+     exactly what they were for 44 % of the memory. */
+  const W = 768, H = 192, K = 0.75;
+  const CW = 1024, CH = 256;
+  const hex = room.hex || '#ffd9a0';
   const cv = canvas(W, H);
   const ctx = cv.getContext('2d');
-  const hex = room.hex || '#ffd9a0';
+  ctx.scale(K, K);
 
   ctx.fillStyle = '#0b0c11';
-  ctx.fillRect(0, 0, W, H);
-  const sheen = ctx.createLinearGradient(0, 0, 0, H);
+  ctx.fillRect(0, 0, CW, CH);
+  const sheen = ctx.createLinearGradient(0, 0, 0, CH);
   sheen.addColorStop(0, 'rgba(255,255,255,0.07)');
   sheen.addColorStop(0.5, 'rgba(255,255,255,0.01)');
   sheen.addColorStop(1, 'rgba(255,255,255,0.05)');
   ctx.fillStyle = sheen;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, CW, CH);
 
   ctx.strokeStyle = hex;
   ctx.lineWidth = 3;
-  ctx.strokeRect(14, 14, W - 28, H - 28);
+  ctx.strokeRect(14, 14, CW - 28, CH - 28);
   ctx.fillStyle = hex;
-  ctx.fillRect(14, 14, 10, H - 28);
+  ctx.fillRect(14, 14, 10, CH - 28);
 
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -164,7 +192,7 @@ export function roomSign(room, THREE, aniso) {
   spaced(ctx, `ROOM ${String(room.no || 0).padStart(2, '0')}`, 48, 66, 4);
 
   const title = room.name || room.title || String(room.id || '').toUpperCase();
-  const tpx = fitText(ctx, title, (p) => `${p}px ${SERIF}`, W - 96, 92);
+  const tpx = fitText(ctx, title, (p) => `${p}px ${SERIF}`, CW - 96, 92);
   ctx.font = `${tpx}px ${SERIF}`;
   ctx.fillStyle = '#f6f3ec';
   ctx.fillText(title, 48, 66 + tpx * 0.92);
@@ -172,9 +200,11 @@ export function roomSign(room, THREE, aniso) {
   ctx.font = `600 28px ${MONO}`;
   ctx.fillStyle = hex;
   spaced(ctx, `${(room.cat || room.category || '').toUpperCase()} · ${(room.items || []).length} LINKS`,
-    48, H - 46, 3);
+    48, CH - 46, 3);
 
-  return texture(cv, aniso);
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'sign';
+  return tex;
 }
 
 /* ── the acquisitions board in the rotunda ─────────────────────────────── */
@@ -224,7 +254,9 @@ export function boardTexture(plan, THREE, aniso) {
   ctx.font = `24px ${MONO}`;
   ctx.fillStyle = '#6f6a5e';
   ctx.fillText('WALK TO A ROOM · OR PRESS R FOR THE NEXT ONE', 60, H - 60);
-  return texture(cv, aniso);
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'board';
+  return tex;
 }
 
 /* stamp a uv rect onto a small plane so one atlas can serve many meshes */
