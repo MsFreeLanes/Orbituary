@@ -1,0 +1,13 @@
+src/lighting.js · anchors 468 · pool 10
+station       scanned   us/frame  pool y range        in storey
+rotunda        114      0.66    1.90 … 5.70        10/10
+corridor        64      0.50    1.62 … 2.75        10/10
+ground room     32      0.29    1.62 … 4.40        10/10
+mid flight      55      1.30    -1.25 … 1.90       9/10
+stair hall      55      1.27    -1.25 … -0.65      10/10
+cellar arm      28      0.74    -1.25 … -0.65      10/10
+cellar room     28      0.90    -2.00 … -0.65      10/10
+nowhere          0      0.26    -2.00 … -0.65      0/10
+cellar room Journalism flicker 0.45 key y -2.00 intensity 10.0 (cellar band is -3.60 to -0.40 )
+key intensity over 10 s: 7.3 → 12.0
+shadow box 40 m across on 2048 → 1.95 cm/texel · centred at 5.0,-3.5,-18.0

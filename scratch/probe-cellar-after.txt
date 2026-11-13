@@ -1,0 +1,24 @@
+storeys {"rooms":51,"roomsDown":15,"roomsUp":36,"roomsSittingRight":51,"armsSittingRight":16,"arms":[{"range":"Basement North","shellStartsAt":4,"hallWall":4,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement East","shellStartsAt":5,"hallWall":5,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement South","shellStartsAt":4,"hallWall":4,"ceilAt":-0.4,"slabAt":-0.4},{"range":"Basement West","shellStartsAt":5,"hallWall":5,"ceilAt":-0.4,"slabAt":-0.4}],"cellarRoomsWithWindows":[]}
+stair {"treads":20,"rise":0.18,"treadDepth":0.28,"treadY":[-0.21,-3.63],"drop":3.6,"arches":12,"well":[-1.5,-6.6,1.5,-1],"rays":[{"at":[0,0],"fromAbove":0,"fromBelow":-0.4},{"at":[0,-3.8],"fromAbove":-1.8,"fromBelow":-2.06},{"at":[0,-6],"fromAbove":-0.38,"fromBelow":-0.65}]}
+cellar room {"id":"apple-dev","cat":"Apple Dev","items":0,"flicker":0.3,"entry":{"x":1.1,"z":9}}
+stop rotunda, looking at the stair opening {"x":0.6,"z":3,"yaw":0.12,"eye":0,"storey":"ground","probeRoom":"rotunda","rigRoom":"rotunda"}
+wrote probe-stair-rotunda.png
+walk south to the head of the stair {"moved":9.57,"steps":131}
+stop south to the head of the stair {"x":0.6,"z":-6.57,"yaw":0,"eye":-0.02,"storey":"basement","probeRoom":"Basement South","rigRoom":"rotunda"}
+wrote probe-stair-head.png
+walk down the flight {"moved":3.41,"steps":46}
+stop down the flight {"x":0.6,"z":-3.16,"yaw":3.14,"eye":-2.21,"storey":"basement","probeRoom":"stair-hall","rigRoom":"rotunda"}
+stop on the stair {"x":0.6,"z":-3.16,"yaw":3.14,"eye":-2.21,"storey":"basement","probeRoom":"stair-hall","rigRoom":"rotunda"}
+wrote probe-stair-flight.png
+walk to the foot of the stair {"moved":4.2,"steps":57}
+stop to the foot of the stair {"x":0.6,"z":1.04,"yaw":3.14,"eye":-3.6,"storey":"basement","probeRoom":"stair-hall","rigRoom":"rotunda"}
+stop in the Stair Hall, looking back up the flight {"x":0.6,"z":1.04,"yaw":0,"eye":-3.6,"storey":"basement","probeRoom":"stair-hall","rigRoom":"rotunda"}
+wrote probe-stair-hall.png
+walk along the north cellar arm {"moved":7.9,"steps":108}
+stop along the north cellar arm {"x":0.6,"z":8.94,"yaw":3.14,"eye":-3.6,"storey":"basement","probeRoom":"apple-dev","rigRoom":"corridor"}
+stop on the north cellar arm {"x":0.6,"z":8.94,"yaw":3.14,"eye":-3.6,"storey":"basement","probeRoom":"apple-dev","rigRoom":"corridor"}
+walk through the door {"moved":2.25,"steps":30}
+stop through the door {"x":2.85,"z":8.94,"yaw":-1.57,"eye":-3.6,"storey":"basement","probeRoom":"apple-dev","rigRoom":"apple-dev"}
+stop in Apple Dev {"x":2.85,"z":8.94,"yaw":-1.57,"eye":-3.6,"storey":"basement","probeRoom":"apple-dev","rigRoom":"apple-dev"}
+wrote probe-cellar-room.png
+cellar room pick {"id":"apple-dev","cat":"Apple Dev","items":0,"flicker":0.3,"entry":{"x":1.1,"z":9}} ended in {"x":2.85,"z":8.94,"yaw":-1.57,"eye":-3.6,"storey":"basement","probeRoom":"apple-dev","rigRoom":"apple-dev"}

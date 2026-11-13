@@ -1,0 +1,13 @@
+scratch/lighting-baseline.js · anchors 458 · pool 10
+station       scanned   us/frame  pool y range        in storey
+rotunda        458      3.32    2.77 … 5.70        10/10
+corridor       458      3.20    2.35 … 2.95        10/10
+ground room    458      1.57    1.62 … 4.40        10/10
+mid flight     458      3.08    2.35 … 5.70        0/10
+stair hall     458      2.95    2.35 … 5.70        0/10
+cellar arm     458      3.44    2.35 … 2.95        0/10
+cellar room    458      3.41    1.60 … 2.75        0/10
+nowhere        458      1.33    1.60 … 2.75        10/10
+cellar room Journalism flicker 0.45 key y 1.60 intensity 13.2 (cellar band is -3.60 to -0.40 )
+key intensity over 10 s: 13.2 → 13.2
+shadow box 124 m across on 2048 → 6.05 cm/texel · centred at 0.0,0.0,0.0

@@ -35,6 +35,14 @@ export const S = {
   CEIL_ROTUNDA: 6.50,     // top of the drum; the dome rises above it
   DOME_RISE: 3.20,
 
+  /* the moon's shadow: one map for the whole building, and the only thing
+     that throws the window openings onto the floor. it follows the visitor
+     instead of covering the plan, because a 2048 map stretched over a 100 m
+     plan is 6 cm a texel and window bars at 6 cm a texel are not window
+     bars. this half-span is 40 m across — under 2 cm a texel — and still
+     reaches the wall outside a room from anywhere inside it. */
+  SHADOW_SPAN: 20.00,
+
   /* windows */
   SILL_H: 0.90,
   WIN_W: 1.20,
