@@ -48,7 +48,7 @@ function boot() {
   scene.add(sky.group);
   const lighting = createLighting(THREE, plan);
   lighting.lights.forEach((l) => scene.add(l));
-  scene.add(lighting.moon.target);
+  scene.add(lighting.sun.target);
 
   const audio = createAudio(plan);
   const scheduler = createScheduler(20261111);
@@ -288,7 +288,11 @@ function boot() {
       skyClock = 0;
       const ms = Date.now() + timeOffset;
       sky.update(ms);
-      lighting.setMoonDirection(sky.state);
+      /* the hour the dial is set to moves the sun, and the sun is the shadow:
+         across the slider's span the bearing comes round a full turn, so the
+         light raking down a range at eight in the morning is raking down it
+         from the other side by four in the afternoon */
+      lighting.setSunDirection(sky.state);
       hud.setSky(sky.state, fmt(ms));
     }
     lighting.update(camera.position, dt);

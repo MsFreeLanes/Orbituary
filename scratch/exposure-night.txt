@@ -1,0 +1,13 @@
+hour 08:24 · sun altitude 15.8°
+rotunda     floor 98 (clip 0%, dark 0%)  mid 73 (clip 0%, dark 8%)  key y5.70 i18.0
+corridor    floor 78 (clip 0%, dark 20%) mid 89 (clip 0%, dark 12%) key y2.60 i22.0
+gaming      floor 53 (clip 0%, dark 3%)  mid 7 (clip 0%, dark 89%)  key y4.40 i24.2
+privacy     floor 52 (clip 0%, dark 0%)  mid 10 (clip 0%, dark 72%) key y4.40 i17.6
+reading     floor 83 (clip 0%, dark 12%) mid 28 (clip 0%, dark 12%) key y2.60 i19.8
+linux       floor 43 (clip 0%, dark 0%)  mid 6 (clip 0%, dark 88%)  key y2.60 i22.0
+cellar      floor 50 (clip 0%, dark 0%)  mid 48 (clip 0%, dark 0%)  key y-2.00 i12.6
+cellar-dim  floor 30 (clip 0%, dark 0%)  mid 7 (clip 0%, dark 86%)  key y-2.00 i5.7
+cellar-arm  floor 36 (clip 0%, dark 23%) mid 29 (clip 0%, dark 37%) key y-2.00 i10.1
+stair-hall  floor 88 (clip 0%, dark 16%) mid 27 (clip 0%, dark 40%) key y-1.10 i9.0
+stair-flight floor 107 (clip 0%, dark 0%) mid 24 (clip 0%, dark 48%) key y1.90 i11.0
+mood exposure 0.94 bloom 0.60 sun 0.00 hemi 0.72

@@ -1,12 +1,12 @@
 rotunda     floor 98 (clip 0%, dark 0%)  mid 73 (clip 0%, dark 8%)  key y5.70 i18.0
-corridor    floor 72 (clip 0%, dark 14%) mid 80 (clip 0%, dark 12%) key y1.60 i14.3
-gaming      floor 53 (clip 0%, dark 9%)  mid 8 (clip 0%, dark 83%)  key y4.40 i24.2
-privacy     floor 52 (clip 0%, dark 6%)  mid 11 (clip 0%, dark 66%) key y4.40 i17.6
-reading     floor 81 (clip 0%, dark 12%) mid 34 (clip 0%, dark 9%)  key y2.60 i19.8
-linux       floor 42 (clip 0%, dark 7%)  mid 8 (clip 0%, dark 82%)  key y2.60 i22.0
-cellar      floor 21 (clip 0%, dark 2%)  mid 24 (clip 0%, dark 0%)  key y1.60 i14.3
-cellar-dim  floor 16 (clip 0%, dark 19%) mid 4 (clip 0%, dark 100%) key y1.60 i8.8
-cellar-arm  floor 22 (clip 0%, dark 35%) mid 12 (clip 0%, dark 58%) key y2.75 i4.0
-stair-hall  floor 57 (clip 0%, dark 22%) mid 21 (clip 0%, dark 61%) key y5.70 i18.0
-stair-flight floor 92 (clip 0%, dark 0%)  mid 22 (clip 0%, dark 57%) key y5.70 i18.0
-mood exposure 0.99 bloom 0.41 env 0.1
+corridor    floor 77 (clip 0%, dark 20%) mid 89 (clip 0%, dark 11%) key y2.60 i22.0
+gaming      floor 53 (clip 0%, dark 4%)  mid 9 (clip 0%, dark 78%)  key y4.40 i24.2
+privacy     floor 52 (clip 0%, dark 0%)  mid 13 (clip 0%, dark 58%) key y4.40 i17.6
+reading     floor 83 (clip 0%, dark 12%) mid 28 (clip 0%, dark 13%) key y2.60 i19.8
+linux       floor 42 (clip 0%, dark 0%)  mid 11 (clip 0%, dark 66%) key y2.60 i22.0
+cellar      floor 51 (clip 0%, dark 0%)  mid 49 (clip 0%, dark 0%)  key y-2.00 i12.8
+cellar-dim  floor 32 (clip 0%, dark 0%)  mid 7 (clip 0%, dark 84%)  key y-2.00 i7.0
+cellar-arm  floor 38 (clip 0%, dark 22%) mid 31 (clip 0%, dark 32%) key y-2.00 i10.4
+stair-hall  floor 88 (clip 0%, dark 16%) mid 28 (clip 0%, dark 38%) key y-1.10 i9.0
+stair-flight floor 108 (clip 0%, dark 0%) mid 24 (clip 0%, dark 46%) key y1.90 i11.0
+mood exposure 0.94 bloom 0.60 env 0.1

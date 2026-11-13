@@ -21,12 +21,19 @@
    are stamped onto a grid once at build, and a frame reads the nine cells
    around the visitor: the room it is standing in plus the rooms next door.
 
-   One directional light carries the moon and throws the window openings
-   onto the floor. That single shadow map is the whole trick that makes the
-   night outside feel like it is actually outside, and it follows the visitor
-   rather than covering the plan: a 2048 map stretched over a 100 m building
-   is six centimetres a texel, and window bars at six centimetres a texel are
-   not window bars. */
+   One directional light carries the sun and throws the window openings onto
+   the floor: sunlight raking across the pressure hull and laying the window
+   bars down the terrazzo. It is the only shadow caster in the building, and
+   it follows the visitor rather than covering the plan — a 2048 map
+   stretched over a 100 m building is six centimetres a texel, and window
+   bars at six centimetres a texel are not window bars.
+
+   Where it sits is not a taste decision: sky.js already works out where the
+   real sun is for the region and the hour the visitor chose, and the light is
+   hung off that answer. When the sun is under the horizon the light is off
+   and the station runs on its own fittings, which is the night the museum has
+   always had — with the hemisphere taking up the slack the windows used to
+   hand over, so the night does not go darker for the loss. */
 import * as THREE from 'three';
 import { S } from './scale.js';
 
@@ -256,23 +263,28 @@ function gridFor(spaces) {
 export function createLighting(THREE, plan) {
   const skyTint = 0x9fc0ff;
   const hemi = new THREE.HemisphereLight(0x2a3a58, 0x14161c, 0.42);
+  const HEMI_DAY = hemi.intensity;   // what the fittings alone throw back
 
-  const moon = new THREE.DirectionalLight(0xbfd4ff, 0.5);
-  moon.castShadow = true;
-  moon.shadow.mapSize.set(2048, 2048);
+  /* the sun, across the station's hull. it is the only thing in the building
+     that throws a shadow, which is what makes a window read as a hole in the
+     pressure skin rather than as a bright rectangle stuck to a wall. */
+  const sun = new THREE.DirectionalLight(0xfff3dd, 0);
+  sun.name = 'sunlight';
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
   const span = S.SHADOW_SPAN;
-  const moonR = plan.reach * 1.6;   // how far off the light sits from its target
-  const cam = moon.shadow.camera;
+  const sunR = plan.reach * 1.6;   // how far off the light sits from its target
+  const cam = sun.shadow.camera;
   cam.left = -span; cam.right = span;
   cam.top = span; cam.bottom = -span;
-  cam.near = 1; cam.far = moonR + span * 2;
+  cam.near = 1; cam.far = sunR + span * 2;
   /* three never refreshes a directional shadow's orthographic projection, so
      the box set above is not the box you get until you ask for it. left at its
      default the map covers ±5 m around the target, which on a 100 m plan means
-     the moon throws no window openings anywhere the visitor actually is. */
+     the sun throws no window openings anywhere the visitor actually is. */
   cam.updateProjectionMatrix();
-  moon.shadow.bias = -0.0009;
-  moon.shadow.normalBias = 0.03;
+  sun.shadow.bias = -0.0009;
+  sun.shadow.normalBias = 0.03;
 
   const pool = [];
   for (let i = 0; i < POOL; i++) {
@@ -300,48 +312,72 @@ export function createLighting(THREE, plan) {
   const assigned = new Array(POOL).fill(null);
   const bestA = new Array(POOL).fill(null);
   const bestD = new Array(POOL).fill(Infinity);
-  /* the moon's shadow box follows the visitor. it is snapped to half a metre
+  /* the sun's shadow box follows the visitor. it is snapped to half a metre
      so the texel grid does not crawl under their feet every frame, and it is
      centred on the floor they are standing on, so the cellar sits in the
      middle of the depth range when they are down there rather than clipped
      off the end of it. */
   const SNAP = 0.5;
-  const moonDir = new THREE.Vector3(0, 1, 0);
+  const sunDir = new THREE.Vector3(0, 1, 0);
   const visitor = new THREE.Vector3(0, 0, 0);
   const shadowAt = new THREE.Vector3(Number.NaN, 0, Number.NaN);
   const white = new THREE.Color(0xffffff);
+  /* the same sun, reddened by the length of air it came through: a bearing 3°
+     off the horizon has crossed the whole breadth of the atmosphere, a bearing
+     12° up has not crossed much of it */
+  const lowSun = new THREE.Color(0xffb877);
+  const highSun = new THREE.Color(0xfff3dd);
 
-  function placeMoon() {
+  function placeSun() {
     const x = Math.round(visitor.x / SNAP) * SNAP;
     const z = Math.round(visitor.z / SNAP) * SNAP;
     const y = Math.round((visitor.y - S.EYE_H) / SNAP) * SNAP;
-    if (x === shadowAt.x && y === shadowAt.y && z === shadowAt.z) return;
-    shadowAt.set(x, y, z);
-    moon.target.position.set(x, y, z);
-    moon.position.set(x + moonDir.x, y + moonDir.y, z + moonDir.z);
+    /* the target snaps, so the texel grid does not crawl under the visitor's
+       feet every frame. the light itself does not: it is hung off the target
+       by the sun's bearing, and the bearing moves whenever the hour does,
+       which is the whole point of an orbiting station. */
+    if (x !== shadowAt.x || y !== shadowAt.y || z !== shadowAt.z) {
+      shadowAt.set(x, y, z);
+      sun.target.position.set(x, y, z);
+    }
+    sun.position.set(x + sunDir.x, y + sunDir.y, z + sunDir.z);
   }
 
-  function setMoonDirection(state) {
-    /* the moonlight comes from wherever the sky has actually put the moon;
-       when it has set we keep the bearing and lift it above the roofline */
-    const r = moonR;
-    if (state.moonDir) {
-      const d = state.moonDir;
-      const len = Math.hypot(d[0], d[2]) || 1;
-      const lift = Math.max(0.22, d[1]);
-      const horiz = Math.sqrt(1 - lift * lift);
-      moonDir.set((d[0] / len) * horiz * r, lift * r, (d[2] / len) * horiz * r);
-    } else {
-      const alt = Math.max(0.12, Math.abs(state.sunAlt) + 0.25);
-      const az = state.lst * 0.5;
-      moonDir.set(Math.sin(az) * Math.cos(alt) * r, Math.sin(alt) * r, Math.cos(az) * Math.cos(alt) * r);
-    }
-    placeMoon();
-    const night = state.alwaysNight || state.sunAlt < -0.1;
-    /* phase 0 is a new moon and 0.5 is a full one */
-    const bright = Math.abs(state.phase - 0.5) < 0.25 ? 1 : 0.35;
-    moon.intensity = night ? 0.26 + 0.2 * bright : 1.6;
-    moon.color.setHex(night ? 0xbfd4ff : 0xfff3dd);
+  function setSunDirection(state) {
+    /* the bearing is the real one, from sky.js, and it is the reason the key
+       light no longer sits still: the station is in orbit, so the sun travels
+       the whole way round in the time slider's span instead of stopping at the
+       end of a ground observer's day. the altitude is the real one too, floored
+       to a graze — the light is never aimed up from under the floor, and below
+       the horizon the bearing is still the answer to where sunrise comes from,
+       so it keeps sweeping while the lamp is off. */
+    const r = sunR;
+    const d = state.sunDir;
+    const alt = d ? Math.asin(Math.max(-1, Math.min(1, d[1]))) : 0;
+    const lift = Math.max(alt, S.SUN_GRAZE);
+    const horiz = Math.sqrt(Math.max(0, 1 - lift * lift));
+    const len = d ? Math.hypot(d[0], d[2]) : 0;
+    const ux = len > 1e-6 ? d[0] / len : 1;
+    const uz = len > 1e-6 ? d[2] / len : 0;
+    sunDir.set(ux * horiz * r, lift * r, uz * horiz * r);
+    placeSun();
+    /* under the horizon the station is on its planet's night side and the key
+       light is off, not dimmed: that is the interior-only night the museum
+       already runs on. the ramp over the first degrees of altitude is what
+       stops sunrise opening like a door, and with the bearing moving a quarter
+       of a degree a minute nothing here can strobe. it is a root rather than a
+       straight line because the hours that matter are the low ones: a sun 4°
+       off the horizon is a weak dose of light on the ground and the strongest
+       thing in the building through a window, since it is raking the whole
+       length of the room instead of landing on it. */
+    const up = Math.max(0, Math.min(1, alt / S.SUN_RISE));
+    const k = Math.sqrt(up);
+    sun.intensity = S.SUN_I * k;
+    sun.color.copy(lowSun).lerp(highSun, k);
+    /* and the night keeps the brightness the windows used to lend it: with no
+       sunlight through the hull the fittings' own bounce is the only thing
+       between the cellar and a black room. */
+    hemi.intensity = HEMI_DAY + (S.HEMI_NIGHT - HEMI_DAY) * (1 - k);
   }
 
   function flicker(a) {
@@ -356,7 +392,7 @@ export function createLighting(THREE, plan) {
   function update(cameraPos, dt) {
     clock += dt;
     visitor.copy(cameraPos);
-    placeMoon();
+    placeSun();
 
     /* the storey the visitor's feet are on. a probe that hands in rig.state
        has no y at all, and `undefined < n` is false, so that reads as the
@@ -417,9 +453,9 @@ export function createLighting(THREE, plan) {
   }
 
   return {
-    lights: [hemi, moon, ...pool],
-    hemi, moon, pool, anchors, spaces,
+    lights: [hemi, sun, ...pool],
+    hemi, sun, pool, anchors, spaces,
     get scanned() { return scanned; },
-    setMoonDirection, update
+    setSunDirection, update
   };
 }

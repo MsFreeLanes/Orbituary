@@ -8,7 +8,12 @@
    The bright stars are real (J2000 RA/Dec and magnitude). The faint
    population is generated — five thousand points weighted towards the
    galactic plane, which is what makes the Milky Way read as a band rather
-   than as confetti. */
+   than as confetti.
+
+   The same arithmetic answers a second question, for lighting.js rather than
+   for the windows: where the sun actually is, in the building's own axes.
+   That is the only sun the museum has — the key light is hung off it, so a
+   new region or a new hour moves the shadows down the corridors with it. */
 import * as THREE from 'three';
 
 const TAU = Math.PI * 2;
@@ -270,7 +275,7 @@ export function createSky(THREE) {
   group.add(haze);
   haze.renderOrder = 1;
 
-  const state = { lat: 40.7, lon: -74.0, alwaysNight: true, sunAlt: 0, lst: 0, phase: 0 };
+  const state = { lat: 40.7, lon: -74.0, alwaysNight: true, sunAlt: 0, sunDir: null, lst: 0, phase: 0 };
   const m4 = new THREE.Matrix4();
 
   function paintMoon(phase) {
@@ -328,6 +333,13 @@ export function createSky(THREE) {
     const sun = eclipticToEquatorial(solarLongitude(ms), 0);
     const sv = eqToVec(sun.ra, sun.dec, 1);
     state.sunAlt = Math.asin(Math.max(-1, Math.min(1, sv[0] * u[0] + sv[1] * u[1] + sv[2] * u[2])));
+    /* and the same direction in room axes, so the hull's key light can be hung
+       off it. this is the bearing that matters after the museum became a
+       station: it goes the whole way round in a day, while a ground observer
+       only ever watches the half of it that is above their horizon. */
+    state.sunDir = [e[0] * sv[0] + e[1] * sv[1] + e[2] * sv[2],
+      u[0] * sv[0] + u[1] * sv[1] + u[2] * sv[2],
+      nv[0] * sv[0] + nv[1] * sv[1] + nv[2] * sv[2]];
     const night = state.alwaysNight || state.sunAlt < -6 * D2R;
 
     /* moon */
@@ -342,7 +354,10 @@ export function createSky(THREE) {
     moon.lookAt(0, 0, 0);
     const moonAlt = Math.asin(Math.max(-1, Math.min(1,
       (mv[0] * u[0] + mv[1] * u[1] + mv[2] * u[2]) / (SKY_R * 0.97))));
-    /* where the moon actually is, in room axes, so the moonlight can follow it */
+    /* where the moon actually is, in room axes. nothing is lit off it any
+       more — the sun is the key light now — but the disc in the window and the
+       light that once came through it are the same answer, and the phase the
+       dial reports comes from it */
     state.moonDir = [e[0] * mv[0] + e[1] * mv[1] + e[2] * mv[2],
       u[0] * mv[0] + u[1] * mv[1] + u[2] * mv[2],
       nv[0] * mv[0] + nv[1] * mv[1] + nv[2] * mv[2]].map((v) => v / (SKY_R * 0.97));

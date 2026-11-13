@@ -9,6 +9,17 @@
 import path from 'node:path';
 import { withBrowser } from './cdp.mjs';
 
+/* --hour 07:47 pins the clock the framings are read at. The key light is the
+   sun now, so two runs taken eight minutes apart are not the same photograph:
+   the run that recorded the building before this change was made at 07:47, so
+   the run that records it after is pinned to 07:47 as well. */
+const HOUR = (() => {
+  const i = process.argv.indexOf('--hour');
+  if (i < 0) return null;
+  const [h, min] = String(process.argv[i + 1] || '').split(':').map(Number);
+  return Number.isFinite(h) && Number.isFinite(min) ? h * 60 + min : null;
+})();
+
 const SAMPLE = `(() => {
   const m = window.__museum;
   /* the pool cross-fades over about a quarter of a second, so settle it
@@ -62,6 +73,20 @@ const framings = [
 withBrowser(async ({ send, evaluate, sleep }) => {
   await send('Page.navigate', { url: 'file:///' + path.join(process.cwd(), 'index-v2.html').replace(/\\/g, '/') });
   await sleep(4500);
+  if (HOUR !== null) {
+    /* the first move of the slider after the page loads is swallowed — the HUD
+       has not finished wiring the row by then — so the minute is put in twice
+       and read back before any framing is measured. */
+    for (let i = 0; i < 2; i++) {
+      await evaluate(`(() => { const s = document.querySelector('input.time');
+        s.value = '${HOUR}'; s.dispatchEvent(new Event('input')); })()`);
+      await sleep(350);
+    }
+    console.log('pinned to', await evaluate('document.querySelector(".sky-clock").textContent'),
+      '· slider', await evaluate('document.querySelector("input.time").value'), '(asked ' + HOUR + ')',
+      '· sun altitude', (await evaluate('window.__museum.sky.state.sunAlt') * 180 / Math.PI).toFixed(1) + '°',
+      '· key', await evaluate('window.__museum.lighting.sun.intensity.toFixed(2)'));
+  }
   /* stand the camera on the floor the framing asks for. the rig writes
      camera.position every frame, so this has to ride along with it. */
   await evaluate(`(() => { const m = window.__museum, S = m.S;

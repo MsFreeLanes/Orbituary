@@ -35,13 +35,35 @@ export const S = {
   CEIL_ROTUNDA: 6.50,     // top of the drum; the dome rises above it
   DOME_RISE: 3.20,
 
-  /* the moon's shadow: one map for the whole building, and the only thing
+  /* the sun's shadow: one map for the whole building, and the only thing
      that throws the window openings onto the floor. it follows the visitor
      instead of covering the plan, because a 2048 map stretched over a 100 m
      plan is 6 cm a texel and window bars at 6 cm a texel are not window
      bars. this half-span is 40 m across — under 2 cm a texel — and still
      reaches the wall outside a room from anywhere inside it. */
   SHADOW_SPAN: 20.00,
+
+  /* the key light is the sun (2026-11-13: the station orbits a star, so the
+     light across its hull is sunlight, not moonlight on a lawn). sky.js
+     already computes where the real sun is for the region and the hour the
+     visitor chose, and the light is hung off that: the real bearing, and the
+     real altitude floored to a graze.
+     The floor is the orbital part. A station in orbit is above its planet's
+     horizon, so the sun it sees does not set behind the local terrain — the
+     bearing keeps sweeping, one full turn across the time slider's span,
+     instead of stopping at the end of a ground observer's day. The light
+     itself is off while the real sun is under the horizon, which is the
+     night the museum already runs on: interior lamps only. */
+  SUN_GRAZE: 6 * Math.PI / 180,   // the lowest the key light may be aimed from
+  SUN_RISE: 12 * Math.PI / 180,   // the altitude at which it is at full strength
+  SUN_I: 2.40,                    // full sunlight across the hull
+  /* with the sun off there is no cold light coming through the windows any
+     more, so the bounce off the station's own fittings has to carry the night
+     by itself. 0.72 is where the cellar corridors, the stair hall and the
+     rotunda read as well lit as they did with the moon's 0.3 outside them —
+     scratch/probe-exposure-night.mjs measures it against the light that used
+     to be there. */
+  HEMI_NIGHT: 0.72,
 
   /* windows */
   SILL_H: 0.90,
