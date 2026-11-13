@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-const src = readFileSync('scratch/src/20-data.js', 'utf8');
-const mod = await import('data:text/javascript;base64,' + Buffer.from(src + '\nexport { LINKS, WINGS, WING_NAMES };').toString('base64'));
+const src = readFileSync('src/data.js', 'utf8');
+const mod = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
 const { LINKS, WINGS, WING_NAMES } = mod;
 
 console.log('total links:', LINKS.length);

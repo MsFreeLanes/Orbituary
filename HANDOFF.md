@@ -1,8 +1,9 @@
 ---
 tags: [museum, project, handoff]
-updated: 2026-11-13
+updated: 2026-11-13 (second pass)
 build: v2
-head: f89ab78 — wip: a prop kit and twelve room builders
+head: b59d59e + the cost-table merge
+remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
 # Handoff — where the museum actually is
@@ -31,45 +32,46 @@ half-finished, and what is waiting on a decision.
 bundle and none of it is visible in the building. Phase 3 ends the moment
 `src/building.js` calls it. That is the next piece of work.
 
-## The pending decision: the software-costs table
+## The cost table: merged, and what it took
 
-On 2026-11-12 a 110-row cost table (`software-costs.md`) was handed over with
-instructions to add it to the project and remove duplicates. It is **transcribed
-but not merged**. Nothing in `src/data.js` has changed; the collection is still
-88 entries.
+The 112-row cost table is **in**. `src/data.js` now holds **192 exhibits across
+47 rooms**. `node scratch/merge-costs.mjs` performs the merge in one pass and
+prints every move; `--write` is what rewrites the data file.
 
-- `scratch/candidates-software-costs.js` — the table in the museum's own entry
-  shape, cost attached, my proposed room for each.
-- `scratch/check-candidates.mjs` — dry run. `node scratch/check-candidates.mjs`
-  prints everything below; re-run it before merging.
+- **9 rows dropped.** Strong, Movora and Monkey do not exist as described
+  (strong.app is a gym log, movora.com sells veterinary orthopaedics,
+  monkey.app is a stranger-video app). Melon became Streamlabs Talk Studio.
+  Ethereal is what Wireshark was called until 2006, so it is a line on the
+  Wireshark plaque, not a plinth. Umanari — the thing the table spelled
+  "Unmanarr" — is a Japanese blog about one man's horse-racing prediction
+  program. Plus the three genuine duplicates: Docker Desktop, Tdarr Agent,
+  Kdenlive.
+- **13 wrong URLs corrected**, each verified against the vendor: 010 Editor is
+  SweetScape, not "sweetberry"; Vegas is vegascreativesoftware.com and owned by
+  Boris FX, not Magix; Lightworks is lwks.com; Subtitle Edit is nikse.dk;
+  xEdit's old domain is dead and the project is tes5edit.github.io; Tdarr is
+  tdarr.io; TruffleHog is trufflesecurity.com; MelonLoader's docs are
+  melonwiki.xyz and melon-loader.com is an SEO clone.
+- **8 rows the owner supplied back** were real products with mangled names —
+  Drauger OS, FuzzIt (defunct, kept as a headstone), LiveWeb (a hobby repo),
+  SAMMI, LioranBoard 2, KubeSpy under pulumi, the Zoom F8N Pro (a field
+  recorder, not a "fuzzer"), Board. Two of the owner's corrections did not
+  survive checking: Umanari (above) and askfuzz.ai, which is an Indian
+  stock-market research service.
+- **The "Astra" row is OpenAI's GPT-6 Astra**, not a Kubernetes UI, and sits in
+  the Engine. **Charybdis** is an IRC daemon and sits in the Server Alcove.
+- **16 rooms are empty** — Apple Dev, Open Source, Creative Writing,
+  Accessibility, Web Extension, GitHub Repo, Science, History and Archives,
+  Sports, Journalism, Psychology, Philosophy, Astronomy, Paid, Music, and the
+  Recompiles and Decompiles sub-room. They are the basement.
 
-What the dry run found:
+## What is not built yet
 
-- **110 rows in, 88 already hung.** Merging as-is gives 198 exhibits.
-- **4 collisions with the live collection:** Docker Desktop (we have Docker),
-  Obsidian Canvas (we have Obsidian), Lazydocker (near-name only, keep), and
-  Kdenlive, which was dropped from the table on transcription because the
-  Atelier has had it since v1.
-- **1 collision inside the table:** Tdarr and Tdarr Agent are the same project.
-- **8 rows point at domains that do not resolve at all** — Drauger, FuzzIt,
-  LiveWeb, SAMMI, F8N-Scanner, LioranBoard, Unmanarr, KubeSpy. There is no
-  product behind them and nothing to put on a plinth.
-- **9 more resolve to something else entirely** — Strong, Ethereal, Monkey,
-  Melon, Astra, Charybdis, Movora, MelonLoader, Gopass. Spot-checked three of
-  them: ethereal.ai is a fintech API, melon.com is Korean e-commerce,
-  charybdis.org is an IRC daemon.
-- **13 rows are real products with the wrong URL** — Lightworks, Cockpit,
-  Hoppscotch, Tdarr, Open3D Engine, Subtitle Edit, TruffleHog, 010 Editor,
-  Substance, Vegas, Notion, Metasploit, xEdit. Corrected URLs are already in
-  the candidate file.
-- **The building does not hold the result.** Creative would take 52 exhibits
-  (plinths 0.76 m apart), Dev 33 (1.22 m), Media 30 (1.53 m). The plan's
-  turning circle is 1.50 m and the largest room is 12 × 11 m.
-
-**Blocked on three answers:** drop or keep the 17 unverifiable rows; whether to
-split the big rooms / add rooms / cap the rooms; and whether cost belongs on a
-plaque at all. See the plan's Decisions table — rooms are locked to the twelve
-categories that already have links, so any answer that adds rooms reopens that.
+The data says 47 rooms; `src/plan.js` still builds 12. Until the plan is
+rebuilt, the extra 35 rooms exist only as rows in a file. The rebuild is §10 of
+the plan: two concentric ring corridors, radial wedge rooms, a basement grid
+under the rotunda, sub-rooms hung off their parents, the ticket-and-brochure
+entry, three trophy stands, and random/tour choosing rooms instead of exhibits.
 
 ## Conventions worth keeping
 

@@ -1,7 +1,8 @@
 # Museum of Useful Links
 
-88 hand-picked links, in a building with twelve rooms, under a sky that is
-actually tonight's.
+192 hand-picked links, in a building that is being rebuilt from twelve rooms to
+forty-seven, under a sky that is actually tonight's. The page you can open
+today still shows the twelve; the collection is already cut for the forty-seven.
 
 Double-click `index-v2.html`. That is the whole install — one file, three.js
 bundled inside, no build step, no server, no CDN, no tracking. It works from a
@@ -145,14 +146,14 @@ library already inside it. Its parts are in `scratch/src/`, built by
 
 ## The collection
 
-Curated by hand, 88 entries, no affiliate links. Two Steam app URLs were
+Curated by hand, 192 entries, no affiliate links. Two Steam app URLs were
 corrected during the build (`Game Compressor`, `3D Controller Overlay`) and one
 entry, the GDQ Donation Generator, is served over plain `http://` because that is
 how its author publishes it.
 
-A 110-row software cost table arrived on 2026-11-12 and is **not merged**: it is
-transcribed into `scratch/candidates-software-costs.js` and `node
-scratch/check-candidates.mjs` says what it would do to the building. Eight of its
-rows point at domains that do not exist and nine more point at domains that
-belong to something else, so it is waiting on a ruling before anything hangs on
-a wall. `HANDOFF.md` carries the state of the build and that decision.
+A 112-row software cost table arrived on 2026-11-12 and is merged. It did not
+arrive clean: nine rows described products that do not exist, thirteen pointed at
+the wrong URL, and three duplicated things already on the walls. Every row was
+checked against its vendor before it was allowed a plinth, and the corrections
+are recorded in the entry itself. `node scratch/merge-costs.mjs` is the pass that
+did it and it prints every move. `HANDOFF.md` carries the state of the build.
