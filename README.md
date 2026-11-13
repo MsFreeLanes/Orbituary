@@ -157,3 +157,11 @@ the wrong URL, and three duplicated things already on the walls. Every row was
 checked against its vendor before it was allowed a plinth, and the corrections
 are recorded in the entry itself. `node scratch/merge-costs.mjs` is the pass that
 did it and it prints every move. `HANDOFF.md` carries the state of the build.
+
+## What it is for
+
+> The website is basically my go-to apps and links when working on a project or
+> having fun. It could be considered an archival of humanity.
+
+The repository is called **Orbituary**. *Museum of Useful Links* is what the
+building itself is called once you are standing in it.
