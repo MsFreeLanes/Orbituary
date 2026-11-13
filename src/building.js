@@ -247,7 +247,10 @@ function buildRoom(parent, plan, M, room, pickables, L) {
   parent.add(g);
 
   const wallMat = M.mat(room.wall, 1, 1);
-  const floorMat = M.mat(room.floor, 1, 1);
+  /* room.floor is now which storey the room is on; room.floorMat is what the
+     surface underfoot is made of. The fallback is for any room still carrying
+     the old key. */
+  const floorMat = M.mat(room.floorMat || room.floor, 1, 1);
   /* the ceiling is always a darker surface than the walls: a lamp hanging in
      a room will always find the ceiling closest, and a bright plaster slab
      overhead is the surest way to flatten the whole picture */
