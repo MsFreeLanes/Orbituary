@@ -62,7 +62,7 @@ const framings = [
      hardly trying at all. `base` stands the camera on the cellar slab. */
   ['cellar', `m.rig.teleportTo('open-source'); { const r = m.plan.byId('open-source');
      m.rig.setYawPitch(Math.atan2(-r.n.x, -r.n.z), -0.05); }`, 'base'],
-  ['cellar-dim', `m.rig.teleportTo('astronomy'); { const r = m.plan.byId('astronomy');
+  ['cellar-dim', `const dim = m.plan.rooms.filter(r => r.floor === 'basement' && !r.items.length)[0]; m.rig.teleportTo(dim.id); { const r = m.plan.byId(dim.id);
      m.rig.setYawPitch(Math.atan2(-r.n.x, -r.n.z), -0.05); }`, 'base'],
   ['cellar-arm', `m.rig.state.x = 0; m.rig.state.z = 12; m.rig.setYawPitch(Math.PI, -0.05);`, 'base'],
   ['stair-hall', `m.rig.state.x = 0; m.rig.state.z = 1.6; m.rig.setYawPitch(0, 0.20);`, 'base'],
