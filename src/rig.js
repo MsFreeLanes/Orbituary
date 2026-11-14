@@ -146,17 +146,82 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     touring: null, mouseIdle: 0, locked: false
   };
 
+  /* What stands on the floor.
+
+     A blocker is a circle in the world. The list used to tag each circle with
+     the room that owned it and then skip every tag that did not match the room
+     you were standing in, which made all of them inert the moment you crossed
+     a threshold; and the rotunda and the Observatory deck are structures
+     rather than rooms, so their pedestals were never in the list at all — six
+     plinths in the middle of the hub you could walk straight through.
+     Furniture has been writing its own circles into plan.obstacles since the
+     day it was built and nothing ever read them: 319 circles, 277 of them
+     inside the walking area.
+
+     A circle that lands in a doorway is dropped rather than obeyed. The
+     furniture is in the wrong place; the answer is to move the furniture, not
+     to pinch the door. */
   const blockers = [];
-  plan.rooms.forEach((room) => {
-    room.plinths.forEach((spot) => {
-      const c = Math.cos(room.angle), s = Math.sin(room.angle);
-      blockers.push({
-        x: room.entry.x + spot.u * c + spot.v * s,
-        z: room.entry.z - spot.u * s + spot.v * c,
-        r: 0.52, room: room.id
-      });
+  const doors = plan.walkable.rects.filter((r) => r.kind === 'door');
+  const inDoorway = (x, z, r, floor) => doors.some((d) => d.floor === floor &&
+    Math.abs((x - d.cx) * Math.cos(d.angle) + (z - d.cz) * Math.sin(d.angle)) < d.halfX + r - 0.2 &&
+    Math.abs(-(x - d.cx) * Math.sin(d.angle) + (z - d.cz) * Math.cos(d.angle)) < d.halfZ + r);
+  function addBlocker(x, z, r, floor, what) {
+    if (!isFinite(x) || !isFinite(z) || !(r > 0)) return;
+    if (inDoorway(x, z, r, floor)) return;
+    blockers.push({ x, z, r, what, floor });
+  }
+  /* a plinth spot is written in its room's own frame; the gallery builder and
+     the rotunda read it differently, so the blocker has to agree with whichever
+     one drew it */
+  function spotToWorld(room, spot) {
+    if (room.kind === 'rotunda') return { x: spot.u, z: spot.v };
+    if (room.kind === 'cupola') return { x: room.entry.x - spot.u, z: room.entry.z - spot.v };
+    const c = Math.cos(room.angle), s = Math.sin(room.angle);
+    return {
+      x: room.entry.x + spot.u * c + spot.v * s,
+      z: room.entry.z - spot.u * s + spot.v * c
+    };
+  }
+  [plan.rotunda].concat(plan.rooms).forEach((room) => {
+    (room.plinths || []).forEach((spot) => {
+      const p = spotToWorld(room, spot);
+      addBlocker(p.x, p.z, 0.52, room.floor, 'plinth');
     });
   });
+  (plan.obstacles || []).forEach((o) => {
+    const owner = plan.byId ? plan.byId(o.room) : null;
+    addBlocker(o.x, o.z, o.r, (owner && owner.floor) || 'ground', 'prop');
+  });
+
+  /* Slide a body out of whatever it has landed inside. Used by the tour and by
+     any jump: a route is a polyline through the plan and the plan does not
+     know what stands in it, so a tour that ends at a plinth used to finish the
+     walk with your face inside a pedestal. Never push into a wall: if the
+     clear point is not floor, the body stays where it is. */
+  function settle(x, z) {
+    for (let pass = 0; pass < 4; pass++) {
+      for (const b of blockers) {
+        if (b.floor !== state.storey) continue;
+        const dx = x - b.x, dz = z - b.z, d2 = dx * dx + dz * dz;
+        if (d2 >= b.r * b.r) continue;
+        const d = Math.sqrt(d2) || 1e-4;
+        const ux = dx / d, uz = dz / d;
+        /* straight out first, a finger's width past the boundary so the next
+           test does not land back on it; if the clear point is not floor — a
+           pedestal against a wall — go round it, either hand. the walkable
+           test is taken at half a body here: the body is being nudged past an
+           obstruction, not standing still against it. */
+        const want = b.r + 0.03;
+        const tries = [[ux, uz], [-uz, ux], [uz, -ux], [(ux - uz) * 0.71, (uz + ux) * 0.71]];
+        for (const [ax, az] of tries) {
+          const nx = b.x + ax * want, nz = b.z + az * want;
+          if (inside(plan.walkable, nx, nz, S.BODY_R * 0.5, state.storey)) { x = nx; z = nz; break; }
+        }
+      }
+    }
+    return { x, z };
+  }
 
   /* How far down the flight you are: 0 at the head, 1 at the foot, or null if
      your feet are not on it. `pad` pulls the test in to the handrail line, so
@@ -169,6 +234,36 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
      the latch, the flight's footprint is just a patch of plan under the
      rotunda, and walking south across the well would drop the visitor onto
      the bottom step. */
+  /* The route network is a set of points on the plan, and the plan does not
+     know what stands on them. A node that lands inside a crate stack makes the
+     leg through it walk a visitor into the crate while the route pulls them
+     onward, and the tour stalls in place. So the network is bent around the
+     furniture once, at startup: the node moves to the near side of the
+     obstruction and the leg goes round it. A node that cannot move without
+     leaving the floor is left where it is, because a route that clips a corner
+     is better than no route. */
+  Object.keys(graph.nodes).forEach((key) => {
+    const n = graph.nodes[key];
+    const owner = plan.byId ? plan.byId(n.room) : null;
+    const storey = owner && owner.floor === 'basement' ? 'basement' : 'ground';
+    for (let pass = 0; pass < 4; pass++) {
+      const b = blockers.find((k) => {
+        if (k.floor !== storey) return false;
+        const dx = n.x - k.x, dz = n.z - k.z, need = k.r + 0.25;
+        return dx * dx + dz * dz < need * need;
+      });
+      if (!b) break;
+      const dx = n.x - b.x, dz = n.z - b.z, d = Math.hypot(dx, dz) || 1e-4;
+      const want = b.r + 0.12;
+      const nx = b.x + (dx / d) * want, nz = b.z + (dz / d) * want;
+      /* only move a little: a node shoved far enough to clear a crate can end
+         up hugging the wall, and the leg through it clips a corner */
+      if (Math.hypot(nx - n.x, nz - n.z) > 0.55) break;
+      if (!inside(plan.walkable, nx, nz, S.BODY_R, storey)) break;
+      n.x = nx; n.z = nz;
+    }
+  });
+
   let onFlight = false;
 
   function flightT(x, z, pad = 0) {
@@ -221,10 +316,11 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     return hall || 'corridor';
   }
 
-  function blocked(x, z) {
-    const room = roomAt(x, z);
+  function blocked(x, z, storey = state.storey) {
     for (const b of blockers) {
-      if (b.room !== room) continue;
+      /* the cellar grid sits under the hub: a crate in a cellar room is not a
+         bollard on the terrazzo above it */
+      if (b.floor !== storey) continue;
       const dx = x - b.x, dz = z - b.z;
       if (dx * dx + dz * dz < b.r * b.r) return true;
     }
@@ -333,6 +429,10 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
        and you arrive off the flight, wherever you arrive. */
     onFlight = false;
     state.storey = room.floor === 'basement' ? 'basement' : 'ground';
+    /* arrive beside the furniture, not inside it. the stand point is a plan
+       point and the plan does not know that a crate stack sits in the mouth. */
+    const clear = settle(state.x, state.z);
+    state.x = clear.x; state.z = clear.z;
     state.level = levelAt(state.x, state.z);
     state.room = roomAt(state.x, state.z);
     if (hooks.onRoom) hooks.onRoom(state.room, true);
@@ -359,7 +459,21 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
         }
         acc += leg.d;
       }
-      state.x = px; state.z = pz;
+      /* the route is a polyline through the plan, and the plan does not know
+         what stands in it. without this a tour finishes with your face inside
+         a pedestal and the wall behind looks like the thing you clipped. */
+      const clear = settle(px, pz);
+      state.x = clear.x; state.z = clear.z;
+      /* the storey follows the floor under the feet, not the destination — but
+         with a preference for where the rig already thinks you are, because a
+         ground corridor and a cellar corridor can lie on top of one another and
+         a point can be inside both. switch only when the current storey no
+         longer holds you: a tour down to the cellar used to decide you were
+         below before it had reached the stair, and walked you through every
+         wall on the way. */
+      const other = state.storey === 'ground' ? 'basement' : 'ground';
+      if (!inside(plan.walkable, state.x, state.z, S.BODY_R, state.storey) &&
+          inside(plan.walkable, state.x, state.z, S.BODY_R, other)) state.storey = other;
       if (state.mouseIdle > 1.1) {
         let want = heading;
         if (tour.t >= tour.dur - 0.001 && tour.arriveYaw !== undefined) want = tour.arriveYaw;
@@ -453,6 +567,10 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
 
   return {
     state, update, walkTo, stopTour, teleportTo, lock, roomAt, flightT,
+    /* the probes ask the rig what it thinks is solid, rather than guessing at
+       it from the mesh list — the whole point is that these two answers used
+       to be different */
+    blocked, settle, blockers: () => blockers.slice(),
     get touring() { return state.touring; },
     setYawPitch(yaw, pitch) { state.yaw = yaw; state.pitch = pitch; }
   };

@@ -670,7 +670,7 @@ export function buildPlan() {
       doorW: S.DOOR_BIG, doorH: S.DOOR_BIG_H,
       winCount: 0, winW: 0, winH: 0, sill: 0
     });
-    cupola.plinths = [20, 75, 150, 225, 265, 340].map((deg) => {
+    cupola.plinths = [35, 75, 150, 225, 265, 340].map((deg) => {
       /* six pedestals on the deck ring, facing the well. The old ring was laid
          at radius 3.2 about the well, which is wider than the gallery's own
          box and put two of them outside a wall that does not exist; and the
@@ -776,7 +776,7 @@ export function buildPlan() {
      there is no doorway, and the three bearings the well covers are skipped:
      the north half of the hub is the stair. */
   rotunda.plinths = [];
-  for (const deg of [15, 75, 105, 255, 285, 345]) {
+  for (const deg of [45, 75, 105, 255, 285, 345]) {
     const a = deg * Math.PI / 180;
     rotunda.plinths.push({ u: Math.sin(a) * 5.0, v: Math.cos(a) * 5.0, face: a + Math.PI });
   }
