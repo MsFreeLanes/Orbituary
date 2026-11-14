@@ -432,7 +432,7 @@ function boot() {
   /* the works are left reachable from the console on purpose: the checks in
      scratch/ drive the museum through this, and anyone curious can walk it
      from the command line */
-  window.__museum = { THREE, plan, rig, sky, lighting, hud, audio, view, camera, scene, inside, LINKS, S, scheduler };
+  window.__museum = { THREE, plan, rig, sky, lighting, hud, audio, view, camera, scene, inside, LINKS, S, scheduler, built };
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

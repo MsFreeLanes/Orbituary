@@ -1811,6 +1811,17 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
 const REACH = 6.0;                        // metres of shell either side of you
 const HUB_REACH = 12.0;                   // how far down a range you still see the drum
 const CONE = 55 * Math.PI / 180;          // ±two ranges either side of the way you face
+/* A range that is already lit stays lit 3 m further out than one that is not,
+   and a range in the hub's view cone stays in it 10° past the edge. Without
+   that the threshold is a tripwire: walk down a corridor at the speed a body
+   walks and the range on your left vanishes at the exact metre the arithmetic
+   says it may. That is the pop-in — not the number of objects.
+   AHEAD is the other half of the answer: a range you are walking towards comes
+   on while it is still 7 m away, so it is there when you arrive rather than
+   arriving as you arrive. */
+const LEAVE = 3.0;
+const AHEAD = 7.0;
+const CONE_LEAVE = 10 * Math.PI / 180;
 
 /* distance from a point to a rotated rect, 0 when inside it */
 function distToRect(x, z, r) {
@@ -1841,17 +1852,20 @@ function spokeCull(o) {
       const inHall = basement && hall && distToRect(pos.x, pos.z, hall) < 1.0;
       const nearWell = distToRect(pos.x, pos.z, well) < 9.0;
       const facing = Math.atan2(fwd.x, fwd.z);
+      const ax = pos.x + fwd.x * AHEAD, az = pos.z + fwd.z * AHEAD;
       for (const w of wings) {
         if ((w.storey === 'basement') !== basement) { w.group.visible = false; continue; }
+        const was = w.group.visible;
+        const reach = was ? REACH + LEAVE : REACH;
         let show = false;
         for (const r of w.rects) {
-          if (distToRect(pos.x, pos.z, r) < REACH) { show = true; break; }
+          if (distToRect(pos.x, pos.z, r) < reach || distToRect(ax, az, r) < REACH) { show = true; break; }
         }
         if (!show && (inHub || inHall)) {
           let d = Math.atan2(w.dir.x, w.dir.z) - facing;
           while (d > Math.PI) d -= TAU;
           while (d < -Math.PI) d += TAU;
-          show = Math.abs(d) < CONE;
+          show = Math.abs(d) < CONE + (was ? CONE_LEAVE : 0);
         }
         w.group.visible = show;
       }
@@ -1943,5 +1957,5 @@ export function buildBuilding(THREE, plan, M) {
      asks the building what it can see whether the composer or a probe is
      holding the renderer */
   group.userData.cull = cull;
-  return { group, pickables, cull, anim };
+  return { group, pickables, cull, anim, wings };
 }
