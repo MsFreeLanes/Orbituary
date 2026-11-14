@@ -43,7 +43,7 @@ import { PALETTE } from './materials.js';
 import { LINKS } from './data.js';
 import {
   plaqueSheets, roomSign, uvRect, rulesBoardTexture, trophyPlaqueTexture,
-  wantedCardTexture, counterSignTexture
+  wantedCardTexture, wantedPlinthTexture, counterSignTexture
 } from './signage.js';
 import { furnish, furnishRotunda } from './props.js';
 import { cellarArm, stairHall } from './atmosphere.js';
@@ -450,12 +450,37 @@ function addPlinths(g, B, kit, room, pickables, spots, linkAt) {
        sheet per room — per sixteen labels, rather — so the words cost a
        texture each, not one per plinth */
     const cell = room._cells && room._cells[i];
-    if (cell && room._labelMats) {
+    if (spot.wanted) {
+      /* The empty plinth in a cellar storeroom. It is stone, it has the room's
+         colour inlaid in it, and you cannot walk through it; what it has instead
+         of an exhibit is a card that says so. No pick box: the pointer aims at
+         exhibits, and there is nothing here for a plaque to open. */
+      if (!room._wantedMat) {
+        const tex = wantedPlinthTexture(room, THREE, 8);
+        room._wantedMat = new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: tex,
+          emissiveIntensity: 0.46, roughness: 0.7, metalness: 0
+        });
+      }
+      B.put(new THREE.PlaneGeometry(0.44, 0.22), room._wantedMat,
+        spot.u + Math.sin(spot.face) * labelD, 0.66,
+        spot.v + Math.cos(spot.face) * labelD, { ry: spot.face });
+    } else if (cell && room._labelMats) {
+      /* The label's place is the plinth's place plus the half-width of the
+         stone, in the direction the plaque faces. It used to be only the second
+         half of that sum — `sin(face) * labelD, 0.66, cos(face) * labelD` —
+         which is a position near the room's own origin, and a room's origin is
+         its doorway. Every wall label in the building was welded into the door
+         reveal 4.7 m from the plinth it belonged to, at knee height, and the
+         probe that found it is `scratch/probe-wanted.mjs`, which measures the
+         distance from a card to the stone it is supposed to be standing on. */
       B.put(uvRect(new THREE.PlaneGeometry(0.44, 0.22), cell), room._labelMats[cell.sheet],
-        Math.sin(spot.face) * labelD, 0.66, Math.cos(spot.face) * labelD, { ry: spot.face });
+        spot.u + Math.sin(spot.face) * labelD, 0.66,
+        spot.v + Math.cos(spot.face) * labelD, { ry: spot.face });
     }
     B.put(kit.puck, puck, spot.u, S.PLINTH_H + 0.055, spot.v, { kit: true, cast: false });
 
+    if (spot.wanted) return;
     const node = new THREE.Mesh(kit.pick, kit.pickMat);
     node.position.set(spot.u, S.PLINTH_H / 2, spot.v);
     node.rotation.y = spot.face;

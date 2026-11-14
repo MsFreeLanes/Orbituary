@@ -281,6 +281,11 @@ const ZONES = [
 const ZONE_OF = {};
 ZONES.forEach((z) => z.cats.forEach((c) => { ZONE_OF[c] = z; }));
 const HUB_ZONE = ZONES.find((z) => z.key === 'HUB');
+/* the four rooms about the museum itself. They are the only spaces fitted out
+   from `identity.js` rather than from the link table, so they are also the only
+   rooms that must not be handed a spare plinth: their walls already say what an
+   empty plinth would say. */
+const PURPOSE_CATS = new Set(['Box Office', 'Rules Room', 'Trophy Hall', 'Acquisitions Hall']);
 
 /* A category nobody assigned still gets a code: it goes to the hub, which is
    the honest answer, because an unsorted subject is not a wing yet. */
@@ -399,6 +404,22 @@ function makeRoom(walkable, o) {
   room.winW = o.winW; room.winH = o.winH; room.winSill = o.sill;
 
   room.plinths = layoutPlinths(room);
+  /* A cellar room with nothing to show still gets a plinth, and the plinth
+     tells the truth: it is empty, and there is a card on it saying what would
+     go on it. The museum's whole argument is that the door is the agreement and
+     the collection is what the visitors send — the Acquisitions Hall has four
+     empty frames for exactly this reason — so a storeroom with an empty plinth
+     is the same sentence said in the room where the things are actually kept.
+
+     It stands in the middle of the room, facing the door, clear of the shelving
+     down the side walls and of the bench, flat file and pallet the storeroom
+     furniture puts down. It is a plinth in every way the building cares about —
+     stone, colour puck, a circle you cannot walk through — except that it has no
+     exhibit behind it, so the pointer does not pick it up and there is nothing
+     for the plaque to open. */
+  if (!room.plinths.length && room.floor === 'basement' && !PURPOSE_CATS.has(room.cat)) {
+    room.plinths.push({ u: 0, v: room.d / 2 + 0.4, face: Math.PI, wanted: true });
+  }
   o.items.forEach((li, i) => { LINKS[li]._room = room.id; LINKS[li]._spot = i; });
 
   walkable.rects.push({

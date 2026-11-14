@@ -21,13 +21,13 @@ withBrowser(async ({ send, evaluate, sleep: nap }) => {
       angle: +r.angle.toFixed(2), entry: [+r.entry.x.toFixed(2), +r.entry.z.toFixed(2)] }; })()`;
   console.log(JSON.stringify(await evaluate(setup)));
   /* look down the room towards the back wall, then back towards the door */
-  const shots = [['cellar-bench', 0.0], ['cellar-shelving', -Math.PI / 2], ['cellar-door', Math.PI]];
+  const shots = [['bench', 0.0], ['shelving', -Math.PI / 2], ['door', Math.PI]];
   for (const [name, dyaw] of shots) {
     await evaluate(`(() => { const m = window.__museum; const s = m.rig.state; const r = m.plan.byId(${JSON.stringify(ROOM)});
       s.yaw = r.angle + Math.PI + ${dyaw}; s.pitch = -0.06; m.rig.update(0.05); return s.room; })()`);
     await nap(1500);
     const shot = await send('Page.captureScreenshot', { format: 'png' });
-    fs.writeFileSync(path.join(process.cwd(), 'scratch', name + '.png'), Buffer.from(shot.data, 'base64'));
-    console.log('wrote scratch/' + name + '.png');
+    fs.writeFileSync(path.join(process.cwd(), 'scratch', ROOM + '-' + name + '.png'), Buffer.from(shot.data, 'base64'));
+    console.log('wrote scratch/' + ROOM + '-' + name + '.png');
   }
 });

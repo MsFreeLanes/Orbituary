@@ -496,6 +496,50 @@ export function wantedCardTexture(label, THREE, aniso) {
   return tex;
 }
 
+/* A cellar storeroom's empty plinth. The Acquisitions Hall says the same thing
+   with four empty frames; this says it in the size that fits on the face of a
+   plinth, in the room where the things are actually kept. It is a label the
+   visitor reads from half a metre, so the type is set for that distance: the
+   word WANTED is the thing you recognise from two metres, and the sentence
+   under it is the thing you read when you have walked the extra three. */
+export function wantedPlinthTexture(room, THREE, aniso) {
+  THREEref = THREE;
+  const W = 512, H = 256;
+  const cv = canvas(W, H);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#f4f4f5';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0c';
+  ctx.fillRect(0, 0, W, 56);
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#ffb700';
+  ctx.font = `600 26px ${MONO}`;
+  spaced(ctx, 'WANTED', 22, 38, 6);
+  ctx.font = `600 19px ${MONO}`;
+  ctx.fillStyle = '#8a888e';
+  ctx.textAlign = 'right';
+  ctx.fillText(room.code || '', W - 22, 38);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#141416';
+  ctx.font = `42px ${SERIF}`;
+  let ly = 112;
+  for (const line of wrap(ctx, `the first thing in ${room.name || room.cat}`, W - 44)) {
+    ctx.fillText(line, 22, ly); ly += 46;
+  }
+  ctx.font = `23px ${SERIF}`;
+  ctx.fillStyle = '#5c5a5e';
+  ly += 8;
+  for (const line of wrap(ctx, 'Nothing has been chosen for this room yet. The plinth is here, and so is the card.', W - 44)) {
+    ctx.fillText(line, 22, ly); ly += 28;
+  }
+
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'wantedPlinth';
+  return tex;
+}
+
 /* Box Office: the sign over the counter. */
 export function counterSignTexture(THREE, aniso) {
   THREEref = THREE;
