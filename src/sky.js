@@ -782,14 +782,26 @@ export function createSky(THREE) {
        quaternion, exactly as the haze does, and stays there whatever the
        dial says. The terminator turns with the sun's bearing under the
        station: on the map +x runs west and +y runs south, so the anti-sun
-       direction is atan2(-z, x) + pi in room axes. */
+       direction is atan2(z, x) in room axes, and the paint turns the brush by
+       pi more than that so its +x points away from the sun. The sign of the z
+       term is not a detail: the canvas is drawn top-down while the texture is
+       uploaded bottom-up, so canvas +y runs north even though the texture's own
+       +v runs south. Measuring the bearing the other way round mirrors the
+       terminator across the map and puts the night side under the sun. */
     iq.copy(group.quaternion).invert();
     earth.quaternion.copy(iq);
     limb.quaternion.copy(iq);
     earth.position.set(0, -S.EARTH_DROP, 0).applyQuaternion(iq);
     limb.position.copy(earth.position);
-    const earthAz = Math.atan2(-state.sunDir[2], state.sunDir[0]);
-    if (Math.abs(earthAz - lastEarthAz) > 0.01 || Math.abs(state.sunAlt - lastEarthAlt) > 0.01) {
+    const earthAz = Math.atan2(state.sunDir[2], state.sunDir[0]);
+    /* `> 0.01` against a NaN is false, and these two start as NaN, so this
+       guard — which was written to skip the repaint when nothing had moved —
+       skipped every repaint, forever. The planet has been showing the frame
+       painted once at boot: a fixed half-shadow on one side of the disc, never
+       turning with the sun, never answering the region or the hour the card
+       names. Written as "not unchanged" so the first pass counts as changed. */
+    const moved = (a, b) => !(Math.abs(a - b) <= 0.01);
+    if (moved(earthAz, lastEarthAz) || moved(state.sunAlt, lastEarthAlt)) {
       paintEarth(state.sunAlt, earthAz);
       lastEarthAz = earthAz;
       lastEarthAlt = state.sunAlt;
