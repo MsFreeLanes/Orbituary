@@ -686,25 +686,82 @@ assertions green. Blockers 523 → 551; `check-collision`'s storey test now asks
 only furniture whether it is solid on the floor above it, since the partition is
 deliberately solid on both.
 
-**One thing that came out of the lift work and is still true.** To write the
-partition's blockers I had to ask how the blocker list is tagged by storey, and
-the answer is: 537 ground, 14 basement, and the 14 are all mine. Every plinth and
-every prop circle in the building is tagged `ground`, because the fourteen cellar
-rooms have no plinths, no props and no pick nodes at all — `apple-dev`,
-`open-source`, `creative-writing` and the rest are empty rooms with a cold tube in
-the ceiling. That is a content gap, not a collision bug: nothing in the cellar is
-solid because nothing in the cellar is *furnished*. It is the largest thing
-missing from the building, and it is now measured rather than assumed.
+### 17:0x — the corridor obstruction turned out to be a measurement error, and then it didn't
 
-**Still open, in the order I would take them.** Furnish the cellar: fourteen
-rooms, no exhibits, no props, and the tour walks you into a room with nothing in
-it. Ten to eighteen pieces of furniture sit on a corridor centreline, worst around
-(−25.5, 3.5) and (−20.3, 6) on the ground floor: the route goes round them and
-walking into them now stops you, which is correct, but they should not be
-standing there; `probe-corridor-props` names them and its perpendicular
-measurement is still wrong. Door and window placement beyond the lone-window fix.
-Nine pick nodes sit inside corridor rects rather than room rects, which is legal
-but untidy. A real distance fade at the wing edges — hysteresis and look-ahead are
-in, the fade is not. And the front door stands on the Observatory's deck, so the
-plate there says *The Observatory*: geometrically true, and a design question for
-the owner rather than something to hack.
+`check-collision` reported ten points down a corridor that were solid, and
+`check-placement` said nine pick nodes sat inside corridor rects. Both numbers
+were wrong, and the wrong part was ours: the probes measured the corridors
+**across**. A walkable rect's long axis is `(sin angle, cos angle)` and its short
+axis is `(cos angle, −sin angle)` — the pair `plan.js inside()` uses — and the
+probes walked `(−sin, cos)`, which is the rig's *forward* convention rather than
+the rect's. On a spoke at 0.52 rad that is a chord, not a centreline, and over a
+37 m corridor it reports an obstruction wherever the furniture is standing
+politely in its own room. `check-placement`, `check-collision` and
+`probe-corridor-props` all had it. With the axes corrected, the nine pedestals in
+corridors are **zero**: they were never there, and `probe-plinth-corridor` now
+prints the same thing from the plan alone.
+
+One real thing survived the correction, and it was the deck. The twelve spokes
+leave the hub at 0, 30, 60 … and at the deck's radius their 2.6 m strips overlap
+one another, so there is no gap between them to stand in — only the middle. The
+six pedestals on the Observatory ring were at world bearings 29, 64, 143, 235,
+277 and 343: all but a degree or two off the spokes themselves, so each one stood
+in a walking line. They now sit at 45, 75, 105, 255, 285 and 315 measured from the
+middle of the drum — 1.04 m off the nearest spoke, the widest the deck offers,
+clear of the front door's bearing and of the well. The numbers written in
+`plan.js` are untidy on purpose (53.3, 86.4, 116.4 …) because the ring is centred
+on the well, which is 0.8 m north of the middle the spokes are measured from, and
+the comment says so. **`14d9a3c`**: corridor centreline blocked 10 → 0, in a
+corridor 9 → 0.
+
+The plan also now checks its own pedestals against its own circulation while it
+builds — smallest push first, deeper into the room, never out of the room's rect,
+never within 1.25 m of a neighbour — and names anything it could not move in
+`plan.plinthRepairs`. It has nothing to report, and `check-placement` prints that
+so the guard stays honest instead of becoming code nobody reads.
+
+### 17:2x — the cellar is a storeroom now, and it is solid
+
+`be58780`. The fourteen cellar rooms — `apple-dev`, `open-source`,
+`creative-writing`, `journalism`, `music` and the rest — had nothing in them. Not
+nothing to display: nothing *built*. `furnish()` had a builder for twelve
+categories and an alias for five more, and the cellar rooms matched none of them,
+so they were empty shells with a cold tube in the ceiling and nothing you could
+not walk through. The plan explains why they are down there — the emptiest
+categories are shelved below, and a category with nothing in it is always
+downstairs until something arrives — but an empty room is not a storeroom, and
+the ticket already promises *fourteen waiting in the cellar*.
+
+They get the archive's own furniture: shelving down both side walls with the
+boxes things arrived in stacked along them; a flat file against the back wall with
+one drawer out; a bench under a cold strip with a vise, three crates and a
+clipboard; a pallet by the door still strapped; a ladder leaning, because a ladder
+is never put away; pipes along the ceiling painted the same colour as the slab so
+you only notice them when something is dripping. Same system in every room, a
+different disorder, seeded from the room's own id, so the same storeroom is
+untidy in the same way every visit. `shot-cellar.mjs` photographs it
+(`cellar-bench.png`, `cellar-shelving.png`, `cellar-door.png`).
+
+Prop circles 319 → 1187, and they are tagged to the cellar at last: an obstacle's
+storey comes from the room that owns it, which was always correct and never had
+anything to be correct about. `check-collision`'s storey test was rewritten in the
+same commit, because the question it asked was not the question worth asking. Two
+storeys sharing a plan position is normal here — the cellar arms run under the
+galleries — and it is not an invisible wall, since the rig filters by floor. What
+matters is whether a piece of furniture is solid where it actually stands: **0
+inert out of 1419**.
+
+**Still open, in the order I would take them.**
+- The fourteen cellar rooms are furnished but still have **no exhibits**: no
+  links, no plinths, no pick nodes. The tour walks you into a storeroom with
+  nothing in it. Which categories get a first exhibit, and whether any of them
+  get it downstairs, is a content decision for the owner.
+- A real distance fade at the wing edges — hysteresis and look-ahead are in, the
+  fade is not.
+- Door and window placement beyond the lone-window fix.
+- The small-creature ambience out of sight, ships and comets outside, and gating
+  sound and effects to what is actually visible.
+- The front door stands on the Observatory's deck, so the plate there says *The
+  Observatory*: geometrically true, and a design question for the owner rather
+  than something to hack.
+- Controllers, deferred by you until the building is right.

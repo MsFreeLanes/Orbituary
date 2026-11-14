@@ -2,7 +2,7 @@
 tags: [museum, project, handoff]
 updated: 2026-11-14 (fourth pass)
 build: v2
-head: 9f57701
+head: be58780
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -36,17 +36,23 @@ of `src/props.js` that nothing imported — was wired in on 2026-11-14.
 
 51 rooms: 47 category rooms and 4 about the museum itself (Box Office,
 Acquisitions Hall, Rules Room, Trophy Hall). 8 zones, 12 ranges (8 ground, 4
-cellar arms), 16 corridors, 192 links, 198 plinths, 32 rooms with something on
-the walls and 19 without. The cellar holds 14 of those empties under a 10 × 8 m
-stair hall; the emptiest categories were put there deliberately, so the
-basement is the place the museum has not decided about yet.
+cellar arms), 16 corridors, 192 links, 204 pick nodes, 32 rooms with something on
+the walls and 19 without — and all nineteen now have furniture in them, because
+the fourteen cellar empties were given the archive's own shelving, flat file,
+bench and pallet. The cellar holds those 14 under a 10 × 8 m stair hall; the
+emptiest categories were put there deliberately, so the basement is the place the
+museum has not decided about yet.
+
+The building is solid: 1419 collision circles by storey (204 pedestals, 1187
+pieces of furniture, 28 for the lift's partition), none of them inert where they
+stand, none of them pinching a doorway, and no corridor centreline blocked.
 
 One storey up: rotunda 16 m across, dome springing at 6.5 m, cupola whose floor
-is a hole, a stair down through the mouth. Cellar slab 3.6 m down, 3.2 m of
-clear ceiling, and the pressure hull's belly 4 cm above the cellar soffit.
-Lighting is a pool of 10 point lights handed between anchors, plus one static
-light in the stair hall that the pool does not know about. The bundle is 882 KB
-and the Cupola view runs 327 draw calls / 87k triangles / 49 textures.
+is a hole, a stair down through the mouth and a lift beside it. Cellar slab 3.6 m
+down, 3.2 m of clear ceiling, and the pressure hull's belly 4 cm above the cellar
+soffit. Lighting is a pool of 10 point lights handed between anchors, plus one
+static light in the stair hall that the pool does not know about. The bundle is
+895 KB and the Cupola view runs 477 draw calls / 125k triangles / 52 textures.
 
 ## What landed on 2026-11-14
 
@@ -76,32 +82,51 @@ controllers deferred, everything needs collision, and the hardware question.
 | 4 | `2788836` | H walks you to the front door, Shift+H puts you there, Tab is the brochure, and opening a panel releases the pointer lock — `check-keys` |
 | 5 | `6959ee6` | the cull got hysteresis and a look-ahead: 114 flips and 35 oscillations over a 223 m walk became 84 and 11 — `check-pop` |
 | 6 | `9f57701` | the moon: 1024 px, real maria positions under an orthographic projection, craters as rims, ray systems, soft terminator, earthshine — `shot-moon` |
+| 7 | `a31c0ac` | the Earth was painted once at boot and never again: the terminator now turns with the sun, and the side turned away from it is the darker side at every hour — `check-terminator` |
+| 8 | `fd9a41c` | the lift: a glazed shaft in the east metre of the stair well beside the flight, a cabin that carries one person and a box of books, `E` to ride, the storey changing at the door — `check-lift`, 20 assertions |
+| 9 | `14d9a3c` | the pedestals on the Observatory deck were standing in the spokes; and three probes had been measuring the corridors across, which is where the phantom obstructions came from — blocked centrelines 10 → 0 |
+| 10 | `be58780` | the cellar is a storeroom: shelving, flat file, bench, pallet, ladder, pipes, and 868 new collision circles tagged to the basement |
 
 **The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
-5090, 62 GB, 3440×1440 at 143 Hz. The whole station is 309–460 draw calls and
-85k–124k triangles. There is no object-count problem on this machine, and every
+5090, 62 GB, 3440×1440 at 143 Hz. The whole station is 309–478 draw calls and
+85k–125k triangles. There is no object-count problem on this machine, and every
 fps figure in `NIGHT-LOG.md` is the CDP harness rendering through SwiftShader,
 not the machine. Effort belongs on correctness and on what a visitor sees.
 
-**Not done, in the order I would take them.** The elevator the owner asked for
-alongside the grand stair — a shaft needs a decision before it gets built, and
-half an elevator is worse than none. Ten to eighteen pieces of furniture sit on
-a corridor centreline (worst cluster around (−25.5, 3.5) and (−20.3, 6), ground
-floor): the route goes around them and walking into them stops you, which is
-correct behaviour, but they should not be there — `probe-corridor-props` names
-them. Door and window placement beyond the lone-window fix. Creature ambience
-out of sight. Ships and comets outside. Gating sound and effects to the
-visibility set.
+**Not done, in the order I would take them.**
+- The fourteen cellar rooms are furnished but hold **no exhibits**: no links, no
+  plinths, no pick nodes. The tour walks you into a storeroom with nothing in it.
+  This is a content decision, not a build one — see *Waiting on the owner*.
+- A real distance fade at the wing edges. Hysteresis and a look-ahead point are in
+  (`6959ee6`: 114 flips and 35 oscillations over a 223 m walk became 84 and 11);
+  the fade itself is not.
+- Door and window placement beyond the lone-window fix.
+- Creature ambience out of sight; ships and comets outside; gating sound and
+  effects to the visibility set.
+- Controllers, deferred by the owner until the building is right.
 
 ## Waiting on the owner
 
-- **Where does the elevator go?** The owner asked for one alongside the grand
-  stair. The stair occupies the well at x ±1.5, z −6.6…−1, and the deck ring
-  above it is the Observatory's floor. A cabin needs a shaft of its own — the
-  obvious site is the north side of the rotunda against the drum, which costs
-  one arch and the range behind it — or it shares the well, which means the
-  cabin passes under the stair and needs its own hole in the cellar ceiling.
-  Both are one decision away and neither is free.
+- **The elevator is built, and one thing about it is still yours.** It stands in
+  the east metre of the stair well (`fd9a41c`): the flight narrowed from 3.00 m to
+  1.84 m to make room, the shaft is glazed the height of the well with a 0.90 m
+  parapet, and each storey got a landing frame standing on the floor just outside
+  the well's edge, because without a frame a lift in a floor opening reads as a
+  white booth on the terrazzo. It carries one person and a box of books, takes
+  five seconds a storey, and the storey changes at the door rather than halfway
+  down the shaft. What is yours: **the shaft has no doors.** The cabin's grille
+  and the glazed partition are the only thing between a visitor and a 3.6 m hole,
+  and the rig keeps you out of the well with collision circles rather than with
+  metal. Door panels at both docks would be honest about what a lift is; they
+  would also hide the flight from the rotunda, which is why they are not there yet.
+- **Which categories get their first exhibit, and does any of it go downstairs?**
+  The fourteen cellar rooms now look like storerooms and still have nothing to
+  look at. `apple-dev`, `open-source`, `creative-writing`, `accessibility`,
+  `web-extension`, `github-repo`, `science`, `history-and-archives`, `sports`,
+  `journalism`, `psychology`, `philosophy`, `paid`, `music` — each is a room with a
+  code on its door, a cold tube that is trying to start, and no plinth. The plan
+  says a category with nothing in it is always downstairs until something arrives,
+  which is true of the museum and not very welcoming of the room.
 - **What is the front door called?** The door at (0, 4.5) stands on the
   Observatory's deck ring, so the nameplate there reads *The Observatory*. That
   is geometrically true — the deck is the ring you are standing on — but it may
@@ -121,10 +146,16 @@ visibility set.
   reading of the identity brief's loading-screen note, not a spec.
 - **The trophy ladder** says sponsor, then donor past a published line, then the
   keeper's own work. The line has no number on it yet.
-- **Props do not stop you.** `props.js` writes its footprints into
-  `plan.obstacles`, and `rig.js` does not read them, so you can walk through a
-  workbench. Making them solid is a separate change to the collision, and it is
-  the one that could break the walkability proof.
+- **Props stop you now.** `props.js` writes its footprints into
+  `plan.obstacles` and `rig.js` turns them into 1187 circles, tagged to the
+  storey of the room that owns them, so a workbench is a workbench downstairs and
+  a crate is a crate in the cellar. The route network bends around them and
+  `settle` pushes a visitor out of anything they end up inside. What to watch: the
+  circles come from the *drawn* geometry's bounding box, so a piece of furniture
+  that moves in a builder needs a circle written by hand, and the doorway
+  exemption silently drops any circle that lands in a door — which is why
+  `check-collision` counts how many pieces of furniture are inert where they
+  stand, and why that number is 0.
 
 ## Known artifacts, and where they stand
 
@@ -187,10 +218,17 @@ move; `--write` is what rewrites the data file.
   and walkable space from one frame per room; `src/building.js` is meshes. A
   room's local frame has its doorway at the origin and +Z running in.
 - Checks run from the repo root: `check-v2`, `check-scale`, `check-sky`,
-  `check-events`, `check-data`, `check-candidates`, `check-props`.
-- Screenshots and probes live in `scratch/` and are gitignored: they are
-  evidence, not source. `window.__museum` exposes the live building, including
-  `scene`, and every atmosphere mesh carries `userData.atmo`.
+  `check-events`, `check-data`, `check-candidates`, `check-props`, `check-tube`,
+  `check-placement`, `check-collision`, `check-lights`, `check-keys`,
+  `check-pop`, `check-terminator`, `check-lift`. The last four are the ones that
+  caught real bugs this pass: the storey test, the cull's thresholds, the Earth
+  painted once at boot, and the lift's mid-shaft storey flip.
+- Probes and checks live in `scratch/` and **are tracked** — they are how a claim
+  in this file can be re-checked a week later. The `.png` evidence they write and
+  `scratch/bundle.js` are gitignored. `window.__museum` exposes the live building,
+  including `scene`, `rig`, `plan`, `sky`, `lighting` and `built`, and every
+  atmosphere mesh carries `userData.atmo`. Note `built.lift` is the cabin's
+  Object3D: anything that moves is never part of the welded batch.
 - Commit messages are prose, not tickets: what changed and why, in the
   imperative. See `git log`.
 - A session that runs unattended keeps a `NIGHT-LOG.md`: a backup table, a
