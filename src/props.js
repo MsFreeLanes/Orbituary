@@ -828,6 +828,124 @@ function fun(K, room, plan, anim) {
   }
 }
 
+/* ── the cellar: fourteen store rooms ────────────────────────────────────
+   The fourteen categories with nothing in them are shelved downstairs, and
+   until something arrives the rooms hold the archive's own furniture: the
+   boxes the exhibits came in, the shelving a storeroom is built with, and the
+   bench where a thing gets looked at before it ever gets a plinth.
+
+   This is also the reason the cellar has collision at all. Nothing down here
+   was solid, because nothing down here was built: `furnish` had a builder for
+   twelve categories and an alias for five more, and the fourteen cellar rooms
+   matched none of them, so the rooms were empty shells and you could walk
+   through whatever a storeroom should have had in it.
+
+   Every room gets the same plan and a different set of small things, because
+   a storeroom is a system and the disorder is what varies. The seed comes from
+   the room's own id, so the same room is untidy in the same way every visit. */
+function storage(K, room, plan, anim) {
+  const hw = room.w / 2, d = room.d, h = room.ceil;
+  let seed = 2166136261;
+  for (let i = 0; i < room.id.length; i++) seed = (seed * 16777619 ^ room.id.charCodeAt(i)) >>> 0;
+  const rand = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  /* shelving down both side walls: uprights, four boards, and the boxes. The
+     collision is a line of circles rather than one long one, so you can walk
+     up the run and stand at the far end of it. */
+  for (const s of [-1, 1]) {
+    const x = s * (hw - 0.36);
+    for (let i = 0; i <= 3; i++) K.box('darkSteel', 0.09, 2.24, 0.09, x, 1.12, 1.4 + i * 1.85);
+    for (let shelf = 0; shelf < 4; shelf++) {
+      const y = 0.32 + shelf * 0.60;
+      K.box('steel', 0.66, 0.05, 5.7, x, y, 4.2);
+      let z = 1.75;
+      while (z < 6.75) {
+        const w = 0.32 + rand() * 0.30, hh = 0.20 + rand() * 0.24;
+        K.box('crate', w, hh, 0.40 + rand() * 0.18, x - s * 0.05, y + 0.025 + hh / 2, z);
+        if (rand() > 0.74) K.box('paper', w * 0.72, 0.015, 0.28, x - s * 0.05, y + 0.035 + hh, z + 0.04);
+        if (rand() > 0.86) K.box('canvasWhite', w * 0.8, hh * 0.5, 0.30, x - s * 0.05, y + 0.025 + hh * 0.25, z);
+        z += w + 0.10 + rand() * 0.24;
+      }
+    }
+    K.block(x, 1.5, x, 6.9, 0.34);
+    /* the label board at the end of each run, facing the door */
+    K.box('paper', 0.30, 0.20, 0.02, x - s * 0.36, 1.55, 1.15, 0, s * 0.10);
+  }
+
+  /* the flat file against the back wall, with one drawer out — the way a
+     storeroom looks when somebody was using it and did not put it back */
+  const fx = -1.7, fz = d - 0.62;
+  K.box('steel', 1.70, 1.12, 0.62, fx, 0.56, fz);
+  for (let i = 0; i < 5; i++) {
+    const out = i === 2 ? 0.34 : 0.0;
+    K.box('darkSteel', 1.56, 0.16, 0.56, fx, 0.20 + i * 0.20, fz - 0.06 - out);
+    K.box('paper', 1.30, 0.02, 0.40, fx, 0.28 + i * 0.20, fz - 0.10 - out);
+  }
+  K.box('brass', 0.20, 0.03, 0.04, fx, 0.62, fz - 0.44);
+  K.block(fx - 0.7, fz, fx + 0.7, fz, 0.42);
+
+  /* the bench under the cold strip, and the stool that goes with it */
+  const bx = 1.9, bz = d - 1.5;
+  K.box('oakLight', 1.90, 0.07, 0.78, bx, 0.88, bz);
+  for (const dx of [-0.82, 0.82]) {
+    K.box('iron', 0.08, 0.88, 0.66, bx + dx, 0.44, bz);
+  }
+  K.box('iron', 1.70, 0.06, 0.10, bx, 0.30, bz);
+  K.box('steel', 0.16, 0.22, 0.10, bx + 0.72, 1.02, bz - 0.20);
+  K.box('darkSteel', 0.10, 0.14, 0.26, bx + 0.72, 1.12, bz - 0.30);
+  for (let i = 0; i < 3; i++) K.box('crate', 0.26, 0.16, 0.22, bx - 0.62 + i * 0.30, 1.0, bz + 0.12);
+  K.box('paper', 0.24, 0.012, 0.32, bx - 0.10, 0.925, bz - 0.06, 0, 0.3);
+  K.cyl('steel', 0.17, 0.17, 0.05, bx - 0.55, 0.56, bz + 0.66, 12);
+  K.cyl('iron', 0.03, 0.03, 0.56, bx - 0.55, 0.28, bz + 0.66, 8);
+  K.rod('coldStrip', 0.05, 1.7, bx, h - 0.22, bz, 'x', 8);
+  K.block(bx - 0.9, bz, bx + 0.9, bz, 0.42);
+
+  /* the pallet by the door: whatever came in on a truck is still on it */
+  const px = -2.5, pz = 2.3;
+  K.slab('oak', 1.30, 0.10, 1.10, px, 0.05, pz);
+  K.slab('oak', 1.30, 0.06, 0.12, px, 0.13, pz - 0.46);
+  K.slab('oak', 1.30, 0.06, 0.12, px, 0.13, pz + 0.46);
+  let py = 0.16;
+  for (let i = 0; i < 3; i++) {
+    const w = 0.52 + rand() * 0.22, hh = 0.34 + rand() * 0.20;
+    K.box('crate', w, hh, 0.52 + rand() * 0.16, px + (rand() - 0.5) * 0.18, py + hh / 2, pz + (rand() - 0.5) * 0.2, 0, (rand() - 0.5) * 0.22);
+    py += hh + 0.01;
+    if (rand() > 0.5) K.box('cloth', w + 0.02, 0.03, 0.06, px, py - hh / 2, pz + 0.28);
+  }
+  /* one box off the stack, on its side, with the packing paper come out of it */
+  K.box('crate', 0.48, 0.40, 0.44, px + 1.15, 0.20, pz + 0.85, 0, 0.6, Math.PI / 2);
+  for (let i = 0; i < 3; i++) K.box('paper', 0.26, 0.02, 0.22, px + 1.55 + rand() * 0.4, 0.012, pz + 1.15 + rand() * 0.5, 0, rand() * 1.4);
+  K.block(px, pz, px + 1.2, pz + 0.9, 0.52);
+
+  /* the ladder, leaning: a storeroom without a ladder is a storeroom with the
+     top shelf out of reach, and a ladder is never put away */
+  const lx = hw - 0.75, lz = 3.35, lean = 0.26;
+  for (const dx of [-0.24, 0.24]) K.box('oak', 0.07, 2.30, 0.07, lx + dx, 1.15, lz - 0.30, lean);
+  for (let i = 0; i < 6; i++) K.box('oak', 0.55, 0.05, 0.07, lx, 0.34 + i * 0.36, lz - 0.30 - i * 0.36 * Math.sin(lean), lean);
+  K.block(lx, lz, lx, lz - 0.9, 0.30);
+
+  /* pipes along the ceiling, painted the same colour as the slab so you only
+     notice them when something is dripping */
+  for (let i = 0; i < 2; i++) {
+    K.rod('iron', 0.07, room.w - 0.6, 0, h - 0.26 - i * 0.12, 2.2 + i * 3.4, 'x', 10);
+    K.cyl('iron', 0.05, 0.05, 0.42, hw - 1.4 - i * 2.2, h - 0.48 - i * 0.12, 2.2 + i * 3.4, 8);
+  }
+  K.cyl('rubber', 0.06, 0.06, 0.02, hw - 3.6, 0.01, d - 2.6, 12);
+
+  /* the room's own cold tube, flickering: lighting.js lights the room, this is
+     the fitting you can see, and the flicker is the same one the plan says the
+     cellar's tubes have */
+  K.rod('coldStrip', 0.05, 2.2, 0, h - 0.30, d / 2, 'x', 10);
+  const strip = K.mat('coldStrip');
+  if (strip) {
+    const at = 0.4 + rand() * 0.5;
+    anim.push((t) => {
+      const f = Math.sin(t * 0.0021 + at * 9);
+      strip.emissiveIntensity = 0.9 + (Math.abs(f) > 0.985 ? -0.55 : 0) + Math.sin(t * 0.0007) * 0.08;
+    });
+  }
+}
+
 const BUILDERS = {
   gaming, creative, media, privacy, tools, dev, android, shopping, ai, reading, linux, fun
 };
@@ -903,7 +1021,7 @@ export function furnishRotunda(g, plan, M) {
 /* ── entry point ───────────────────────────────────────────────────────── */
 export function furnish(g, plan, room, M) {
   if (!plan.obstacles) plan.obstacles = [];
-  const build = BUILDERS[room.id] || ALIAS[room.id];
+  const build = BUILDERS[room.id] || ALIAS[room.id] || (room.kind === 'cellar' ? storage : null);
   if (!build) return null;
   const K = makeKit(M, room, plan);
   const anim = [];

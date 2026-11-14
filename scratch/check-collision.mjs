@@ -47,17 +47,18 @@ const probe = `(() => {
     }
   });
 
-  /* and the storey test: a blocker must not be solid on the floor above it.
-     Only furniture is asked this. The lift's partition runs the whole height of
-     the well and is deliberately solid on both storeys, and a check that flags
-     a two-storey thing as a one-storey thing would only teach us to stop
-     trusting it. */
-  const wrongFloor = blockers.filter((b) => (b.what === 'plinth' || b.what === 'prop') &&
-    b.floor && b.floor !== 'ground' &&
-    rig.blocked(b.x, b.z)).length;
+  /* and the storey test. The question worth asking is not whether two storeys
+     share a plan position — the cellar arms run under the galleries, so they
+     do, and a crate downstairs is not an invisible wall upstairs because the
+     rig filters by floor. The question is whether a piece of furniture is
+     solid where it actually stands: a circle that is inert because it was
+     tagged to the wrong storey, or swallowed by the doorway exemption, is a
+     pedestal you can walk through. */
+  const inert = blockers.filter((b) => (b.what === 'plinth' || b.what === 'prop') &&
+    b.floor && !rig.blocked(b.x, b.z, b.floor)).length;
 
   return { blockers: blockers.length, byWhat, nodes: nodes.length, soft: soft.slice(0, 8), softCount: soft.length,
-    doors: doors.length, pinched: pinched.slice(0, 8), stuck: stuck.slice(0, 8), stuckCount: stuck.length, wrongFloor };
+    doors: doors.length, pinched: pinched.slice(0, 8), stuck: stuck.slice(0, 8), stuckCount: stuck.length, inert };
 })()`;
 
 const IDS = ["rotunda", "journalism", "gaming", "reading", "cupola", "modding", "privacy", "shopping"];
@@ -94,7 +95,7 @@ withBrowser(async ({ send, evaluate, sleep: nap }) => {
   console.log('pick nodes', r.nodes, ' not solid:', r.softCount, r.soft.join(' '));
   console.log('doors', r.doors, ' pinched by furniture:', r.pinched.length ? r.pinched.join(' ') : 'none');
   console.log('corridor centreline blocked:', r.stuckCount, r.stuck.join(' '));
-  console.log('blockers on the wrong floor:', r.wrongFloor);
+  console.log('furniture inert where it stands:', r.inert);
   const bad = await evaluate(walk);
   console.log('tours:', bad.length ? bad.slice(0, 6).join(' | ') : IDS.length + ' routes walked with no clipping');
 });
