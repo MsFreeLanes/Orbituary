@@ -236,7 +236,12 @@ export function roomSign(room, THREE, aniso) {
   ctx.font = `600 28px ${MONO}`;
   ctx.fillStyle = hex;
   const code = room.code || `ROOM ${String(room.no || 0).padStart(2, '0')}`;
-  const bottom = `${code} · ${(room.cat || room.category || '').toUpperCase()} · ${(room.items || []).length} LINKS`;
+  const items = (room.items || []).length;
+  /* A room with nothing in it says so in the one word the rest of the museum
+     already uses for it. "0 LINKS" on a door is a stock count; WANTED is the
+     same fact addressed to the person standing in front of it, which is the
+     whole argument for the building. */
+  const bottom = `${code} · ${(room.cat || room.category || '').toUpperCase()} · ${items ? items + ' LINKS' : 'WANTED'}`;
   /* the long names in this collection — Emulation and Re(de)omps, Recompiles
      and Decompiles — do not fit at 28 px with the letterspacing, and a plate
      whose last word is cut off is worse than a plate with smaller type */

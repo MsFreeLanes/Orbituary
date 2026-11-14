@@ -479,6 +479,9 @@ export function createHUD(plan, actions = {}) {
     if (room.cat === 'Corridor') return `${room.doors} doors off it · ${room.range}`;
     if (room.cat === 'Stair' || room.cat === 'Stair Hall') return `${code}${room.subtitle}`;
     const n = room.items.length;
+    /* the same word as the door plate and the empty plinth inside: the room is
+       not short of something, it is asking for something */
+    if (n === 0) return `${code}${room.cat} · wanted · ${room.range}`;
     return `${code}${room.cat} · ${n} ${n === 1 ? 'link' : 'links'} · ${room.range}`;
   }
 
