@@ -33,8 +33,9 @@ row for a step's own commit is added at the top of the next step's entry:
 | 00:58 | 34470f3 | `..\Backups\orbituary-34470f3.bundle` |
 | 01:06 | 1c95417 | `..\Backups\orbituary-1c95417.bundle` |
 | 01:18 | 84aa968 | `..\Backups\orbituary-84aa968.bundle` |
-| 01:42 | bb91cd5 | `..\Backups\orbituary-bb91cd5.bundle` |
-| 01:54 | 4d95a31 | `..\Backups\orbituary-4d95a31.bundle` |
+| 01:29 | bb91cd5 | `..\Backups\orbituary-bb91cd5.bundle` |
+| 01:31 | 4d95a31 | `..\Backups\orbituary-4d95a31.bundle` |
+| 01:42 | df1dea8 | `..\Backups\orbituary-df1dea8.bundle` |
 
 ## Green baseline before touching anything
 
@@ -55,6 +56,10 @@ Small and safe first, so the building is better even if a later step goes wrong.
 | 4 | **Props fit-out**: wire `props.js` into the 47-room plan | Biggest visual gap in the building and the biggest risk, so it goes after three safe wins. |
 | 5 | **Basement atmosphere**: dust motes, cobwebs, damp, the tube that tries to start | Atmosphere on top of the fit-out, once there is furniture to gather dust. |
 | 6 | Docs: `HANDOFF.md`, `README.md`, this log | Last, so it describes what actually shipped. |
+
+All six landed: `fa95d34`, `34470f3`, `1c95417`, `84aa968`, `bb91cd5`, `4d95a31`.
+Then a seventh step that was not on the queue, because the artifact step 5 left
+behind turned out to be a geometry bug rather than a texture one: `df1dea8`.
 
 ## Decisions taken while nobody was asked
 
@@ -274,7 +279,7 @@ prints whatever the page threw on boot — it caught the first crash, where
 `furnishRotunda` wrote to `plan.obstacles` before anything had created it.
 `check-v2`, `check-scale`, `check-data`, `check-events` green; console clean.
 
-### 01:17–01:41 — step 5: the cellar gets its weather
+### 01:17–01:28 — step 5: the cellar gets its weather
 
 The cellar already had the *sound* of being damp — `audio.js` drips at random
 intervals under a longer reverb and puts a different footfall on concrete — and
@@ -328,6 +333,11 @@ it. It is visible only where a wall is evenly and brightly lit from close to,
 which is not how the building is mostly walked, so it goes on the list rather
 than into tonight.
 
+*(Corrected in step 7 below: the leading explanation given here — a seam between
+the header box and the runs beside it — was wrong. The coincident faces were the
+range's shell and the room's door wall, a wall thickness apart in plan and the
+same plane in the world.)*
+
 **Proven:** `scratch/shot-cellar.mjs` (three views of a cellar room — level
 into it, up at the corner, and back at the door with the lamp behind you —
 plus the stair hall), `scratch/shot-doorwall.mjs` (the wall the door is in,
@@ -337,7 +347,7 @@ region at 3×), `scratch/ab-atmo.mjs`, `scratch/dump-planes.mjs`,
 exposes `scene`, which is what makes the last three possible. Every
 atmosphere mesh carries `userData.atmo` = damp | web | dust.
 
-### 01:42–01:53 — step 6: the two documents that still described last month
+### 01:28–01:31 — step 6: the two documents that still described last month
 
 `README.md` opened with "a building that is being rebuilt from twelve rooms to
 forty-seven … the page you can open today still shows the twelve". It shows
@@ -368,3 +378,59 @@ and names the probes that narrowed them.
 **Proven:** the numbers came from `node -e` against `src/plan.js` and
 `src/data.js`, and from `scratch/stats-in.mjs`. Both documents were read back
 after writing.
+
+*(The clock in this log drifted: the rows for bb91cd5 and 4d95a31 were written
+with the time the next step was expected to finish, not the time the bundle was
+made. Corrected against `git log --date=format:'%H:%M'`, which says 01:28, 01:30
+and 01:42 for the three commits.)*
+
+### 01:31–01:42 — step 7: the hairlines, and what they actually were
+
+The one artifact left from step 5. Seven probes, each one ruling something out,
+each one written before the next was guessed at:
+
+| probe | question | answer |
+|---|---|---|
+| `ab-atmo.mjs` | the damp band and webs? | no — lines in both frames |
+| `ab-wall.mjs` | the room's own wall mesh? | lines go with it, but that only proves they are on or in front of it |
+| `ab-texture.mjs` | the picture on the wall? | **yes** — map off, lines gone, and the wall is one 148-vertex welded mesh with no bump or roughness map |
+| `dump-tex.mjs` | is the painted canvas striped? | no — and the 2×2 tile is seamless |
+| `ab-mip.mjs` | a mip jump at a UV seam? | no — lines survive mipmaps off |
+| `ab-bloom.mjs` | the bloom buffer chain printing? | no — lines survive bloom off |
+| `ab-shadow.mjs` | a point light's cube shadow seam? | no — lines survive shadows off (and only one light casts at all) |
+| `dump-at.mjs` | what is actually at that point? | **two surfaces at the same distance**: `9aa0aa` 148 verts from the room, `d8d4cc` 48 verts from the range |
+
+The plan puts every room's door wall exactly on its corridor's side plane — the
+projection of `entry` onto the corridor's own axes comes out at `dx = ±half` to
+the centimetre for all forty-seven rooms, `dz` 23 or 24 upstairs and 9 or 18 in
+the cellar. `buildCorridor` laid its shell `from z0 to z1` with no openings, so
+wherever a room stood, the shell's box and the room's door-wall box filled the
+same volume with their faces coplanar. Two welded sheets at one depth: the depth
+buffer decides per triangle, and the decision prints as a hairline along every
+triangle edge. That is why the lines were straight, why some stopped in
+mid-wall, why one was doubled, and why they only appeared on an evenly lit wall
+seen close to.
+
+The fix is that the shell stops at the mouth — `mouths(side)` finds the rooms
+whose door wall lies on that side plane and hands `addWall` an opening the full
+width of the room, floor to ceiling — and the mouth then gets a lining of the
+shell's own plaster, 2 mm proud of the face the shell would have had, standing
+on the corridor side of the room's wall. Nothing shares a plane; the arm keeps
+the plaster it was lined in.
+
+**Measured, not assumed:** `probe-exposure --hour 07:47` before and after, with
+`src/building.js` stashed in between so the comparison is the same building
+minus one change. The corridor's wall band goes 48 → 86 (the arm is properly
+lined now). The dim cellar room's band is 7 before and 6 after, and the lit
+cellar room's 49 → 48: **the cellar rooms did not get darker.** The bright wall
+in the old close-ups was the range's shell showing through from inside the room,
+which is the bug rather than the lighting. `check-v2` 326 calls / 87,303 tris /
+252 geoms / 49 texs / `errors: []`, `console: clean`, `check-scale` 84 constants,
+`check-props` clear, `check-events` ok.
+
+The plaster maps were also not periodic: the blooms in `concreteTexture` were
+drawn once and clipped at the canvas edge, so any wall that tiles the map cuts
+them in half. They are now drawn again on the far side of the sheet when they
+run off an edge, and `dump-tex`'s 2×2 tile is seamless. **This was not the
+cause** — `ab-texture` and the rest say so — but the map was wrong regardless,
+and it is fixed.

@@ -2,7 +2,7 @@
 tags: [museum, project, handoff]
 updated: 2026-11-14 (third pass)
 build: v2
-head: bb91cd5
+head: df1dea8
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -57,7 +57,8 @@ and the Cupola view runs 327 draw calls / 87k triangles / 49 textures.
 | 3 | `1c95417` | the four rooms about the museum itself, fitted out from `identity.js` |
 | 4 | `84aa968` | the old furniture moved into the new building, and a check that keeps it off the plinths |
 | 5 | `bb91cd5` | cellar damp, corner webs, drifting dust |
-| 6 | this commit | `README.md` and this file rewritten against what the building is now |
+| 6 | `4d95a31` | `README.md` and this file rewritten against what the building is now |
+| 7 | `df1dea8` | the hairlines on the cellar plaster, which were the range's shell lying in the same plane as the room's door wall |
 
 ## Waiting on the owner
 
@@ -81,15 +82,17 @@ and the Cupola view runs 327 draw calls / 87k triangles / 49 textures.
 
 ## Known artifacts, and where they stand
 
-- **Hairlines on brightly lit cellar plaster.** Three or four horizontal lines
-  across a wall, some stopping in mid-wall, one doubled. Not the atmosphere
-  (`scratch/ab-atmo.mjs` proves it), not a stray transparent sheet
-  (`scratch/dump-glass.mjs` finds none near the room). The wall is one welded
-  buffer — two side runs that overshoot the door and far walls by a full wall
-  thickness, a door wall centred on z = 0 with a header box over the opening, a
-  far wall centred on z = d — and the lines sit at the heights where those boxes
-  meet, so the leading explanation is a coincident-face seam. Only visible when
-  a wall is evenly lit from close to.
+- **~~Hairlines on brightly lit cellar plaster~~ — fixed in `df1dea8`.** They
+  were two walls in the same plane: the plan puts every room's door wall exactly
+  on its corridor's side plane, and `buildCorridor` laid its shell the whole
+  length of the range, so the shell's box and the room's door-wall box filled
+  one volume with coplanar faces, and the depth buffer decided per triangle. The
+  shell now stops at each mouth and the mouth gets a lining of the shell's own
+  plaster 2 mm proud of the face. `scratch/dump-at.mjs` is the probe that found
+  it — a ray into the plaster coming back with two hits at the same distance —
+  and `NIGHT-LOG.md` keeps the six probes that ruled everything else out. The
+  cellar rooms did not get darker: `probe-exposure --hour 07:47` measures the
+  same framings at 7 and 6 either way.
 - **SYS has two rooms** (Self Hosting, Linux) against PLY's eight. That is what
   the categories actually contain, not an oversight; the zone is honest about it.
 - **Astronomy is pinned to the Cupola** rather than placed by the emptiness
