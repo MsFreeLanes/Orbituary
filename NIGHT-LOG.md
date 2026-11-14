@@ -537,3 +537,115 @@ probe can read the number back off the material.
 **Housekeeping:** `scratch/bundle.js` — esbuild's intermediate, 890 KB — was
 tracked by `git add -A` in `cb421ec`. Untracked and ignored in `454e221`. It is
 in that one commit's history; not worth rewriting a pushed branch over.
+
+## 16:16–16:36 — the owner's list, worked through
+
+The owner came back with decisions rather than questions: both a walk home and a
+teleport home; the brochure moves to Tab; my judgement on pop-in and performance;
+a better-looking moon; the ground track is not interactive; the grand stair stays
+and an elevator is wanted too; controllers ignored for now; things need collision;
+and two hours to work without stopping.
+
+**Hardware, since it decides everything else.** This machine is a Ryzen 9 9900X3D,
+an RTX 5090 and 62 GB, driving 3440×1440 at 143 Hz. The Cupola leg of the tour
+runs 309 draw calls and 85k triangles. There is no object-count problem here.
+Every fps number this file has ever printed — 2, 4, "live fps 2" — is the CDP
+harness, which reports `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device
+(Subzero)))`: the probes render in software. `probe-perf.mjs` now prints that
+string so nobody reads those numbers as the machine again.
+
+**`609b309` — the Observatory was built twice.** The generic room builder laid a
+rectangular box of walls, a ceiling and a ring of pedestals over the circular
+gallery that has its own builder: twelve pedestals for six exhibits, a second set
+of walls inside the drum, and a plate that read backwards. The generic builder
+stands down for `kind === 'cupola'`. The gallery's plinth spots are written in the
+room's frame and were being read as hub coordinates, which is how one pedestal
+came to stand inside the well. The gallery's walkable area was a 6.4 m box
+reaching 6.4 m south of the well, so it claimed the middle of the hub and the
+nameplate at the front door read *The Observatory*; it is a deck ring, so it is
+now a disc of the radius the builder draws, and `roomAt` tests discs by radius.
+Both pedestal rings were circles that knew nothing about the holes in the floor —
+five of the rotunda's six stood dead centre in an arch opening and one stood in
+mid-air over the stair well. `check-placement`: over a hole none, in no room
+none, same spot twice none, undefined links none.
+
+**`16e1a1c` — the building is solid.** The rig's blocker list was tagged by room
+and skipped every tag that did not match the room you were standing in, so it went
+inert at every threshold; the rotunda and the deck are structures rather than
+rooms so their pedestals were never in it; and furniture had been writing 319
+circles into `plan.obstacles` that nothing read. Blockers are world circles now,
+per storey — the cellar grid lies under the hub, and a cellar crate was being
+treated as a bollard on the terrazzo above it — and a circle that lands in a
+doorway is dropped rather than obeyed. The tour lerps along a polyline and never
+tested anything: positions now settle out of whatever they land inside, sliding
+round an obstruction with no floor on the far side; the route network is bent
+around furniture at startup; and the storey follows the floor under the feet with
+a preference for where the rig already thinks you are, because a tour to the
+cellar used to decide you were below before it had reached the stair and then
+walked you through every wall on the way. `check-collision`: 523 blockers, all 204
+pickable pedestals solid, no doorway pinched, nothing solid on the wrong floor,
+eight tour routes walked with no clipping and no step off the floor.
+
+**`014baf9` — four small things that each changed how a room felt.** The key light
+hung 1.6 m below the ceiling whatever the room was, so fourteen cellar rooms (3.2 m
+clear, tube 0.5 m down) were lit from eye height, 1.1 m under the fitting you
+could see: `check-lights` says the lowest cellar key is now 2.58 m up, was 1.1.
+`windowOffsets` measures first-opening to last-opening, so one opening returned
+`-winW/2` and all 19 cabinet rooms had their window, their hole in the hull and
+their daylight 0.6 m off the door axis. The flight's slab sat 2 cm below the
+nosing line, so twenty tread boxes were 2 cm ribs in a smooth ramp while the panel
+said *twenty steps down* and the audio played twenty footfalls — the stone is
+thinner and hung lower, costing 4 cm of headroom where the south cellar arm
+passes under. And the Observatory's plate was hung in the hub frame with no turn
+while its texture is painted for a plate turned to face a corridor, so the first
+thing a visitor read at the front door was the room's name backwards.
+
+**`2788836` — a way home, and the panels get their cursor back.** H walks you to
+the front door along the route network, Shift+H puts you there at once, Tab takes
+over the brochure with `preventDefault`. The ground track has a slider and seven
+buttons and the brochure has links, but the canvas holds the pointer from the
+first click, so none of it could be touched — that is why the owner took the
+planet for scenery. Opening either panel releases the lock. `check-keys` presses
+each key through the browser's input pipeline: H starts a walk, Shift+H lands at
+(0, 4.5), Tab opens the brochure.
+
+**`6959ee6` — the pop-in was a threshold, not a count.** The cull switches whole
+ranges, and its rule was one distance: lit within 6 m of a range's shell, not lit
+beyond it. Walk down a corridor at the speed a body walks and the range on your
+left arrives, leaves and arrives again. A range already lit now stays lit 3 m
+further out, a range in the hub's view cone stays in it 10° past the edge, and a
+range you are walking towards comes on 7 m before you reach it. `check-pop` walks
+a fixed 223 m route and counts every flip with the distance at which it happened:
+hysteresis off, 114 flips, 35 of them a range oscillating on a threshold;
+hysteresis on, 84 flips, 11 oscillating. The cost is 309 draw calls becoming 461
+and 85k triangles becoming 124k, which on this machine buys nothing back and
+costs nothing.
+
+**`9f57701` — the moon, drawn rather than photographed.** The owner asked for an
+8k photo. A photograph cannot go into a file that has to double-click and work on
+a train: an 8k NASA frame base64'd is 40–80 MB against a page of 888 KB. So the
+disc is drawn, at 1024 px instead of 128, and drawn as the thing itself — the
+maria at their real selenographic longitudes, latitudes and angular radii under
+an orthographic projection, each one five overlapping blobs because the real
+edges are irregular and a single 40° circle reads as a diagram; a crater field
+whose points are picked on the disc and projected backwards, which keeps them all
+on the near side and squashes the limb ones for free; Tycho and Copernicus
+throwing rays; the terminator in three passes so it is a place rather than a cut;
+earthshine on the unlit part, because the planet in that sky is four times the
+diameter and thirty times the brightness of the moon. Craters are stroked rims:
+the first attempt filled them and the surface came out looking like grey
+confetti. `shot-moon` dumps the texture itself rather than the forty pixels of it
+that reach the screen, and reports its mean luminance against the 0.70 bloom
+threshold.
+
+**Still open, in the order I would take them.** The elevator the owner asked for
+beside the grand stair: a shaft needs a decision, and half an elevator is worse
+than none — the two candidate sites are written into `HANDOFF.md`. Ten to
+eighteen pieces of furniture sit on a corridor centreline, worst around (−25.5,
+3.5) and (−20.3, 6) on the ground floor: the route goes round them and walking
+into them now stops you, which is correct, but they should not be standing there;
+`probe-corridor-props` names them. Door and window placement beyond the
+lone-window fix. Nine pick nodes sit inside corridor rects rather than room
+rects, which is legal but untidy. And the front door stands on the Observatory's
+deck, so the plate there says *The Observatory*: geometrically true, and a design
+question for the owner rather than something to hack.

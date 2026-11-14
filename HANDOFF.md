@@ -1,8 +1,8 @@
 ---
 tags: [museum, project, handoff]
-updated: 2026-11-14 (third pass)
+updated: 2026-11-14 (fourth pass)
 build: v2
-head: 454e221
+head: 9f57701
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -61,7 +61,52 @@ and the Cupola view runs 327 draw calls / 87k triangles / 49 textures.
 | 7 | `df1dea8` | the hairlines on the cellar plaster, which were the range's shell lying in the same plane as the room's door wall |
 | 8 | `cb421ec` | the cellar tubes now try to start — one shape in `tube.js` for the fitting's glow and the room's light, which had been inventing two different ones |
 
+## What landed in the fourth pass, 2026-11-14 afternoon
+
+The owner came back with a list: both a walk home and a teleport home, the
+brochure on Tab, my own answer on pop-in and performance, a better moon, the
+ground track is not operable, the grand stair stays and an elevator is wanted,
+controllers deferred, everything needs collision, and the hardware question.
+
+| step | commit | what |
+|---|---|---|
+| 1 | `609b309` | the Observatory was being built twice — the generic room box over the circular gallery is gone, the deck is a disc, both pedestal rings moved off the holes in the floor |
+| 2 | `16e1a1c` | collision rebuilt: 523 world blockers by storey, `settle`, the route network bent around furniture, the tour no longer walking through walls — `check-collision` |
+| 3 | `014baf9` | cellar lamps at their fittings, a lone window centred, the flight reading as steps, the Observatory plate no longer backwards — `check-lights` |
+| 4 | `2788836` | H walks you to the front door, Shift+H puts you there, Tab is the brochure, and opening a panel releases the pointer lock — `check-keys` |
+| 5 | `6959ee6` | the cull got hysteresis and a look-ahead: 114 flips and 35 oscillations over a 223 m walk became 84 and 11 — `check-pop` |
+| 6 | `9f57701` | the moon: 1024 px, real maria positions under an orthographic projection, craters as rims, ray systems, soft terminator, earthshine — `shot-moon` |
+
+**The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
+5090, 62 GB, 3440×1440 at 143 Hz. The whole station is 309–460 draw calls and
+85k–124k triangles. There is no object-count problem on this machine, and every
+fps figure in `NIGHT-LOG.md` is the CDP harness rendering through SwiftShader,
+not the machine. Effort belongs on correctness and on what a visitor sees.
+
+**Not done, in the order I would take them.** The elevator the owner asked for
+alongside the grand stair — a shaft needs a decision before it gets built, and
+half an elevator is worse than none. Ten to eighteen pieces of furniture sit on
+a corridor centreline (worst cluster around (−25.5, 3.5) and (−20.3, 6), ground
+floor): the route goes around them and walking into them stops you, which is
+correct behaviour, but they should not be there — `probe-corridor-props` names
+them. Door and window placement beyond the lone-window fix. Creature ambience
+out of sight. Ships and comets outside. Gating sound and effects to the
+visibility set.
+
 ## Waiting on the owner
+
+- **Where does the elevator go?** The owner asked for one alongside the grand
+  stair. The stair occupies the well at x ±1.5, z −6.6…−1, and the deck ring
+  above it is the Observatory's floor. A cabin needs a shaft of its own — the
+  obvious site is the north side of the rotunda against the drum, which costs
+  one arch and the range behind it — or it shares the well, which means the
+  cabin passes under the stair and needs its own hole in the cellar ceiling.
+  Both are one decision away and neither is free.
+- **What is the front door called?** The door at (0, 4.5) stands on the
+  Observatory's deck ring, so the nameplate there reads *The Observatory*. That
+  is geometrically true — the deck is the ring you are standing on — but it may
+  not be what a visitor should read on the way in. The hub annulus from r 4.6 to
+  r 8 correctly reads *The Rotunda*.
 
 - **`src/identity.js` is the only file that needs a human.** `socials` is empty
   and `donation` is null, because nothing was ever supplied; the brochure prints
