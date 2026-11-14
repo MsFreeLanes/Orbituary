@@ -71,6 +71,12 @@ function boot() {
       const now = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
       timeOffset = (minutes - nowMin) * 60000;
+    },
+    /* the visitor is through the door and has read the brochure: this is the
+       first moment a hint line is worth showing */
+    onEnter: () => {
+      hud.toast('click to walk · T for a guided walk · R for a random room', 6000);
+      arrivedAt = performance.now();
     }
   });
 
@@ -136,6 +142,10 @@ function boot() {
     onArrive: (id) => {
       const room = plan.byId(id);
       if (room) hud.toast('arrived: ' + room.name + ' · ' + room.items.length + ' links');
+      if (closingPending) {
+        closingPending = false;
+        hud.showBrochure('closing');
+      }
     }
   });
   rig.teleportTo('rotunda');
@@ -143,6 +153,12 @@ function boot() {
 
   /* ── the tour circuit and the arrow that leads you ── */
   let circuit = 0;
+  /* A full lap of the circuit is the end of the tour, and the plan says the
+     tour finishes at the desk with the donation ask on it, so the last
+     arrival of a lap opens the brochure's closing page. The flag is set when
+     the stop is taken and spent when the visitor actually gets there, so the
+     page never lands on top of a walk. */
+  let closingPending = false;
   const arrow = new THREE.Group();
   {
     const stem = new THREE.Mesh(
@@ -160,6 +176,7 @@ function boot() {
   function tourNext() {
     const id = plan.order[circuit % plan.order.length];
     circuit++;
+    if (circuit % plan.order.length === 0) closingPending = true;
     if (rig.walkTo(id)) {
       const room = plan.byId(id);
       hud.toast('walking you to ' + room.name);
@@ -219,6 +236,11 @@ function boot() {
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
     const k = e.code;
+    /* the ticket is still in the visitor's hand: nothing behind it should
+       start moving, and a tour that begins before the rules are agreed to is
+       a tour of a museum nobody has been admitted to. mute is allowed,
+       because a page that is loud before you have said yes is rude. */
+    if (hud.gateVisible && k !== 'KeyM') return;
     if (k === 'KeyT') tourNext();
     else if (k === 'KeyR') tourRandom();
     else if (k === 'KeyH') hud.toggleHelp();
@@ -231,6 +253,7 @@ function boot() {
     else if (k === 'Escape') {
       rig.stopTour();
       hud.root.classList.remove('sky-open');
+      hud.closeBrochure();
     }
   });
 
@@ -352,7 +375,6 @@ function boot() {
   }
 
   requestAnimationFrame(frame);
-  hud.toast('click to walk · T for a guided walk · R for a random room', 5200);
 
   /* the works are left reachable from the console on purpose: the checks in
      scratch/ drive the museum through this, and anyone curious can walk it

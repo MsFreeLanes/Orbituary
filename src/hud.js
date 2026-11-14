@@ -6,6 +6,8 @@
    All of it is DOM over the canvas. The 3D view stays the size of the
    window and the interface stays crisp at any pixel density. */
 
+import { IDENTITY } from './identity.js';
+
 const $ = (sel, root) => (root || document).querySelector(sel);
 
 function el(tag, cls, html) {
@@ -16,6 +18,43 @@ function el(tag, cls, html) {
 }
 
 const GLYPHS = '▚▞▛▜▟▙█▓▒░/\\|<>=+-*·';
+
+/* anything that came out of identity.js goes through here before it reaches
+   innerHTML: the owner is meant to be able to type a sentence into that file
+   without wondering whether an angle bracket will take the page down */
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* The ticket keeps a number. A visitor who has been admitted before gets the
+   same number back and a line at the bottom saying how many times they have
+   come through, which is the only thing the museum remembers about anybody.
+   localStorage is not guaranteed on a file:// page, so all of it is optional
+   and a visitor with no storage simply gets a fresh ticket every time. */
+function ticketSerial() {
+  let store = null;
+  try { store = window.localStorage; } catch (err) { store = null; }
+  let no = null;
+  try { no = store && store.getItem('orbituary.serial'); } catch (err) { no = null; }
+  if (!no) {
+    no = String(100001 + ((Math.random() * 899998) | 0));
+    try { if (store) store.setItem('orbituary.serial', no); } catch (err) { /* fine */ }
+  }
+  let visits = 0;
+  try {
+    if (store) {
+      visits = (+store.getItem('orbituary.visits') || 0) + 1;
+      store.setItem('orbituary.visits', String(visits));
+    }
+  } catch (err) { visits = 0; }
+  const d = new Date();
+  const two = (n) => String(n).padStart(2, '0');
+  return {
+    no, visits,
+    date: `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
+  };
+}
 
 function scramble(node, text, ms = 620) {
   const start = performance.now();
@@ -44,7 +83,7 @@ export function createHUD(plan, actions = {}) {
      plan, so the line stays true when the counts cross and rooms move between
      the storeys. */
   const card = el('div', 'card');
-  card.appendChild(el('div', 'brand', 'MUSEUM OF USEFUL LINKS'));
+  card.appendChild(el('div', 'brand', IDENTITY.entity));
   const upstairs = plan.rooms.filter((r) => r.floor !== 'basement');
   const downstairs = plan.rooms.filter((r) => r.floor === 'basement');
   const withThings = plan.rooms.filter((r) => r.items.length && r.floor !== 'basement').length;
@@ -234,7 +273,7 @@ export function createHUD(plan, actions = {}) {
   /* ── bottom bar ── */
   const bar = el('div', 'bar');
   const keys = el('div', 'keys',
-    '<b>WASD</b> walk <b>SHIFT</b> stride <b>MOUSE</b> look <b>T</b> tour <b>R</b> random room <b>G</b> sky dial <b>M</b> mute <b>H</b> help');
+    '<b>WASD</b> walk <b>SHIFT</b> stride <b>MOUSE</b> look <b>T</b> tour <b>R</b> random room <b>G</b> ground track <b>M</b> mute <b>H</b> brochure');
   const meter = el('div', 'meter');
   for (let i = 0; i < 12; i++) meter.appendChild(el('i', ''));
   const stats = el('div', 'stats', '');
@@ -247,40 +286,151 @@ export function createHUD(plan, actions = {}) {
   const toasts = el('div', 'toasts');
   root.appendChild(toasts);
 
-  /* ── help ── */
-  const help = el('div', 'help');
-  help.style.display = 'none';
-  help.innerHTML = `
-    <h2>The building</h2>
-    <p>A domed rotunda, twelve ranges, ${withThings} rooms with something standing in
-    them, and ${downstairs.length} more under the floor. Each room holds one subject:
-    the number of links on the door card is the number of plinths inside.</p>
-    <p><b>Two storeys</b> — one grand stair comes down through the middle of the
-    rotunda into a stair hall, and four cellar corridors run out of it. The floor
-    plan draws the storey you are on, and marks the stair on both.</p>
-    <p><b>Walk</b> — WASD, mouse to look, Shift to stride. Doorways are 1.1 m wide;
-    the halls have 1.8 m arches.</p>
-    <p><b>Guided walk</b> — <b>T</b> tours the next room on the circuit,
-    <b>R</b> drops you in a room at random. The route follows the corridors;
-    grab the mouse any time to look around on the way.</p>
-    <p><b>Exhibits</b> — look at a plinth and press <b>ENTER</b>, or click it, to
-    open the link in a new tab.</p>
-    <p><b>Sky</b> — <b>G</b> opens the dial. Seven regions, and a time slider that
-    swings the real sky over the building. Windows face the night.</p>
-    <p><b>Sound</b> — footsteps take the floor they are on; every room has its own
-    air. <b>M</b> mutes.</p>`;
-  root.appendChild(help);
+  /* ── the door: a ticket, then a brochure ─────────────────────────────
+      The rules and the disclaimer used to be a room you could walk past.
+      They are now the door itself: the rules are printed on the ticket, and
+      agreeing to them is what tears it. Nothing is asked for beyond the
+      click — no account, no form, nothing scanned — and the ticket keeps a
+      serial so the same visitor gets the same number back.
 
-  /* ── intro ── */
-  const intro = el('div', 'intro');
-  intro.innerHTML = `
-    <div class="intro-inner">
-      <div class="intro-kicker">${linkCount} LINKS, ${withThings} ROOMS, AND A CELLAR</div>
-      <h1>The Museum of<br>Useful Links</h1>
-      <p>Click to walk in. The sky outside is tonight's sky.</p>
-      <div class="intro-keys">WASD · MOUSE · SHIFT</div>
+      Past the ticket comes the brochure: what the building is, how to move
+      through it, and the ask at the end. The same brochure answers `H`
+      inside the museum, and the same closing page runs when a full circuit
+      of the guided walk finishes, so the tour ends where every museum ends
+      — at the desk that asks you to keep it open.
+
+      The element keeps the class `intro` and the `.intro-kicker` inside it,
+      because the probes in scratch/ drive the museum through those names. */
+  const serial = ticketSerial();
+  const gate = el('div', 'intro gate');
+  gate.innerHTML = `
+    <div class="ticket">
+      <div class="ticket-head">
+        <span class="intro-kicker">${esc(IDENTITY.entity)} · ${esc(IDENTITY.parent)}</span>
+        <span class="ticket-no">ADMIT ONE · No. ${serial.no} · ${serial.date}</span>
+      </div>
+      <h1>${esc(IDENTITY.building)}</h1>
+      <div class="ticket-count">${linkCount} links · ${withThings} rooms with something in them · ${downstairs.length} waiting in the cellar</div>
+      <div class="perf"><span>the rules are printed on the ticket</span></div>
+      <ol class="ticket-rules">
+        ${IDENTITY.rules.map((r) => `<li><b>${esc(r[0])}</b><span>${esc(r[1])}</span></li>`).join('')}
+      </ol>
+      <button class="stamp" type="button">AGREE — TEAR THE TICKET</button>
+      <div class="ticket-foot">agreeing to these rules is the door. ${serial.visits > 1 ? `you have been admitted ${serial.visits} times.` : 'there is nothing else to fill in.'}</div>
     </div>`;
-  root.appendChild(intro);
+  root.appendChild(gate);
+
+  const brochure = el('div', 'brochure');
+  brochure.style.display = 'none';
+  brochure.innerHTML = `
+    <div class="brochure-inner">
+      <div class="brochure-head">
+        <span class="kicker">${esc(IDENTITY.entity)} · BROCHURE</span>
+        <button class="brochure-x" type="button" title="close">×</button>
+      </div>
+      <h2 id="brochure-title">Before you walk in</h2>
+      <p class="brochure-thesis">${esc(IDENTITY.thesis)}</p>
+
+      <div class="kicker">WHAT YOU ARE STANDING IN</div>
+      <p>A station, not a hall: a domed rotunda with the Cupola over it, ranges of
+      rooms off two ring corridors, and fifteen of the emptiest categories under
+      the floor with the lights that try to start. ${linkCount} links on
+      ${withThings} sets of walls, and ${downstairs.length} rooms downstairs
+      waiting for their first exhibit.</p>
+      <p>Every room is one subject. The number on the door card is the number of
+      plinths inside, and the cost on a plaque is what the thing cost the day the
+      plaque was written.</p>
+
+      <div class="kicker">CONTROLS</div>
+      <table class="brochure-keys">
+        <tr><td><b>W A S D</b></td><td>walk, back off, sidestep — <b>Shift</b> to stride</td></tr>
+        <tr><td><b>mouse</b></td><td>look around; click a plinth to open its link</td></tr>
+        <tr><td><b>Enter</b></td><td>open whatever you are looking at</td></tr>
+        <tr><td><b>T</b></td><td>the next stop on the guided walk</td></tr>
+        <tr><td><b>R</b></td><td>a room at random</td></tr>
+        <tr><td><b>G</b></td><td>the ground track: seven regions and an hour</td></tr>
+        <tr><td><b>M</b></td><td>mute</td></tr>
+        <tr><td><b>H</b></td><td>this brochure</td></tr>
+        <tr><td><b>Esc</b></td><td>stop walking, stop being walked</td></tr>
+      </table>
+
+      <div class="kicker">WHAT THE MUSEUM DOES FOR YOU</div>
+      <p><b>The guided walk.</b> <b>T</b> takes you room to room along the
+      corridors on an eased route, with an arrow hanging in front of you. A full
+      circuit ends at the desk at the end of this brochure.</p>
+      <p><b>A room at random.</b> <b>R</b> picks a <i>room</i>, not a link —
+      ${withThings + downstairs.length} choices instead of ${linkCount} — and
+      walks you there. You find the links inside it.</p>
+      <p><b>The ground track.</b> The hull flies over a real place. <b>G</b>
+      opens the dial: seven regions, and a slider that swings the sun the whole
+      way round the limb. <b>ALWAYS NIGHT</b> keeps the stars out whether the
+      clock likes it or not.</p>
+      <p><b>The Cupola.</b> The dome over the rotunda looks down the well at the
+      Earth the station is passing. Stand under it and wait.</p>
+      <p><b>The cellar.</b> The fifteen categories with the least in them live
+      under the floor, off one grand stair. They are dusty, the tubes flicker,
+      and the floor creaks. When a category gets its first exhibit it moves
+      upstairs on its own.</p>
+      <p><b>Sound.</b> Footsteps take the floor under them, every room has its
+      own air sized to its own volume, and occasionally something happens in a
+      room you are not in. <b>M</b> mutes.</p>
+
+      <div class="kicker">THE ASK</div>
+      <p>${esc(IDENTITY.curation)}</p>
+      ${IDENTITY.donation
+        ? `<p>Keeping the museum open costs money. <a href="${esc(IDENTITY.donation.url)}" target="_blank" rel="noopener">${esc(IDENTITY.donation.line || 'Give here')}</a>.</p>`
+        : `<p class="brochure-blank">The donation link is not posted yet. When it is, it is printed here.</p>`}
+      ${IDENTITY.socials.length
+        ? `<p>${IDENTITY.socials.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`).join(' · ')}</p>`
+        : `<p class="brochure-blank">The keeper’s channels are not posted yet.</p>`}
+      <p class="brochure-foot">Three stands in the Trophy Hall are empty on purpose:
+      company sponsors, then donors over a threshold, then the keeper’s own work.
+      Nothing has earned one yet.</p>
+
+      <button class="brochure-go" type="button">WALK IN</button>
+    </div>`;
+  root.appendChild(brochure);
+
+  const brochureTitle = $('#brochure-title', brochure);
+  const goBtn = $('.brochure-go', brochure);
+  let brochureMode = 'entry';
+
+  function showBrochure(mode) {
+    brochureMode = mode || 'entry';
+    brochure.style.display = 'block';
+    brochure.classList.remove('gone');
+    brochureTitle.textContent = brochureMode === 'closing'
+      ? 'That is the end of the circuit'
+      : brochureMode === 'help' ? 'The brochure' : 'Before you walk in';
+    goBtn.textContent = brochureMode === 'closing' ? 'KEEP WALKING' : 'WALK IN';
+    $('.brochure-inner', brochure).scrollTop = 0;
+  }
+  function closeBrochure() {
+    brochure.style.display = 'none';
+  }
+
+  /* tearing the ticket: an aperture opening rather than a fade, because the
+     identity spec asks for a shutter and a shutter is what a station door is */
+  gate.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('stamp')) return;
+    gate.classList.add('torn');
+    setTimeout(() => {
+      gate.style.display = 'none';
+      showBrochure('entry');
+    }, 620);
+  });
+  brochure.addEventListener('click', (e) => {
+    if (e.target.classList.contains('brochure-x')) { closeBrochure(); return; }
+    if (e.target.classList.contains('brochure-go')) {
+      const firstEntry = brochureMode === 'entry';
+      brochureMode = 'help';
+      closeBrochure();
+      /* the way-in hint used to fire at boot, which meant it scrolled past
+         behind a ticket nobody had read yet. it belongs on this side of the
+         door, so the brochure hands the moment back to main.js */
+      if (firstEntry && actions.onEnter) actions.onEnter();
+    }
+  });
 
   let toastTimer = 0;
   function toast(msg, ms = 2600) {
@@ -350,13 +500,26 @@ export function createHUD(plan, actions = {}) {
   }
 
   function toggleHelp() {
-    help.style.display = help.style.display === 'none' ? 'block' : 'none';
+    if (brochure.style.display === 'none') showBrochure('help');
+    else closeBrochure();
   }
-  function hideIntro() { intro.classList.add('gone'); }
+  /* the probes in scratch/ still call this to get the interface out of the
+     way before they photograph or measure the building, so it closes both
+     halves of the door rather than only the one that used to exist */
+  function hideIntro() {
+    gate.classList.add('torn');
+    gate.style.display = 'none';
+    closeBrochure();
+  }
 
   return {
     root, setRoom, setStorey, showPlaque, setYou, setSky, setStats, setLevel,
-    toast, toggleHelp, hideIntro, scramble,
-    get introVisible() { return !intro.classList.contains('gone'); }
+    toast, toggleHelp, hideIntro, showBrochure, closeBrochure, scramble,
+    get gateVisible() {
+      return gate.style.display !== 'none' && !gate.classList.contains('torn');
+    },
+    get introVisible() {
+      return gate.style.display !== 'none' || brochure.style.display !== 'none';
+    }
   };
 }

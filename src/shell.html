@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Museum of Useful Links</title>
-<meta name="description" content="Twelve rooms, eighty-eight links, tonight's sky over the windows. A walkable museum in one file.">
+<title>ORBITUARY — The Museum of Useful Links</title>
+<meta name="description" content="192 hand-picked links in a station that is quietly coming apart: forty-seven rooms, a cellar, and the Earth going past under the Cupola. A walkable museum in one file.">
 <style>
   :root {
     /* the same six tokens the hull is painted with, on the paper side of the
@@ -134,32 +134,92 @@
   }
   .toast.in { opacity: 1; transform: none; }
 
-  /* ── help ── */
-  .help {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: min(620px, 86vw); max-height: 78vh; overflow: auto; padding: 26px 30px 30px;
-    background: rgba(10, 10, 12, 0.92); border: 1px solid var(--line);
-    pointer-events: auto; backdrop-filter: blur(10px);
-  }
-  .help h2 { margin: 0 0 12px; font-size: 26px; }
-  .help p { font-size: 14px; line-height: 1.62; color: rgba(214, 214, 218, 0.82); }
-  .help b { color: var(--ink); }
-
-  /* ── intro ── */
+  /* ── the door: the ticket, then the brochure ─────────────────────────
+      Both are paper. Everything else on the page is glass over a dark hull,
+      and the one thing a museum hands you at the door is a printed sheet —
+      so the ticket and the brochure are the only white surfaces in the whole
+      interface, and they are the only places the palette runs on ink.
+      Tearing the ticket is an iris closing over it rather than a fade: the
+      identity spec asks for a shutter, and a shutter is what a station door
+      is. */
   .intro {
     position: absolute; inset: 0; display: grid; place-items: center;
-    background: radial-gradient(120% 90% at 50% 40%, rgba(10, 10, 12, 0.5), rgba(10, 10, 12, 0.94));
-    pointer-events: auto; transition: opacity 900ms ease;
+    padding: 24px; overflow: auto;
+    background: radial-gradient(120% 90% at 50% 40%, rgba(10, 10, 12, 0.62), rgba(10, 10, 12, 0.96));
+    pointer-events: auto;
   }
   .intro.gone { opacity: 0; pointer-events: none; }
-  .intro-inner { text-align: center; max-width: 640px; padding: 0 24px; }
-  .intro-kicker { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.34em; color: var(--dim); }
-  .intro h1 { font-size: clamp(38px, 7vw, 76px); line-height: 1.02; margin: 14px 0 16px; font-weight: 400; }
-  .intro p { font-size: 15px; color: rgba(214, 214, 218, 0.78); font-style: italic; }
-  .intro-keys {
-    margin-top: 26px; font-family: ui-monospace, monospace; font-size: 11px;
-    letter-spacing: 0.28em; color: var(--wing);
+  .intro.torn { animation: iris 620ms cubic-bezier(.6, 0, .2, 1) forwards; }
+  @keyframes iris {
+    0% { clip-path: circle(140% at 50% 50%); opacity: 1; }
+    55% { clip-path: circle(30% at 50% 50%); opacity: 1; }
+    100% { clip-path: circle(0% at 50% 50%); opacity: 0.15; }
   }
+  .intro-kicker { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.34em; }
+
+  .ticket {
+    width: min(660px, 94vw); background: var(--panel-face); color: var(--void);
+    padding: 26px 30px 24px; border-top: 3px solid var(--amber);
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.62);
+  }
+  .ticket-head {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.2em; color: #5a5a63;
+  }
+  .ticket h1 { font-size: clamp(28px, 4.6vw, 46px); line-height: 1.05; font-weight: 400; margin: 12px 0 6px; }
+  .ticket-count { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.06em; color: #5a5a63; }
+  .perf { position: relative; margin: 22px 0 16px; border-top: 1px dashed rgba(10, 10, 12, 0.45); }
+  .perf span {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-face); padding: 0 10px;
+    font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #6b6b74;
+  }
+  .ticket-rules { margin: 0 0 18px; padding-left: 22px; }
+  .ticket-rules li { margin-bottom: 9px; font-size: 13px; line-height: 1.52; color: #3a3a42; }
+  .ticket-rules b { display: block; color: var(--void); font-size: 13px; }
+  .stamp {
+    display: block; width: 100%; padding: 13px 16px; border: 0; cursor: pointer;
+    background: var(--void); color: var(--panel-face);
+    font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.26em;
+  }
+  .stamp:hover { background: #17171c; box-shadow: inset 0 0 0 1px var(--amber); }
+  .ticket-foot { margin-top: 12px; text-align: center; font-size: 11px; font-style: italic; color: #6b6b74; }
+
+  .brochure {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
+    background: rgba(10, 10, 12, 0.74); backdrop-filter: blur(4px);
+    pointer-events: auto; animation: sheet 420ms ease-out;
+  }
+  @keyframes sheet { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .brochure-inner {
+    width: min(760px, 94vw); max-height: 86vh; overflow: auto; padding: 24px 30px 28px;
+    background: var(--panel-face); color: var(--void); border-top: 3px solid var(--signal);
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.62);
+  }
+  .brochure-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brochure-head .kicker { color: #5a5a63; }
+  .brochure-x { background: none; border: 0; cursor: pointer; font-size: 22px; line-height: 1; color: #5a5a63; }
+  .brochure h2 { margin: 12px 0 4px; font-size: clamp(24px, 3.4vw, 34px); font-weight: 400; }
+  .brochure-thesis { margin: 0 0 6px; font-style: italic; color: #3a3a42; }
+  .brochure .kicker {
+    margin: 20px 0 10px; padding-bottom: 4px; color: var(--void);
+    border-bottom: 1px solid rgba(10, 10, 12, 0.18);
+  }
+  .brochure p { margin: 0 0 10px; font-size: 14px; line-height: 1.62; color: #2c2c33; }
+  .brochure b { color: var(--void); }
+  .brochure a { color: #0a6a76; }
+  .brochure-keys { border-collapse: collapse; }
+  .brochure-keys td { padding: 3px 14px 3px 0; font-size: 13.5px; line-height: 1.4; color: #2c2c33; vertical-align: top; }
+  .brochure-keys td b { font-family: ui-monospace, monospace; font-size: 11.5px; letter-spacing: 0.08em; color: var(--void); }
+  .brochure-blank { font-style: italic; color: #6b6b74; }
+  .brochure-foot { font-size: 12.5px; color: #5a5a63; }
+  .brochure-go {
+    margin-top: 20px; width: 100%; padding: 13px; border: 0; cursor: pointer;
+    background: var(--void); color: var(--panel-face);
+    font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.26em;
+  }
+  .brochure-go:hover { background: #17171c; box-shadow: inset 0 0 0 1px var(--signal); }
 
   @media (max-width: 760px) {
     .mapbox { display: none; }
