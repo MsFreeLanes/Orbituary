@@ -824,6 +824,34 @@ were standing in doorways, and the wording. Everything the checks cover is green
 `check-tube`, `check-placement`, `check-collision`, `check-lights`, `check-keys`,
 `check-pop`, `check-terminator`, `check-lift`.
 
+### 18:0x — a brief for whoever reviews this next
+
+The owner is handing the museum to another AI for review and defect resolution,
+which is a different audience from `HANDOFF.md`: someone continuing the project
+wants state and decisions, someone debugging it wants the mechanics. So
+`REVIEW-BRIEF.md`: how to build and run the fifteen checks; the **green baseline**
+as a table, so a reviewer can tell a regression from a change (897 KB, 476 calls,
+125229 triangles, 204 pick nodes with none lacking an exhibit, 1433 collision
+circles with none inert, 78 pop events and 5 oscillations over 223 m); the eight
+**invariants** the building rests on, with the walkable-rect axis math spelled out
+because getting it wrong is the most expensive mistake available here; the
+**traps** that cost this session hours (the rig's forward vector is not the rect
+axis, `view` has no `.camera`, the cull's dwell counts frame-supplied seconds, a
+comparison against `NaN` silently disables a check, `git bundle` needs `--all`,
+headless Chrome's fps is SwiftShader); a **numbered defect queue** where every
+entry names the probe that proves it exists; and a section headed *Deliberate* —
+the wanted plinths that are not pickable, the front door reading *The
+Observatory*, SYS's two rooms, the open lift shaft — so a well-meaning reviewer
+does not "fix" the design decisions that are the owner's to make.
+
+The queue is honest about what is weak in what I built today: the deck ring's
+pedestal bearings are hand-tuned numbers that will break if the ring moves; a
+furniture collision circle comes from the drawn bounding box and the doorway
+exemption drops silently; nothing at all asserts how doors and windows are
+placed; and the plinth-repair pass has never once had to move anything, so it is
+untested in anger. `HANDOFF.md`'s head is bumped to the current commit and points
+at the brief.
+
 **Still open, in the order I would take them.**
 - The fourteen cellar rooms are furnished and now hold an empty plinth each, but
   still have **no exhibits**: no links, no pick nodes. Which categories get a

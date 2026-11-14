@@ -2,7 +2,7 @@
 tags: [museum, project, handoff]
 updated: 2026-11-14 (fourth pass)
 build: v2
-head: be58780
+head: 9bf6698
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -12,7 +12,11 @@ Read this with `MUSEUM-V2-PLAN.md` (the locked plan), `README.md` (what a
 visitor sees) and `NIGHT-LOG.md` (the session that closed the gap between them,
 step by step, with the backups and the decisions recorded as they were made).
 This file is only about state: what is finished, what is half-finished, and
-what is waiting on a decision.
+what is waiting on a decision. If you are being handed the project to
+**review and fix defects** rather than to continue it, start at
+`REVIEW-BRIEF.md` instead: it has the green baseline to compare against, the
+invariants the building depends on, the traps that cost this session hours, and a
+numbered defect queue with the probe that demonstrates each one.
 
 ## Where the build stands against the plan
 
@@ -53,7 +57,7 @@ is a hole, a stair down through the mouth and a lift beside it. Cellar slab 3.6 
 down, 3.2 m of clear ceiling, and the pressure hull's belly 4 cm above the cellar
 soffit. Lighting is a pool of 10 point lights handed between anchors, plus one
 static light in the stair hall that the pool does not know about. The bundle is
-895 KB and the Cupola view runs 477 draw calls / 125k triangles / 52 textures.
+897 KB and the Cupola view runs 476 draw calls / 125229 triangles / 53 textures.
 
 ## What landed on 2026-11-14
 
@@ -90,6 +94,8 @@ controllers deferred, everything needs collision, and the hardware question.
 | 11 | `47cf506` | a wing waits 0.35 s before it goes away: the walk's oscillations 11 → 5, and the cull now counts seconds handed in by the frame instead of reading the clock |
 | 12 | `5730d35` | `HARDWARE.md` — what this machine runs, in plain language, measured with `nvidia-smi` rather than remembered |
 | 13 | `655f2b1` | the cellar's empty plinths with a WANTED card, and the fix for a bug since the plinth kit: **every wall label in the building was in the doorway, 4.72 m from its plinth** |
+| 14 | `5faee66` | an empty room says WANTED on its door plate and its room card, not `0 LINKS` |
+| 15 | `9bf6698`+ | the logs closed, and `REVIEW-BRIEF.md` written for whoever reviews this next |
 
 **The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
 5090 with 32 GB of its own memory, 62 GB, 3440×1440 at 143 Hz. The whole station
@@ -100,13 +106,15 @@ visitor sees. `HARDWARE.md` is the longer answer, in plain language, including
 which local models this box will actually run.
 
 **Not done, in the order I would take them.**
-- The fourteen cellar rooms are furnished but hold **no exhibits**: no links, no
-  plinths, no pick nodes. The tour walks you into a storeroom with nothing in it.
-  This is a content decision, not a build one — see *Waiting on the owner*.
-- A real distance fade at the wing edges. Hysteresis and a look-ahead point are in
-  (`6959ee6`: 114 flips and 35 oscillations over a 223 m walk became 84 and 11);
-  the fade itself is not.
-- Door and window placement beyond the lone-window fix.
+- The fourteen cellar rooms are furnished and each holds an empty plinth with a
+  WANTED card, but they still have **no exhibits**: no links, no pick nodes. The
+  tour walks you into a storeroom with nothing to look at. This is a content
+  decision, not a build one — see *Waiting on the owner*.
+- A real distance fade at the wing edges. Hysteresis, a look-ahead point and a
+  0.35 s dwell are in (`6959ee6`, `47cf506`: 114 flips and 35 oscillations over a
+  223 m walk became 78 and 5); the fade itself is not.
+- Door and window placement beyond the lone-window fix, and nothing yet asserts
+  how openings are placed at all.
 - Creature ambience out of sight; ships and comets outside; gating sound and
   effects to the visibility set.
 - Controllers, deferred by the owner until the building is right.
