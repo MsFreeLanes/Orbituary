@@ -553,8 +553,13 @@ function buildRoom(parent, plan, M, room, pickables, L, kit) {
     if (!room._signMat) {
       const signTex = roomSign(Object.assign({ no: plan.rooms.indexOf(room) + 1 }, room), THREE, 4);
       signTex.userData.room = room.id;
+      /* 0.72 rather than 0.5: a corridor lamp sits directly over every door
+         plate on the ground floor, and at 0.5 the code line along the top of
+         the plate was washed out by the bloom of a lamp it is not even
+         lit by. The plate is a sign, not a surface — it should outshine the
+         thing behind it. */
       room._signMat = new THREE.MeshStandardMaterial({
-        map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.5,
+        map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.72,
         roughness: 0.8, side: THREE.DoubleSide
       });
     }
@@ -1533,7 +1538,7 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
     signTex.userData.room = room.id;
     room._signMat = new THREE.MeshStandardMaterial({
       map: signTex, emissive: 0xffffff, emissiveMap: signTex,
-      emissiveIntensity: 0.5, roughness: 0.8, side: THREE.DoubleSide
+      emissiveIntensity: 0.72, roughness: 0.8, side: THREE.DoubleSide
     });
   }
   const sz = wz + S.CUPOLA_RING_R + 0.12;

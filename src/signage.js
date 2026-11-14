@@ -74,7 +74,7 @@ const CELL_W = 384, CELL_H = 192, COLS = 4, MAX_ROWS = 4;
 export function plaqueSheets(room, links, THREE, aniso) {
   THREEref = THREE;
   const items = room.items || [];
-  const hex = room.hex || '#ffd9a0';
+  const hex = room.zoneHex || room.hex || '#ffd9a0';
   const cells = new Array(items.length);
   const texs = [];
 
@@ -132,6 +132,14 @@ function paintLabel(ctx, room, link, hex) {
   ctx.font = `600 17px ${MONO}`;
   spaced(ctx, `${room.cat || room.category || ''}`.toUpperCase(), 24, 34, 2.4);
 
+  /* the room's code on the label as well: a plinth in the middle of a long
+     hall should still be able to tell you which room you are standing in,
+     and it is the same string the door over your head and the map use */
+  ctx.font = `600 15px ${MONO}`;
+  ctx.fillStyle = 'rgba(255,255,255,0.34)';
+  const code = room.code || '';
+  if (code) ctx.fillText(code, CELL_W - 24 - ctx.measureText(code).width, 33);
+
   const tpx = fitText(ctx, name, (p) => `${p}px ${SERIF}`, CELL_W - 48, 34);
   ctx.font = `${tpx}px ${SERIF}`;
   ctx.fillStyle = '#f4f1ea';
@@ -151,7 +159,24 @@ function paintLabel(ctx, room, link, hex) {
   ctx.font = `14px ${MONO}`;
   ctx.fillStyle = '#5f6875';
   let host = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  while (ctx.measureText(host).width > CELL_W - 48 && host.length > 4) host = host.slice(0, -2);
+
+  /* the price, in the corner, in the palette's analogue colour: the plan says
+     the cost prints on the plaque, and the cost table that arrived in
+     November is the reason the field exists at all. It is set before the
+     host so the host can be cut short rather than run under it. */
+  const cost = (link && link.cost) ? String(link.cost) : '';
+  let costW = 0;
+  if (cost) {
+    ctx.font = `600 15px ${MONO}`;
+    costW = ctx.measureText(cost).width;
+    ctx.fillStyle = '#ffb700';
+    ctx.fillText(cost, CELL_W - 24 - costW, CELL_H - 18);
+  }
+
+  ctx.font = `14px ${MONO}`;
+  ctx.fillStyle = '#5f6875';
+  const hostMax = CELL_W - 48 - (cost ? costW + 26 : 0);
+  while (ctx.measureText(host).width > hostMax && host.length > 4) host = host.slice(0, -2);
   ctx.fillText(host.length < url.replace(/^https?:\/\//, '').length ? host + '…' : host, 24, CELL_H - 18);
 }
 
@@ -163,10 +188,16 @@ export function roomSign(room, THREE, aniso) {
      couple of metres: 1024 px across it was more texture than the screen has
      pixels for it, times forty-seven doors. The canvas is scaled rather than
      the metrics, so the layout and the size of the letters in the world are
-     exactly what they were for 44 % of the memory. */
+     exactly what they were for 44 % of the memory.
+
+     The frame and the stencil take the *zone* accent, not the category's own
+     colour: forty-seven hues over forty-seven doors was a building that
+     could not be learned. The code above the name is the same one the floor
+     plan and the room card use, so a door, a map and a card all say
+     `LIB-03` about the same room. */
   const W = 768, H = 192, K = 0.75;
   const CW = 1024, CH = 256;
-  const hex = room.hex || '#ffd9a0';
+  const hex = room.zoneHex || room.hex || '#ffd9a0';
   const cv = canvas(W, H);
   const ctx = cv.getContext('2d');
   ctx.scale(K, K);
@@ -187,20 +218,37 @@ export function roomSign(room, THREE, aniso) {
   ctx.fillRect(14, 14, 10, CH - 28);
 
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = `600 26px ${MONO}`;
-  spaced(ctx, `ROOM ${String(room.no || 0).padStart(2, '0')}`, 48, 66, 4);
+  /* The zone name goes along the top and the code goes along the bottom with
+     the category and the count. Not for looks: a corridor lamp sits directly
+     over a ground-floor door often enough to be counted on, and its bloom sat
+     on exactly the strip the code was printed on. The top line is decoration
+     if a lamp eats it; the bottom line never is. */
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `600 24px ${MONO}`;
+  if (room.zoneName) spaced(ctx, room.zoneName.toUpperCase(), 48, 62, 5);
 
   const title = room.name || room.title || String(room.id || '').toUpperCase();
   const tpx = fitText(ctx, title, (p) => `${p}px ${SERIF}`, CW - 96, 92);
   ctx.font = `${tpx}px ${SERIF}`;
   ctx.fillStyle = '#f6f3ec';
-  ctx.fillText(title, 48, 66 + tpx * 0.92);
+  ctx.fillText(title, 48, 62 + tpx * 0.92);
 
   ctx.font = `600 28px ${MONO}`;
   ctx.fillStyle = hex;
-  spaced(ctx, `${(room.cat || room.category || '').toUpperCase()} · ${(room.items || []).length} LINKS`,
-    48, CH - 46, 3);
+  const code = room.code || `ROOM ${String(room.no || 0).padStart(2, '0')}`;
+  const bottom = `${code} · ${(room.cat || room.category || '').toUpperCase()} · ${(room.items || []).length} LINKS`;
+  /* the long names in this collection — Emulation and Re(de)omps, Recompiles
+     and Decompiles — do not fit at 28 px with the letterspacing, and a plate
+     whose last word is cut off is worse than a plate with smaller type */
+  const spacedW = (t, gap) => [...t].reduce((w, ch) => w + ctx.measureText(ch).width + gap, 0) - gap;
+  let bpx = 28, bgap = 2.4;
+  for (;;) {
+    ctx.font = `600 ${bpx}px ${MONO}`;
+    if (spacedW(bottom, bgap) <= CW - 96 || bpx <= 19) break;
+    bpx -= 1;
+    if (bpx < 24) bgap = 1.6;
+  }
+  spaced(ctx, bottom, 48, CH - 46, bgap);
 
   const tex = texture(cv, aniso);
   tex.userData.kind = 'sign';
@@ -211,6 +259,11 @@ export function roomSign(room, THREE, aniso) {
 
 export function boardTexture(plan, THREE, aniso) {
   THREEref = THREE;
+  /* The board used to set one row per room at a 58 px pitch, which was right
+     for twelve rooms and ran off the bottom of the canvas at fifty-one — the
+     last rooms on it were simply not on the board. So the list is set in two
+     columns, hungriest first, with the zone key along the top: an
+     acquisitions board exists to show you which walls are still empty. */
   const W = 1024, H = 1024;
   const cv = canvas(W, H);
   const ctx = cv.getContext('2d');
@@ -221,39 +274,59 @@ export function boardTexture(plan, THREE, aniso) {
   ctx.lineWidth = 4;
   ctx.strokeRect(20, 20, W - 40, H - 40);
 
+  const held = plan.rooms.reduce((n, r) => n + r.items.length, 0);
+  const empty = plan.rooms.filter((r) => !r.items.length).length;
+
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffd9a0';
-  ctx.font = `600 30px ${MONO}`;
-  spaced(ctx, 'THE MUSEUM OF USEFUL LINKS', 60, 96, 5);
-  ctx.font = `84px ${SERIF}`;
+  ctx.font = `600 26px ${MONO}`;
+  spaced(ctx, 'ORBITUARY · THE MUSEUM OF USEFUL LINKS', 60, 92, 4);
+  ctx.font = `76px ${SERIF}`;
   ctx.fillStyle = '#f6f3ec';
-  ctx.fillText('Acquisitions wanted', 58, 190);
-  ctx.font = `italic 30px ${SERIF}`;
+  ctx.fillText('Acquisitions wanted', 58, 172);
+  ctx.font = `italic 28px ${SERIF}`;
   ctx.fillStyle = '#a9a294';
-  ctx.fillText('Eighty-eight things worth keeping, in twelve rooms.', 60, 236);
+  ctx.fillText(`${held} things worth keeping, in ${plan.rooms.length} rooms — ${empty} of them still empty.`, 60, 214);
 
-  let y = 300;
-  for (const room of plan.rooms) {
-    ctx.fillStyle = room.hex;
-    ctx.fillRect(60, y - 20, 14, 26);
-    ctx.font = `34px ${SERIF}`;
-    ctx.fillStyle = '#efe9dd';
-    ctx.fillText(room.cat, 92, y);
-    ctx.font = `26px ${MONO}`;
+  /* the zone key, so the eight colours on the board and the eight on the
+     floor plan are the same eight */
+  let kx = 60;
+  ctx.font = `600 20px ${MONO}`;
+  plan.zones.forEach((z) => {
+    ctx.fillStyle = z.hex;
+    ctx.fillRect(kx, 246, 14, 14);
     ctx.fillStyle = '#8d8778';
-    const label = `${room.items.length} held · ${room.name}`;
-    ctx.fillText(label, 92, y + 34);
-    const bar = Math.min(1, room.items.length / 16) * (W - 480);
-    ctx.fillStyle = 'rgba(255,217,160,0.16)';
-    ctx.fillRect(W - 420, y - 16, W - 480, 18);
-    ctx.fillStyle = room.hex;
-    ctx.fillRect(W - 420, y - 16, bar, 18);
-    y += 58;
-  }
+    const tag = `${z.key} ${z.rooms}`;
+    ctx.fillText(tag, kx + 22, 259);
+    kx += 22 + ctx.measureText(tag).width + 30;
+  });
+
+  const rows = plan.rooms.slice()
+    .sort((a, b) => (a.items.length - b.items.length) || a.cat.localeCompare(b.cat));
+  const perCol = Math.ceil(rows.length / 2);
+  const pitch = Math.min(25, (H - 360) / perCol);
+  rows.forEach((room, i) => {
+    const col = Math.floor(i / perCol);
+    const x = 60 + col * 460;
+    const y = 316 + (i % perCol) * pitch;
+    ctx.fillStyle = room.zoneHex || room.hex;
+    ctx.fillRect(x, y - 13, 9, 17);
+    ctx.font = `600 19px ${MONO}`;
+    ctx.fillStyle = '#c9c2b4';
+    ctx.fillText(room.code || '', x + 18, y);
+    ctx.font = `22px ${SERIF}`;
+    ctx.fillStyle = '#efe9dd';
+    let cat = room.cat;
+    while (ctx.measureText(cat).width > 230 && cat.length > 6) cat = cat.slice(0, -2);
+    ctx.fillText(cat, x + 96, y);
+    ctx.font = `19px ${MONO}`;
+    ctx.fillStyle = room.items.length ? '#8d8778' : '#ffd9a0';
+    ctx.fillText(room.items.length ? `${room.items.length} held` : 'WANTED', x + 340, y);
+  });
 
   ctx.font = `24px ${MONO}`;
   ctx.fillStyle = '#6f6a5e';
-  ctx.fillText('WALK TO A ROOM · OR PRESS R FOR THE NEXT ONE', 60, H - 60);
+  ctx.fillText('WALK TO A ROOM · OR PRESS R FOR ONE AT RANDOM', 60, H - 52);
   const tex = texture(cv, aniso);
   tex.userData.kind = 'board';
   return tex;

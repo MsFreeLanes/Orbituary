@@ -127,3 +127,44 @@ git, like all scratch PNGs). `check-v2` still boots clean: console clean,
 **Kept on purpose:** the gate element still carries class `intro` and
 `.intro-kicker`, and `hud.hideIntro()` still closes everything, because about
 twenty probes in `scratch/` drive the museum through those names.
+
+### 01:20–02:05 — step 2: eight zones, and a code on every door
+
+You said forty-seven colours was too many and to find a better approach. This is
+it. **The colour belongs to the zone; the code belongs to the room.**
+
+- **Eight zones**, your own list of subjects grouped by what you came to do:
+  `PLY` Play 8 · `STU` Studio 7 · `DEV` Development 9 · `SYS` Systems 2 ·
+  `SEC` Security 4 · `LIB` Library 10 · `MKT` Market 7 · `HUB` Hub 7. Accents:
+  ember, the terminal amber, the signal cyan, coolant green, cold blue, paper
+  sand, a litmus rose, panel white. They sit in the brand palette's family.
+  **The accents are my pick and are the thing most worth overruling** — they are
+  eight lines at the top of `src/plan.js`.
+- **Codes**: `SEC-04`, `LIB-03`, `HUB-06`. Numbered inside each zone *in the
+  order you meet the doors* — anticlockwise from the South arm, up each spoke
+  near side, far side, hall, then the cellar rooms in the order you pass them
+  off the stair. So a code is a place, not a row in a table. Astronomy is
+  `LIB-03` even though it stands in the Cupola: the subject wins over the room.
+- The same string appears on the **door plate**, the **plinth label** (top
+  right), the **room card**, the **plaque** and the **acquisitions board**.
+  `SEC-04 · PRIVACY · 10 LINKS` is the bottom line of a plate now, not the top:
+  a corridor lamp sits over a ground-floor door often enough to bloom across
+  whatever is printed there, and the code cannot be the thing that gets eaten.
+  The zone name moved up to that decorative strip instead.
+- **The floor plan is eight colours with a key** under it — zone, name, and how
+  many doors that zone owns, counted out of the plan so it cannot go stale.
+- **A bug found and fixed:** the acquisitions board set one row per room at a
+  58 px pitch, which was right for twelve rooms and at fifty-one ran off the
+  bottom of its own canvas — twenty rooms were simply not on the board. It is
+  now two columns, hungriest first, with the zone key along the top.
+- **The cost prints on the plaque**, which the plan always said it should and
+  nothing did: the price goes in the corner of the 3D label in the palette's
+  analogue amber, and the DOM plaque now carries the price, the wall-label text
+  (`d`, which it also never showed) and the host.
+- Door plates are self-lit at 0.72 rather than 0.5, for the same lamp reason.
+
+**Proven:** `scratch/shot-codes.mjs` prints all 51 codes grouped by zone and
+photographs a ground plate (`codes-door-privacy.png`), a cellar plate
+(`codes-door-cellar.png`), the board (`codes-board-rotunda.png`) and the map
+with its key (`codes-map-rotunda.png`). `check-scale`, `check-data`, `check-v2`
+all green; console clean; 258 calls / 74k tris, unchanged.

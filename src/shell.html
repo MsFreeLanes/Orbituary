@@ -97,6 +97,13 @@
   .mapbox .roomrect { stroke-width: 0.3; }
   .mapbox .you { fill: var(--panel-face); }
   .map-hint { font-family: ui-monospace, monospace; font-size: 9px; color: var(--dim); letter-spacing: 0.1em; }
+  /* the zone key: eight colours rather than forty-seven, and the count of
+     doors each one owns, so the map can be read rather than admired */
+  .zonekey { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px; margin-top: 7px; }
+  .zk { display: flex; align-items: center; gap: 4px; font-family: ui-monospace, monospace; font-size: 8.5px; letter-spacing: 0.06em; color: var(--dim); }
+  .zk i { width: 6px; height: 6px; display: inline-block; }
+  .zk-code { color: var(--ink); }
+  .zk-n { margin-left: auto; }
 
   /* ── plaque ── */
   .plaque {
@@ -106,7 +113,9 @@
     backdrop-filter: blur(6px);
   }
   .plaque-title { font-size: 24px; margin: 4px 0 3px; }
-  .plaque-note { font-size: 13px; color: var(--dim); font-style: italic; }
+  .plaque-cost { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.16em; color: var(--amber); }
+  .plaque-text { font-size: 14px; line-height: 1.5; color: rgba(214, 214, 218, 0.86); margin: 5px 0 3px; }
+  .plaque-note { font-size: 12px; color: var(--dim); font-family: ui-monospace, monospace; }
   .plaque-go {
     margin-top: 8px; font-family: ui-monospace, monospace; font-size: 9.5px;
     letter-spacing: 0.16em; color: var(--wing);

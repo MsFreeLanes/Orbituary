@@ -196,7 +196,7 @@ export function createHUD(plan, actions = {}) {
       /* the stair hall is the one cellar space the plan names, so it is drawn
          as a room: it is where you arrive, not a way through to somewhere */
       const hall = plan.walkable.rects.find((r) => r.room === plan.stairHall.id);
-      if (hall) rectNode(hall, 'roomrect', plan.stairHall.hex, g);
+      if (hall) rectNode(hall, 'roomrect', plan.stairHall.zoneHex || plan.stairHall.hex, g);
     }
     plan.walkable.rects
       .filter((r) => r.floor === storey && r.kind === 'corridor' && r.room !== plan.stairHall.id)
@@ -204,8 +204,10 @@ export function createHUD(plan, actions = {}) {
     plan.walkable.rects
       .filter((r) => r.floor === storey && r.kind === 'room')
       .forEach((rect) => {
+        /* the map is coloured by zone, not by room: forty-seven hues made a
+           diagram nobody could read, and eight make one you can learn */
         const room = plan.byId(rect.room);
-        rectNode(rect, 'roomrect', room ? room.hex : '#888', g);
+        rectNode(rect, 'roomrect', room ? (room.zoneHex || room.hex) : '#888', g);
       });
     const s = plan.stair;
     const x0 = -(s.x + s.w / 2), x1 = -(s.x - s.w / 2);
@@ -231,6 +233,22 @@ export function createHUD(plan, actions = {}) {
   you.setAttribute('class', 'you');
   svg.appendChild(you);
   mapBox.appendChild(svg);
+  /* the key: eight zones, and how many doors each one owns. The counts come
+     out of the plan, so the key cannot fall out of date with the building,
+     and when a category moves between the storeys the map and the key move
+     with it. */
+  const key = el('div', 'zonekey');
+  (plan.zones || []).forEach((z) => {
+    const row = el('div', 'zk');
+    const dot = el('i', '');
+    dot.style.background = z.hex;
+    row.appendChild(dot);
+    row.appendChild(el('span', 'zk-code', z.key));
+    row.appendChild(el('span', 'zk-name', z.name.toLowerCase()));
+    row.appendChild(el('span', 'zk-n', String(z.rooms)));
+    key.appendChild(row);
+  });
+  mapBox.appendChild(key);
   const mapHint = el('div', 'map-hint', '');
   const mapOther = el('div', 'map-hint', '');
   mapBox.appendChild(mapHint);
@@ -262,10 +280,14 @@ export function createHUD(plan, actions = {}) {
   plaque.style.display = 'none';
   const plaqueKicker = el('div', 'kicker', '');
   const plaqueTitle = el('div', 'plaque-title', '');
+  const plaqueCost = el('div', 'plaque-cost', '');
+  const plaqueText = el('div', 'plaque-text', '');
   const plaqueNote = el('div', 'plaque-note', '');
   const plaqueGo = el('div', 'plaque-go', 'ENTER opens · click the plinth');
   plaque.appendChild(plaqueKicker);
   plaque.appendChild(plaqueTitle);
+  plaque.appendChild(plaqueCost);
+  plaque.appendChild(plaqueText);
   plaque.appendChild(plaqueNote);
   plaque.appendChild(plaqueGo);
   root.appendChild(plaque);
@@ -449,22 +471,23 @@ export function createHUD(plan, actions = {}) {
      corridor says how many doors hang off it, which is the only thing a
      corridor is for. */
   function subOf(room) {
-    if (room.cat === 'Rotunda') return 'no links yet · acquisitions board';
+    const code = room.code ? `${room.code} · ` : '';
+    if (room.cat === 'Rotunda') return `${code}no links yet · acquisitions board`;
     if (room.cat === 'Corridor') return `${room.doors} doors off it · ${room.range}`;
-    if (room.cat === 'Stair' || room.cat === 'Stair Hall') return room.subtitle;
+    if (room.cat === 'Stair' || room.cat === 'Stair Hall') return `${code}${room.subtitle}`;
     const n = room.items.length;
-    return `${room.cat} · ${n} ${n === 1 ? 'link' : 'links'} · ${room.range}`;
+    return `${code}${room.cat} · ${n} ${n === 1 ? 'link' : 'links'} · ${room.range}`;
   }
 
   function setRoom(room) {
     if (!room) return;
     scramble(roomName, room.name || 'The Rotunda');
     roomSub.textContent = subOf(room);
-    /* the room's own colour runs down the left of the card, the way the plaque
-       already takes it: the stair and the hall have a colour of their own, and
-       a card that stays amber below ground is still describing the floor
-       above you */
-    card.style.setProperty('--wing', room.hex || '#ffd9a0');
+    /* the zone's colour runs down the left of the card, the way the door
+       plate and the map now take it: the stair and the hall have a colour of
+       their own, and a card that stays amber below ground is still describing
+       the floor above you */
+    card.style.setProperty('--wing', room.zoneHex || room.hex || '#ffd9a0');
     card.classList.remove('flash');
     void card.offsetWidth;
     card.classList.add('flash');
@@ -474,10 +497,18 @@ export function createHUD(plan, actions = {}) {
   function showPlaque(link, room) {
     if (!link) { plaque.style.display = 'none'; return; }
     plaque.style.display = 'block';
-    plaqueKicker.textContent = (room ? room.cat : '').toUpperCase();
+    plaqueKicker.textContent = (room
+      ? (room.code ? `${room.code} · ${room.cat}` : room.cat)
+      : '').toUpperCase();
     plaqueTitle.textContent = link.t;
-    plaqueNote.textContent = link.n || link.u;
-    plaque.style.setProperty('--wing', room ? room.hex : '#fff');
+    /* the price, when the collection knows it: the plan says the cost prints
+       on the plaque, and the 3D label already carries it in the corner */
+    plaqueCost.textContent = link.cost ? String(link.cost) : '';
+    plaqueCost.style.display = link.cost ? 'block' : 'none';
+    plaqueText.textContent = link.d || '';
+    plaqueText.style.display = link.d ? 'block' : 'none';
+    plaqueNote.textContent = String(link.u || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    plaque.style.setProperty('--wing', room ? (room.zoneHex || room.hex) : '#fff');
   }
 
   function setYou(x, z, yaw) {

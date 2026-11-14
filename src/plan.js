@@ -230,6 +230,62 @@ const CHARACTER = {
    the differences, the size comes from the scale file. */
 const CELLAR = 'cellar';
 
+/* ── the eight zones ─────────────────────────────────────────────────────
+   Forty-seven categories, forty-seven colours, was too many. The floor plan
+   went to confetti, nothing in the building repeated, and a visitor could
+   not learn it. So the *colour* belongs to the zone — eight of them, one
+   accent each — and the room itself gets a stencilled code: three letters
+   for the zone, two digits for which door of that zone it is. `PLY-04` is
+   the fourth play room you come to walking the building, and it means
+   something on the map, on the door, on the card and on the plinth.
+
+   What does not change is the light. A room's key colour is not wayfinding:
+   the Server Alcove being cold and the Atelier being warm is the entire
+   point of walking between them, so `CHARACTER` below keeps its per-room
+   lamps and its per-room air.
+
+   The eight are the owner's own list of subjects, grouped by what you came
+   here to do. The accents sit in the brand palette's family — ember, the
+   terminal amber, the signal cyan, coolant green, cold blue, paper sand, a
+   litmus rose for the market, and panel white for the hub itself.
+   `HUB` is the civic body of the station: the rotunda, the stair, and the
+   four rooms that hold no links. */
+const ZONES = [
+  { key: 'PLY', name: 'Play', hex: '#e8663f', cats: [
+    'Gaming', 'Game Development', 'Modding', 'Mod Development',
+    'Emulation and Re(de)omps', 'Recompiles and Decompiles', 'Hobbies', 'Vtubing'
+  ] },
+  { key: 'STU', name: 'Studio', hex: '#ffb700', cats: [
+    'Content Creation', 'Media', 'Art', 'Audio', 'Photo and Video', 'Music', 'Social Networks'
+  ] },
+  { key: 'DEV', name: 'Development', hex: '#00e5ff', cats: [
+    'Programming', 'Web Dev', 'Web Extension', 'GitHub Repo', 'Open Source',
+    'Android Dev', 'Apple Dev', 'Windows and Mac', 'PC Tweaks'
+  ] },
+  { key: 'SYS', name: 'Systems', hex: '#6fd0b6', cats: ['Self Hosting', 'Linux'] },
+  { key: 'SEC', name: 'Security', hex: '#8fb2ff', cats: [
+    'Privacy', 'Red and Blue Hat', 'Reverse Engineering', 'AI'
+  ] },
+  { key: 'LIB', name: 'Library', hex: '#e8d5a2', cats: [
+    'Reading', 'Creative Writing', 'Education', 'Science', 'History and Archives',
+    'Journalism', 'Psychology', 'Philosophy', 'Astronomy', 'Accessibility'
+  ] },
+  { key: 'MKT', name: 'Market', hex: '#c56f8e', cats: [
+    'Shopping', 'Ethical Shopping', 'Business', 'Productivity', 'Paid', 'Sports', 'Charity'
+  ] },
+  { key: 'HUB', name: 'Hub', hex: '#f4f4f5', cats: [
+    'Box Office', 'Rules Room', 'Trophy Hall', 'Acquisitions Hall', 'Rotunda', 'Stair', 'Stair Hall'
+  ] }
+];
+
+const ZONE_OF = {};
+ZONES.forEach((z) => z.cats.forEach((c) => { ZONE_OF[c] = z; }));
+const HUB_ZONE = ZONES.find((z) => z.key === 'HUB');
+
+/* A category nobody assigned still gets a code: it goes to the hub, which is
+   the honest answer, because an unsorted subject is not a wing yet. */
+const zoneOf = (cat) => ZONE_OF[cat] || HUB_ZONE;
+
 /* A category the character table has never heard of still has to be built:
    plain plaster, a warm key, gallery air. The plan is never the reason the
    page does not boot. */
@@ -733,9 +789,54 @@ export function buildPlan() {
     (cellarOrder[arm.range] || []).forEach((id) => order.push(id));
   });
 
+  /* ── the codes ─────────────────────────────────────────────────────────
+      Numbered inside each zone in the order you actually meet the doors:
+      ground rooms first, anticlockwise from the South arm — the way the tour
+      walks — and up each spoke near side, far side, hall; then the cellar
+      rooms in the order you pass them off the stair. So `LIB-03` is not a
+      row in a table, it is the third library door you come to. */
+  const spokeRank = {};
+  spokeOrder.forEach((spokeIndex, k) => { spokeRank[RANGE_NAMES[spokeIndex]] = k; });
+  const doorRank = { 1: 0, '-1': 1, 0: 2 };
+  const cellarRank = {};
+  BASE_ARMS.forEach((arm, i) => {
+    (cellarOrder[arm.range] || []).forEach((id, j) => { cellarRank[id] = i * 10 + j; });
+  });
+  const doorSeq = (room) => (room.floor === 'basement'
+    ? 1000 + (cellarRank[room.id] !== undefined ? cellarRank[room.id] : 999)
+    : (spokeRank[room.range] !== undefined ? spokeRank[room.range] : 99) * 10
+      + (doorRank[room.side] !== undefined ? doorRank[room.side] : 3));
+
+  const zones = ZONES.map((z) => ({ key: z.key, name: z.name, hex: z.hex, rooms: 0 }));
+  const zoneBy = {};
+  zones.forEach((z) => { zoneBy[z.key] = z; });
+  ZONES.forEach((zone) => {
+    const mine = rooms
+      .filter((room) => zoneOf(room.cat) === zone)
+      .sort((a, b) => doorSeq(a) - doorSeq(b));
+    mine.forEach((room, i) => {
+      room.zone = zone.key;
+      room.zoneName = zone.name;
+      room.zoneHex = zone.hex;
+      room.code = `${zone.key}-${String(i + 1).padStart(2, '0')}`;
+    });
+    zoneBy[zone.key].rooms = mine.length;
+  });
+  /* the three spaces that are not rooms still have a place on the station,
+     and a visitor standing in the stair hall should be able to read where he
+     is on the same system everything else uses */
+  [rotunda, stairHall, stairRoom].forEach((place) => {
+    zoneBy.HUB.rooms += 1;
+    place.zone = 'HUB';
+    place.zoneName = 'Hub';
+    place.zoneHex = HUB_ZONE.hex;
+    place.code = `HUB-${String(zoneBy.HUB.rooms).padStart(2, '0')}`;
+  });
+
   return {
     rotunda, rooms, corridors, walkable, order, stair, unplaced,
     stairHall, stairRoom,
+    zones,
     reach,
     wingNames: WING_NAMES,
     /* a name is a gallery, the rotunda, or one of the two places the stair
