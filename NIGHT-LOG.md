@@ -803,6 +803,27 @@ distance from a card to the stone it should be on: 4.72 m → **0.32 m**, which 
 the half-width of the plinth plus the 8 mm it stands proud. Two hundred and four
 labels are on their plinths now (`privacy-bench.png`, `wanted-plinth.png`).
 
+### 17:3x — an empty room says WANTED, in all three places (`5faee66`)
+
+The door plate's last line was a stock count — `LIB-04 · CREATIVE WRITING · 0
+LINKS` — which is what a storeroom looks like from the corridor. A room that has
+been handed a plinth with a card saying what it is waiting for should not then
+report what it lacks on its own door, so the plate and the HUD's room card both
+say **WANTED**, the word the Acquisitions Hall's four empty frames, the trophy
+stands and the ticket already use. `probe-card.mjs` reads the cards back:
+`LIB-04 · Creative Writing · wanted · Basement North` against
+`SEC-04 · Privacy · 10 links · West South West`.
+
+**Where the pass stopped.** Head `5faee66`, pushed, bundled, tree clean. Eight
+commits this afternoon: the lift, the deck ring and the corridor measurement
+error, the cellar as a storeroom, the handoff and log rewritten, the hardware
+answer, the cull's dwell, the cellar's empty plinths and the 204 wall labels that
+were standing in doorways, and the wording. Everything the checks cover is green:
+`check-v2` at 476 calls / 125229 tris with a clean console, `check-scale`,
+`check-sky`, `check-events`, `check-data`, `check-candidates`, `check-props`,
+`check-tube`, `check-placement`, `check-collision`, `check-lights`, `check-keys`,
+`check-pop`, `check-terminator`, `check-lift`.
+
 **Still open, in the order I would take them.**
 - The fourteen cellar rooms are furnished and now hold an empty plinth each, but
   still have **no exhibits**: no links, no pick nodes. Which categories get a
