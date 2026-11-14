@@ -33,6 +33,7 @@ row for a step's own commit is added at the top of the next step's entry:
 | 00:58 | 34470f3 | `..\Backups\orbituary-34470f3.bundle` |
 | 01:06 | 1c95417 | `..\Backups\orbituary-1c95417.bundle` |
 | 01:18 | 84aa968 | `..\Backups\orbituary-84aa968.bundle` |
+| 01:42 | bb91cd5 | `..\Backups\orbituary-bb91cd5.bundle` |
 
 ## Green baseline before touching anything
 
@@ -334,3 +335,35 @@ region at 3×), `scratch/ab-atmo.mjs`, `scratch/dump-planes.mjs`,
 `scratch/dump-glass.mjs`, `scratch/stats-in.mjs`. `window.__museum` now
 exposes `scene`, which is what makes the last three possible. Every
 atmosphere mesh carries `userData.atmo` = damp | web | dust.
+
+### 01:42–01:53 — step 6: the two documents that still described last month
+
+`README.md` opened with "a building that is being rebuilt from twelve rooms to
+forty-seven … the page you can open today still shows the twelve". It shows
+fifty-one. `HANDOFF.md` said the plan still builds twelve, that the prop kit is
+"wired, not yet wired in", and that phase 9 was not started. Both were true on
+2026-11-13 and neither is true now, and a document that lies about the state of
+a build is worse than no document, so both were rewritten against the plan
+rather than against memory.
+
+The counts were taken from the running plan, not from the old files:
+
+- **51 rooms** = 47 category rooms + 4 rooms about the museum itself. The
+  rotunda, the stair hall and the stair are not rooms in `plan.rooms`; they are
+  structures, which is why the zone legend adds to 54 and the room list to 51.
+- **32 rooms have plinths, 19 do not** — 14 of those in the cellar, 4 are the
+  purpose rooms, 1 is `PLY-08 Recompiles and Decompiles`, which is the only
+  space in the building with nothing in it at all.
+- **192 links, 198 plinths, 16 corridors over 12 ranges** (8 ground, 4 cellar
+  arms), 8 zones, a 10-light pool plus one static light in the stair hall.
+- 882 KB, 327 calls / 87k triangles / 49 textures at the Cupola.
+
+`HANDOFF.md` now carries a "waiting on the owner" section — the empty `socials`
+and `donation` in `identity.js`, the eight zone hexes, the iris transition, the
+trophy ladder's missing threshold, and the fact that props do not stop the
+visitor — and a "known artifacts" section that starts with the cellar hairlines
+and names the probes that narrowed them.
+
+**Proven:** the numbers came from `node -e` against `src/plan.js` and
+`src/data.js`, and from `scratch/stats-in.mjs`. Both documents were read back
+after writing.
