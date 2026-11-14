@@ -134,6 +134,7 @@ node scratch/check-events.mjs      # 2000 ambient events, checked for clustering
 node scratch/check-data.mjs        # every link, its room, its board row
 node scratch/check-candidates.mjs  # dry run of the software-costs merge
 node scratch/check-props.mjs       # no prop stands on a plinth or blocks a door
+node scratch/check-tube.mjs        # the cellar tubes: shape, and glow matching light
 node scratch/probe-exposure.mjs    # pixel readback: is the room actually lit
 node scratch/probe-keys.mjs        # presses the keyboard and watches the rig
 node scratch/probe-tier.mjs        # the quality ladder under load
@@ -159,6 +160,7 @@ __museum.scene                       // the whole building, for a probe to walk
 | `src/building.js` | walls with real openings, ceilings, plinths, lamps, the hull |
 | `src/props.js` | the furniture: workbenches, easels, presses, vitrines, crates |
 | `src/atmosphere.js` | cellar damp, corner webs, drifting dust |
+| `src/tube.js` | the shape of a fluorescent that is trying to start |
 | `src/materials.js` | canvas-painted PBR maps, glass, the environment probe |
 | `src/signage.js` | plaques, door plates, the board — typeset into one atlas per room |
 | `src/sky.js` | the planetarium, and the planet |

@@ -2,7 +2,7 @@
 tags: [museum, project, handoff]
 updated: 2026-11-14 (third pass)
 build: v2
-head: df1dea8
+head: 454e221
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -21,7 +21,7 @@ what is waiting on a decision.
 | 0 pipeline, vendor three, tag v1 | 1 h | **done** — `build.mjs`, three bundled, `v1-rotunda` tagged |
 | 1 materials, lights, post, watchdog | 2 h | **done** — and the watchdog rebuilt to keep its own clock |
 | 2 architecture, doors, windows, collision | 3.5 h | **done, and rebuilt**: the twelve rooms became fifty-one, with a cellar under the stair hall and a hull over the lot |
-| 3 room theming + props | 4 h | **done** — theming in `CHARACTER`, props wired into twelve rooms and the hub, cellar atmosphere in `atmosphere.js` |
+| 3 room theming + props | 4 h | **done** — theming in `CHARACTER`, props wired into twelve rooms and the hub, cellar atmosphere in `atmosphere.js`, the failing tubes in `tube.js` |
 | 4 sky: catalogue, sidereal, planets, moon | 3 h | **done** — 16 astronomy checks pass, and the planet hangs under the keel |
 | 5 rig, walk, tour, random room | 3 h | **done** — the tour and the random room now choose *rooms* |
 | 6 footsteps, per-room reverb, tone, SFX | 1.5 h | **done** — and the cellar has its own footfall, reverb and drip |
@@ -59,6 +59,7 @@ and the Cupola view runs 327 draw calls / 87k triangles / 49 textures.
 | 5 | `bb91cd5` | cellar damp, corner webs, drifting dust |
 | 6 | `4d95a31` | `README.md` and this file rewritten against what the building is now |
 | 7 | `df1dea8` | the hairlines on the cellar plaster, which were the range's shell lying in the same plane as the room's door wall |
+| 8 | `cb421ec` | the cellar tubes now try to start — one shape in `tube.js` for the fitting's glow and the room's light, which had been inventing two different ones |
 
 ## Waiting on the owner
 

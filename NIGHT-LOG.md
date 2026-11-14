@@ -38,6 +38,8 @@ row for a step's own commit is added at the top of the next step's entry:
 | 01:42 | df1dea8 | `..\Backups\orbituary-df1dea8.bundle` |
 | 01:44 | a70e273 | `..\Backups\orbituary-a70e273.bundle` |
 | 01:45 | 0b42d7f | `..\Backups\orbituary-0b42d7f.bundle` |
+| 01:52 | cb421ec | `..\Backups\orbituary-cb421ec.bundle` |
+| 01:53 | 454e221 | `..\Backups\orbituary-454e221.bundle` |
 
 A row is normally added at the top of the entry for the step that follows the
 commit it names, so the row for a step's own commit appears in the commit after
@@ -479,3 +481,59 @@ including down the stair), `check-props`, `check-events`, `check-data`,
 **What the owner owes the build:** the `socials` array and the `donation` link
 in `src/identity.js`. The brochure prints *not posted yet* until then, and the
 trophy ladder has no donor threshold written on it.
+
+
+### 01:47–01:53 — step 8: the tube that tries to start
+
+The queue closed before this line in it was finished. Step 5 read "dust motes,
+cobwebs, damp, **the tube that tries to start**", and what landed at 01:17 was
+the first three plus a wobble. The wobble was not a starting tube.
+
+**What was actually there.** Two different inventions of the same idea, in two
+files. The fitting's glow dropped out on a random 90 ms slot (`building.js`,
+`lampsFor`), and the room's light sagged on two sines (`lighting.js`,
+`flicker`). A fluorescent tube does neither: it sits dark, flashes once or
+twice, goes dark again, and either catches and warms up or gives up for a
+couple of seconds. Worse, the two versions were not the same shape, so the lamp
+you can look at and the light coming out of it were disagreeing — which is the
+one thing that turns a failing tube into a rendering bug.
+
+**What is there now.** `src/tube.js`, forty lines, two exports. `tubePhase(id)`
+hashes the room's name into a phase in seconds, so two rooms on the same arm
+never strike together and a reload gives the same tube back. `tubeEnvelope(now,
+phase, k)` returns a multiplier: an attempt every `7 + 16(1-k)` seconds — the
+worse the starter, the more often it tries — of one to three flashes of
+0.07–0.12 s separated by 0.16–0.26 s of dark, then either a catch (back to full
+over about a second) or a failure (dark for two and a half seconds, then it
+comes back on its own). Between attempts the tube holds, and a failing one
+still beats a little. Both callers — the pool's anchor and the fitting's glow —
+call it with `performance.now()`, so they are reading the same clock.
+
+The Stair Hall's four anchors were left mostly steady: only the one under the
+visible tube fails with it, or a striking starter would take the four cellar
+door mouths down with it every sixteen seconds.
+
+**One bug found by reading the numbers rather than the picture.** The recovery
+ramp after a failed attempt was `0.06 + (since - 2.4) / 2.0` with no ceiling, so
+once `since` passed 4.2 s the multiplier ran past 1 and kept going — the
+Accessibility room sat at eight times its lamp for the rest of the cycle.
+`scratch/tube-curve.mjs` printed it as a sparkline and the mistake was obvious
+at a glance: a flat run of `@` for twenty seconds. Clamped at 1.
+
+**Measured.** `check-tube` samples the shape in Node over 90 s and then asks
+the page, forty times over five seconds, what the glow and the pool light are
+each doing at that instant: 39 of 40 agree exactly, worst gap 0.025, and the
+gap is the one-frame lag between a render-time callback and an update-time one,
+not two shapes drifting. `shot-strike` sits through one attempt and keeps the
+brightest and darkest frames: `strike-bright-journalism.png` at 1.6, the disc
+white with a bloom halo, and `strike-dark-journalism.png` at 0.05, the disc grey
+and the halo gone. A flash is a tenth of a second and a screenshot costs more
+than that, so the peak is caught by the burst, not by aiming at it.
+
+**Probes added:** `check-tube.mjs`, `tube-curve.mjs`, `shot-strike.mjs`,
+`glow-watch.mjs`. `glow.userData.env` now carries the last multiplier so a
+probe can read the number back off the material.
+
+**Housekeeping:** `scratch/bundle.js` — esbuild's intermediate, 890 KB — was
+tracked by `git add -A` in `cb421ec`. Untracked and ignored in `454e221`. It is
+in that one commit's history; not worth rewriting a pushed branch over.
