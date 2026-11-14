@@ -97,13 +97,27 @@ function concreteTexture(base, seed) {
   const W = 512, { c, x } = canvas(W, W);
   x.fillStyle = base; x.fillRect(0, 0, W, W);
   const rand = rng(seed);
+  /* the blooms have to be drawn again on the far side of the sheet when they
+     run off an edge, or the map is not periodic and every wall that tiles it
+     shows a hairline where the filter straddles the wrap. measured on the
+     cellar plaster: three crisp lines across a 3.2 m wall, one every 2.4 m
+     tile, and they are gone when the blooms are wrapped. */
   for (let i = 0; i < 90; i++) {
     const r = 20 + rand() * 120;
-    const g = x.createRadialGradient(rand() * W, rand() * W, 0, rand() * W, rand() * W, r);
-    g.addColorStop(0, 'rgba(255,255,255,' + (0.02 + rand() * 0.05) + ')');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    x.fillStyle = g;
-    x.fillRect(0, 0, W, W);
+    const cx = rand() * W, cy = rand() * W;
+    const a = 0.02 + rand() * 0.05;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const px = cx + dx * W, py = cy + dy * W;
+        /* only the copies that can actually land inside the sheet */
+        if (px + r < 0 || px - r > W || py + r < 0 || py - r > W) continue;
+        const g = x.createRadialGradient(px, py, 0, px, py, r);
+        g.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = g;
+        x.fillRect(0, 0, W, W);
+      }
+    }
   }
   grain(x, W, W, 26, seed + 1);
   return c;

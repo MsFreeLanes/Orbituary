@@ -792,8 +792,41 @@ function buildCorridor(parent, M, corridor, L, plan, H) {
   B.put(planeUV(half * 2, z1 - z0, 2.6), M.mat('plasterDark', 1, 1), 0, h, (z0 + z1) / 2,
     { rx: Math.PI / 2, cast: true, receive: true });
 
-  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: -half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
-  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: half, from: z0, to: z1, h, t, openings: [], scale: 2.4 });
+  /* The range's shell must not be laid through the mouth of a room. The plan
+     puts every room's door wall exactly on the corridor's own side plane —
+     dx comes out at ±half to the centimetre for all forty-seven — so a shell
+     that runs the whole length lands on the same surface as the wall it is
+     supposed to be behind. Two coplanar sheets welded from different batches
+     then fight for the depth buffer, and the fight prints as a hairline along
+     every triangle edge: scratch/dump-at.mjs fires a ray into the cellar
+     plaster and gets two hits at the same distance, one plasterDark from the
+     room and one plaster from the range. So the shell stops at the room's own
+     wall, which already closes that span. */
+  const mouths = (side) => plan.rooms.filter((r) => {
+    if (r.floor !== corridor.floor) return false;
+    const dz = r.entry.x * corridor.dir.x + r.entry.z * corridor.dir.z;
+    const dx = r.entry.x * corridor.dir.z - r.entry.z * corridor.dir.x;
+    return Math.abs(dx - side * half) < 0.2 && dz > z0 - 0.5 && dz < z1 + 0.5;
+  }).map((r) => ({
+    c: r.entry.x * corridor.dir.x + r.entry.z * corridor.dir.z,
+    w: r.w, y0: 0, y1: h,
+  }));
+
+  const lined = (side, ops) => {
+    /* the shell stops at the mouth, so the mouth still needs a face: a lining
+       the same material as the shell, 2 mm proud of where the shell's own face
+       would have been, standing on the corridor side of the room's wall. the
+       room's wall is never seen from the range, the two sheets are never in the
+       same plane, and the arm keeps the plaster it was lined in. */
+    const x = side * (half - t / 2 - 0.012);
+    ops.forEach((op) => B.put(boxUV(0.02, h, op.w, 2.4), M.mat('plaster', 1, 1),
+      x, h / 2, op.c, { cast: true, receive: true }));
+  };
+  const left = mouths(-1), right = mouths(1);
+  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: -half, from: z0, to: z1, h, t, openings: left, scale: 2.4 });
+  addWall(B, M.mat('plaster', 1, 1), { run: 'z', at: half, from: z0, to: z1, h, t, openings: right, scale: 2.4 });
+  lined(-1, left);
+  lined(1, right);
 
   /* the same downlights the light pool follows, so the black ceiling reads as
      lit. the pool's anchors are still laid out for the ground ranges, so the
