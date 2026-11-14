@@ -47,6 +47,7 @@ import {
 } from './signage.js';
 import { furnish, furnishRotunda } from './props.js';
 import { cellarArm, stairHall } from './atmosphere.js';
+import { tubeEnvelope, tubePhase } from './tube.js';
 
 const TAU = Math.PI * 2;
 
@@ -299,15 +300,16 @@ function lampsFor(M, warm, o) {
       color: 0x0f1216, emissive: 0xa9c8e8, emissiveIntensity: 0.95, roughness: 0.35, metalness: 0
     });
     if (o.flicker) {
-      /* a failing starter, not a strobe: the tube holds steady and drops out
-         now and then, more often the harder it is trying, and never goes fully
-         dark — a dead lamp leaves a black hole in every photograph of the room */
+      /* a failing starter, not a strobe: the tube sits dark, flashes once or
+         twice, and either catches or gives up. tube.js owns that shape and the
+         light pool calls the same function with the same clock, so the glow and
+         the candela fail together instead of arguing. */
       const base = glow.emissiveIntensity, k = o.flicker;
-      const seed = (o.id || '').split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+      const phase = tubePhase(o.id);
       glow.onBeforeRender = () => {
-        const slot = Math.floor(performance.now() / 90);
-        const r = Math.abs(Math.sin(slot * 12.9898 + seed) * 43758.5453) % 1;
-        glow.emissiveIntensity = r < k * 0.3 ? base * 0.16 : base * (0.9 + 0.1 * r);
+        const env = tubeEnvelope(performance.now() * 0.001, phase, k);
+        glow.emissiveIntensity = base * env;
+        glow.userData.env = env;   // so a probe can read the same number back
       };
     }
     o._lamps = { shade: M.solid(PALETTE.panelShadow, { roughness: 0.4, metalness: 0.75 }), glow };

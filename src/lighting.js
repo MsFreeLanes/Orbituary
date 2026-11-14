@@ -44,6 +44,7 @@
    exactly ten anchors, and the sun stays the only shadow caster. */
 import * as THREE from 'three';
 import { S } from './scale.js';
+import { tubeEnvelope, tubePhase } from './tube.js';
 
 const POOL = 10;
 
@@ -168,7 +169,10 @@ function hallAnchors(hall) {
   /* the same height as the tube building.js hangs north of the well */
   const y = S.FLOOR_BASE + S.CEIL_BASE - 0.62;
   return [
-    { x: 0, z: 1.4, y, color: 0xa9c8e8, i: 9, r: 11, room: 'stair-hall' },
+    /* the anchor under the visible tube fails with it, on the same phase; the
+       three that carry the door mouths and the foot of the flight do not, or a
+       striking starter would take the four cellar doors down with it */
+    { x: 0, z: 1.4, y, color: 0xa9c8e8, i: 9, r: 11, room: 'stair-hall', flicker: 0.12 },
     { x: 0, z: hall.cz - hall.halfZ + 1.0, y, color: 0xa9c8e8, i: 4, r: 6, room: 'stair-hall' },
     { x: hall.cx - hall.halfX + 1.0, z: 0, y, color: 0xa9c8e8, i: 3, r: 6, room: 'stair-hall' },
     { x: hall.cx + hall.halfX - 1.0, z: 0, y, color: 0xa9c8e8, i: 3, r: 6, room: 'stair-hall' }
@@ -421,12 +425,12 @@ export function createLighting(THREE, plan) {
   }
 
   function flicker(a) {
-    /* two sines at unrelated rates: one tube alone pulses like a switch, and
-       the beat between them sags and catches the way a failing one does. the
-       phases come from where the fixture stands, so two cellar rooms on the
-       same arm are never in step with each other. */
-    const w = 0.5 + 0.5 * Math.sin(clock * 2.9 + a.x) * Math.sin(clock * 7.7 + a.z);
-    return 1 - a.flicker * (0.2 + 0.8 * w);
+    /* the tube's own shape, from tube.js, on the wall clock rather than this
+       module's accumulated one: the fitting's glow is drawn from the same
+       function with the same clock, so the candela and the thing you can look
+       at rise and fail together. the phase comes from the room's name, so two
+       cellar rooms on the same arm are never in step with each other. */
+    return tubeEnvelope(performance.now() * 0.001, tubePhase(a.room), a.flicker);
   }
 
   function update(cameraPos, dt) {
