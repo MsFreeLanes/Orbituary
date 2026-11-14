@@ -45,10 +45,13 @@ function boot() {
   scene.add(built.group);
 
   /* the animated props — a CRT breathing, an eye blinking, a lattice turning —
-     are collected once, here, so the frame loop never has to walk the scene to
-     find them. They are a few dozen closures in the whole building. */
+     and the cellar's drifting dust are collected once, here, so the frame loop
+     never has to walk the scene to find them. They are a few dozen closures in
+     the whole building, and each one decides for itself whether it is worth
+     running this frame. */
   const propAnim = plan.rooms
-    .reduce((all, r) => all.concat((r._props && r._props.anim) || []), []);
+    .reduce((all, r) => all.concat((r._props && r._props.anim) || []), [])
+    .concat(built.anim || []);
 
   const sky = createSky(THREE);
   scene.add(sky.group);
@@ -386,7 +389,7 @@ function boot() {
   /* the works are left reachable from the console on purpose: the checks in
      scratch/ drive the museum through this, and anyone curious can walk it
      from the command line */
-  window.__museum = { THREE, plan, rig, sky, lighting, hud, audio, view, camera, inside, LINKS, S, scheduler };
+  window.__museum = { THREE, plan, rig, sky, lighting, hud, audio, view, camera, scene, inside, LINKS, S, scheduler };
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

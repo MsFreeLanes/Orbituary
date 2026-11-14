@@ -46,6 +46,7 @@ import {
   wantedCardTexture, counterSignTexture
 } from './signage.js';
 import { furnish, furnishRotunda } from './props.js';
+import { cellarArm, stairHall } from './atmosphere.js';
 
 const TAU = Math.PI * 2;
 
@@ -1153,6 +1154,11 @@ function buildStairHall(parent, plan, M, L) {
   const lamp = new THREE.PointLight(0xa9c8e8, 30, 12, 2);
   lamp.position.set(3.30, h - 1.32, S.CUPOLA_WELL_Z + 0.30);
   g.add(lamp);
+  /* the hall is the one cellar space with four doors, no window and a stair
+     coming down into it, and it is where people stop. it gets the damp and
+     the webs on its own terms — see atmosphere.js — and its cloud is gated on
+     the hub's own visibility, because the hall's group never turns itself off */
+  g.userData.anim = stairHall(g, hw, hd, parent);
   return g;
 }
 
@@ -1819,8 +1825,9 @@ export function buildBuilding(THREE, plan, M) {
   group.add(hub, cellarHub);
 
   buildRotunda(hub, plan, M, pickables, L, kit, H);
-  buildStairHall(cellarHub, plan, M, L);
+  const hall = buildStairHall(cellarHub, plan, M, L);
   buildStair(cellarHub, plan, M, L);
+  const anim = (hall.userData.anim || []).slice();
 
   const wings = plan.corridors.map((c) => {
     const g = new THREE.Group();
@@ -1848,6 +1855,18 @@ export function buildBuilding(THREE, plan, M) {
     buildRoom(w.group, plan, M, room, pickables, L, kit);
   });
 
+  /* the cellar gets its weather per arm: one damp sheet, one web sheet and
+     one cloud of dust for each arm, welded across every room on it. That is
+     deliberately not per room — the cull already switches a whole arm, so the
+     damp and the drifting dust go off with it, and the building pays two draw
+     calls per arm instead of six per room. */
+  plan.corridors.forEach((c, i) => {
+    if (c.floor !== 'basement') return;
+    const rooms = plan.rooms.filter((r) => r.floor === 'basement' && r.range === c.range);
+    const a = cellarArm(wings[i].group, rooms);
+    if (a) anim.push(...a);
+  });
+
   const well = wellOf(plan);
   const cull = spokeCull({
     wings, hub, cellarHub,
@@ -1861,5 +1880,5 @@ export function buildBuilding(THREE, plan, M) {
      asks the building what it can see whether the composer or a probe is
      holding the renderer */
   group.userData.cull = cull;
-  return { group, pickables, cull };
+  return { group, pickables, cull, anim };
 }

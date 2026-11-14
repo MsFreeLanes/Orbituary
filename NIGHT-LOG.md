@@ -31,6 +31,8 @@ row for a step's own commit is added at the top of the next step's entry:
 | 00:47 | 6141319 | `..\Backups\orbituary-6141319.bundle` |
 | 00:50 | fa95d34 | `..\Backups\orbituary-fa95d34.bundle` |
 | 00:58 | 34470f3 | `..\Backups\orbituary-34470f3.bundle` |
+| 01:06 | 1c95417 | `..\Backups\orbituary-1c95417.bundle` |
+| 01:18 | 84aa968 | `..\Backups\orbituary-84aa968.bundle` |
 
 ## Green baseline before touching anything
 
@@ -269,3 +271,66 @@ rooms from just inside their doors (`props-<room>.png`), `scratch/boot-error.mjs
 prints whatever the page threw on boot — it caught the first crash, where
 `furnishRotunda` wrote to `plan.obstacles` before anything had created it.
 `check-v2`, `check-scale`, `check-data`, `check-events` green; console clean.
+
+### 01:17–01:41 — step 5: the cellar gets its weather
+
+The cellar already had the *sound* of being damp — `audio.js` drips at random
+intervals under a longer reverb and puts a different footfall on concrete — and
+`CHARACTER` already gives every cellar room its own fog, its own lamp colour
+and a `flicker` value that lighting.js runs on the tube. What it had none of
+was anything to look at. So `src/atmosphere.js`, three things, cellar only:
+
+- **A damp band** 44 cm up the base of the cellar walls: a transparent sheet
+  over the plaster, darker than it and much glossier, painted as a gradient
+  with soft blooms, a few streaks where something ran down more recently, and
+  a pale broken line about two thirds up — the salt a wall keeps when the water
+  in it gives up and evaporates. The gloss is the whole trick: wet plaster
+  catches the lamp and dry plaster does not, which is how you can read a damp
+  wall in the dark before you can see one.
+- **Webs across the ceiling corners**, one in each of the two corners by the
+  door — the corners a visitor looks at on the way in, and the two the sweep
+  misses because the sweep never looks up. Lit by the room's own lamp, so they
+  come up as you walk under them. This is the one thing that worked first try.
+- **Dust in the air**: a few dozen points per room, each with its own phase,
+  speed and reach, moved twenty times a second, and the whole cloud skipped
+  while the arm it stands in is culled.
+
+One damp sheet, one web sheet and one cloud **per cellar arm**, not per room,
+welded across every room on the arm and hung in the arm's group — the cull
+already switches a whole arm, so the damp and the drifting dust go off with it,
+and the building pays two draw calls per arm instead of six per room. Measured
+with `scratch/stats-in.mjs`: 32 calls in the Science room with three atmosphere
+meshes on, 87 in the Sports room with six (the arm plus the stair hall), 140 in
+the Library with none, 282 at the Cupola with the hall's three.
+
+**The dust was wrong first.** At 2.2 cm and opacity 0.5, square because a
+`Points` primitive is a square unless you give it a shape, the motes read as a
+swarm of pixels and the eye starts counting them — several of them were even
+tinted orange and blue by the bloom. Now: a soft disc from a radial-gradient
+alphaMap, 1.6 cm, opacity 0.38, and about a third of the points per square
+metre.
+
+**Found, and left.** With the walls properly lit there are hairline stripes
+across the plaster of a cellar room — three or four horizontal lines, some of
+them stopping in mid-wall, one doubled, crisp enough to read as a crack. Not
+tonight's work, and proved so: `scratch/ab-atmo.mjs` photographs the same view
+with every atmosphere mesh hidden and the stripes are in both frames.
+`scratch/dump-glass.mjs` lists every transparent surface within 14 m of the
+room and there is no stray sheet in it; `scratch/dump-planes.mjs` shows the
+wall is one buffer whose boxes are the two side runs (which overshoot the door
+and far walls by a full wall thickness to close the corners), the door wall
+centred on z = 0 with a header box over the opening, and the far wall centred
+on z = d. The lines sit at the heights where those boxes meet, so the leading
+explanation is a coincident-face seam between the header and the runs beside
+it. It is visible only where a wall is evenly and brightly lit from close to,
+which is not how the building is mostly walked, so it goes on the list rather
+than into tonight.
+
+**Proven:** `scratch/shot-cellar.mjs` (three views of a cellar room — level
+into it, up at the corner, and back at the door with the lamp behind you —
+plus the stair hall), `scratch/shot-doorwall.mjs` (the wall the door is in,
+close up; set `CLIP='{"x":..,"y":..,"width":..,"height":..}'` to zoom a
+region at 3×), `scratch/ab-atmo.mjs`, `scratch/dump-planes.mjs`,
+`scratch/dump-glass.mjs`, `scratch/stats-in.mjs`. `window.__museum` now
+exposes `scene`, which is what makes the last three possible. Every
+atmosphere mesh carries `userData.atmo` = damp | web | dust.
