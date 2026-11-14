@@ -36,6 +36,7 @@ row for a step's own commit is added at the top of the next step's entry:
 | 01:29 | bb91cd5 | `..\Backups\orbituary-bb91cd5.bundle` |
 | 01:31 | 4d95a31 | `..\Backups\orbituary-4d95a31.bundle` |
 | 01:42 | df1dea8 | `..\Backups\orbituary-df1dea8.bundle` |
+| 01:44 | a70e273 | `..\Backups\orbituary-a70e273.bundle` |
 
 ## Green baseline before touching anything
 
@@ -434,3 +435,40 @@ them in half. They are now drawn again on the far side of the sheet when they
 run off an edge, and `dump-tex`'s 2×2 tile is seamless. **This was not the
 cause** — `ab-texture` and the rest say so — but the map was wrong regardless,
 and it is fixed.
+
+### 01:44–01:47 — closing the night
+
+Both storeys checked by eye after the shell change: the cellar arm reads as one
+continuous lined surface (`scratch/arm-lined-science.png`), and the North
+Corridor outside the Arcade Wing reads as light plaster with the room's dark
+interior behind the doorway and the door plate lit over it
+(`scratch/doorwall-gaming.png`). No hairlines in either.
+
+**Where the build is at 01:47.** `df1dea8` is the last code change, `a70e273`
+the last commit; both pushed to `origin/main` and bundled. 51 rooms, 8 zones,
+192 links, 198 plinths, 882 KB, 326 draw calls / 87,303 triangles / 49 textures
+at the Cupola. Every check green: `check-v2` (console clean, `errors: []`),
+`check-scale` (84 constants, all `S.*` resolve, walkability to every room
+including down the stair), `check-props`, `check-events`, `check-data`,
+`check-candidates`, `check-sky` (16 astronomy checks).
+
+**Two judgement calls left standing, with the numbers to argue from.**
+
+- The cellar's dimmest room measures a wall band of 6 with 87% of it dark,
+  against 48–49 for the lit cellar room and 86–94 for the ranges. That is the
+  emptiest categories being filed in the basement as agreed, but it is a dial,
+  not a law: the anchors in `lighting.js` are `i: 2.2` side washers and `i: 3.0`
+  for the far wall in every room regardless of storey, and the cellar's own
+  `tone` and fog sit on top. If the basement should read as a place you can
+  look around rather than a place you feel your way through, the washers are the
+  line to move.
+- Props still do not stop the visitor. `props.js` writes its footprints into
+  `plan.obstacles` and `rig.js` never reads them. `check-props` keeps them clear
+  of plinths, walls and doorways, so nothing *looks* embedded, but you can walk
+  through a workbench. Making them solid is a change to the collision, and the
+  walkability proof in `check-scale` would have to be re-run against the props
+  rather than the plan.
+
+**What the owner owes the build:** the `socials` array and the `donation` link
+in `src/identity.js`. The brochure prints *not posted yet* until then, and the
+trophy ladder has no donor threshold written on it.
