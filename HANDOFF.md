@@ -88,10 +88,12 @@ controllers deferred, everything needs collision, and the hardware question.
 | 10 | `be58780` | the cellar is a storeroom: shelving, flat file, bench, pallet, ladder, pipes, and 868 new collision circles tagged to the basement |
 
 **The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
-5090, 62 GB, 3440×1440 at 143 Hz. The whole station is 309–478 draw calls and
-85k–125k triangles. There is no object-count problem on this machine, and every
-fps figure in `NIGHT-LOG.md` is the CDP harness rendering through SwiftShader,
-not the machine. Effort belongs on correctness and on what a visitor sees.
+5090 with 32 GB of its own memory, 62 GB, 3440×1440 at 143 Hz. The whole station
+is 309–478 draw calls and 85k–125k triangles. There is no object-count problem on
+this machine, and every fps figure in `NIGHT-LOG.md` is the CDP harness rendering
+through SwiftShader, not the machine. Effort belongs on correctness and on what a
+visitor sees. `HARDWARE.md` is the longer answer, in plain language, including
+which local models this box will actually run.
 
 **Not done, in the order I would take them.**
 - The fourteen cellar rooms are furnished but hold **no exhibits**: no links, no
