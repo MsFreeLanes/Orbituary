@@ -638,14 +638,73 @@ confetti. `shot-moon` dumps the texture itself rather than the forty pixels of i
 that reach the screen, and reports its mean luminance against the 0.70 bloom
 threshold.
 
-**Still open, in the order I would take them.** The elevator the owner asked for
-beside the grand stair: a shaft needs a decision, and half an elevator is worse
-than none — the two candidate sites are written into `HANDOFF.md`. Ten to
-eighteen pieces of furniture sit on a corridor centreline, worst around (−25.5,
-3.5) and (−20.3, 6) on the ground floor: the route goes round them and walking
-into them now stops you, which is correct, but they should not be standing there;
-`probe-corridor-props` names them. Door and window placement beyond the
-lone-window fix. Nine pick nodes sit inside corridor rects rather than room
-rects, which is legal but untidy. And the front door stands on the Observatory's
-deck, so the plate there says *The Observatory*: geometrically true, and a design
-question for the owner rather than something to hack.
+**`a31c0ac` — the planet was painted once at boot and never again.** The owner
+said the ground track did nothing when they moved it, and they were right in a
+way I had not suspected: the panel worked, the sun moved, the moon re-painted
+itself, and the Earth kept the same face for the whole visit. Two faults, one
+after the other. The repaint guard compared `Math.abs(a - b) > 0.01` against
+`lastEarthAz`, which is initialised to `NaN` — and every comparison with `NaN`
+is false, so `paintEarth` was never called from `update()` at all; the planet on
+screen was the boot frame, `paintEarth(0, 0)`, with its half shadow sitting at a
+constant 87 dark pixels. Fixing the guard exposed the second fault: the bearing
+of the terminator was `atan2(-sunDir.z, sunDir.x)`, and the canvas is not in the
+sky group's frame — the disc is a CircleGeometry turned -90° about X and the mesh
+carries the sky group's inverse quaternion, so in world terms canvas +x is room
++X (west) and canvas +y is room +Z (north), and a room direction (dx, dz) has
+canvas angle `atan2(dz, dx)`, with no negation. `probe-terminator-angle` finds
+the centre of the painted dark arc and compares it with both conventions;
+`check-terminator` steps twenty-four hours and samples the painted canvas
+sunward and anti-sunward at 0.8r, asserting only the one-directional invariant —
+a point 0.8r toward a sun that is below the horizon is genuinely more sunlit than
+the centre, and an assertion that forgot that failed for twelve honest hours.
+
+**`fd9a41c` — the lift stands in the east metre of the stair well.** The owner
+asked for both ways down. The well is the one place in the building where a shaft
+already exists: 3.00 m wide, of which the flight only needs 1.84, so the lift
+takes the remainder and the plan does not move by a centimetre — the well's
+rectangle, the holes it leaves in the rotunda floor and in the stair hall's
+ceiling, and the walkable union are exactly what they were. Four constants
+(LIFT_W 1.10, LIFT_PARTITION 0.06, LIFT_IN 1.60, LIFT_RIDE 5.0, which is
+0.72 m/s, a lift you feel rather than a door that opens somewhere else). The
+shaft is glazed the height of the well with the same 0.90 m parapet the well's
+own walls carry; each storey gets a landing frame standing on the floor just
+outside the well's edge, because without a frame a lift in a floor opening reads
+as a white booth on the terrazzo and hides the stair behind it. The cabin is
+1.00 × 1.60 m inside — one person and a box of books, not a stretcher, which is
+what the stair is for — dark steel outside, the palette's bright token and a lamp
+strip inside, and its own Object3D rather than part of the welded hub, because it
+moves. `E` answers when you are standing in the cabin and says where the cabin is
+when you are not; the storey, the HUD's name and the light pool change at the
+door rather than halfway down the shaft, because a lift has no halfway. The
+partition is 14 circles per storey at 0.40 m spacing, r 0.24: the first spacing,
+0.55 with r 0.18, left gaps the body walked through. The cabin parks itself back
+at the top dock while the visitor is downstairs, because a top dock without a
+cabin in it is a hole you can walk into, and the flight takes ten seconds against
+the return's five. `check-lift` walks it end to end — down, out, the cabin
+returning, up again, and the refusal from the middle of the rotunda — 20
+assertions green. Blockers 523 → 551; `check-collision`'s storey test now asks
+only furniture whether it is solid on the floor above it, since the partition is
+deliberately solid on both.
+
+**One thing that came out of the lift work and is still true.** To write the
+partition's blockers I had to ask how the blocker list is tagged by storey, and
+the answer is: 537 ground, 14 basement, and the 14 are all mine. Every plinth and
+every prop circle in the building is tagged `ground`, because the fourteen cellar
+rooms have no plinths, no props and no pick nodes at all — `apple-dev`,
+`open-source`, `creative-writing` and the rest are empty rooms with a cold tube in
+the ceiling. That is a content gap, not a collision bug: nothing in the cellar is
+solid because nothing in the cellar is *furnished*. It is the largest thing
+missing from the building, and it is now measured rather than assumed.
+
+**Still open, in the order I would take them.** Furnish the cellar: fourteen
+rooms, no exhibits, no props, and the tour walks you into a room with nothing in
+it. Ten to eighteen pieces of furniture sit on a corridor centreline, worst around
+(−25.5, 3.5) and (−20.3, 6) on the ground floor: the route goes round them and
+walking into them now stops you, which is correct, but they should not be
+standing there; `probe-corridor-props` names them and its perpendicular
+measurement is still wrong. Door and window placement beyond the lone-window fix.
+Nine pick nodes sit inside corridor rects rather than room rects, which is legal
+but untidy. A real distance fade at the wing edges — hysteresis and look-ahead are
+in, the fade is not. And the front door stands on the Observatory's deck, so the
+plate there says *The Observatory*: geometrically true, and a design question for
+the owner rather than something to hack.

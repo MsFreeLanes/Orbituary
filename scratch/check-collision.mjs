@@ -33,12 +33,16 @@ const probe = `(() => {
   const pinched = doors.filter((d) => rig.blocked(d.cx, d.cz, d.floor))
     .map((d) => d.room + ' (' + d.cx.toFixed(2) + ', ' + d.cz.toFixed(2) + ')');
 
-  /* the centreline of every corridor, walked half a metre at a time */
+  /* the centreline of every corridor, walked half a metre at a time. The rect's
+     long axis is (sin angle, cos angle) and its short axis is (cos angle, -sin
+     angle) — the axes plan.js inside() uses. The first version of this walked
+     (-sin, cos), which is the rig's forward convention rather than the rect's,
+     and so measured a chord across the spoke instead of down it. */
   const stuck = [];
   plan.walkable.rects.filter((r) => r.kind === 'corridor').forEach((c) => {
     const s = Math.sin(c.angle), ct = Math.cos(c.angle);
     for (let t = -c.halfZ + 0.4; t <= c.halfZ - 0.2; t += 0.5) {
-      const x = c.cx - t * s, z = c.cz + t * ct;
+      const x = c.cx + t * s, z = c.cz + t * ct;
       if (rig.blocked(x, z, c.floor)) stuck.push((c.room || 'corridor') + ' (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')');
     }
   });

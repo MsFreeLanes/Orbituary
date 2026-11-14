@@ -35,7 +35,11 @@ const probe = `(() => {
     const dx = x - r.cx, dz = z - r.cz;
     if (!r.angle) return Math.abs(dx) <= r.halfX && Math.abs(dz) <= r.halfZ;
     const c = Math.cos(r.angle), s = Math.sin(r.angle);
-    return Math.abs(dx * c + dz * s) <= r.halfX && Math.abs(-dx * s + dz * c) <= r.halfZ;
+    /* the axes plan.js inside() uses: local +X is (cos, -sin) and local +Z is
+       (sin, cos), which is the way a corridor runs. Measuring across instead of
+       along turns a 2.6 m corridor into a 37 m one and reports furniture that is
+       standing politely in its own room as an obstruction in the hall. */
+    return Math.abs(dx * c - dz * s) <= r.halfX && Math.abs(dx * s + dz * c) <= r.halfZ;
   };
 
   const bad = { hole: [], corridor: [], far: [], dupe: [], noLink: [] };
@@ -67,6 +71,9 @@ const probe = `(() => {
     hole: fmt(bad.hole), corridor: fmt(bad.corridor), corridorWhere: bad.corridor.map((n) => n.where),
     far: fmt(bad.far), dupe: bad.dupe, noLink: bad.noLink.length,
     rotunda: byOwner.rotunda || 0, cupola: byOwner.cupola || 0,
+    /* the plan checks its own pedestals against its own circulation as it
+       builds, and names any it could not move: an empty list is the invariant */
+    repairs: plan.plinthRepairs || [],
     stair: hole, well
   };
 })()`;
@@ -83,4 +90,5 @@ withBrowser(async ({ send, evaluate, sleep: nap }) => {
   console.log('same spot twice  :', r.dupe.length ? JSON.stringify(r.dupe) : 'none');
   console.log('exhibit.link undefined:', r.noLink);
   console.log('rotunda nodes', r.rotunda, ' cupola nodes', r.cupola);
+  console.log('plan could not move:', r.repairs.length ? r.repairs.join(' ') : 'nothing — every pedestal clears the circulation');
 });

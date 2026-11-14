@@ -676,13 +676,25 @@ export function buildPlan() {
       doorW: S.DOOR_BIG, doorH: S.DOOR_BIG_H,
       winCount: 0, winW: 0, winH: 0, sill: 0
     });
-    cupola.plinths = [35, 75, 150, 225, 265, 340].map((deg) => {
+    cupola.plinths = [53.3, 86.4, 116.4, 243.6, 273.6, 306.7].map((deg) => {
       /* six pedestals on the deck ring, facing the well. The old ring was laid
          at radius 3.2 about the well, which is wider than the gallery's own
          box and put two of them outside a wall that does not exist; and the
          bearings were the arch bearings, so they stood in the doorway. These
          sit at 3.9 — clear of the rail at 1.62, the benches at 2.55 and the
-         deck edge at 4.6 — and off the door bearing (11°) and the sign (0°). */
+         deck edge at 4.6 — and off the door bearing (11°) and the sign (0°).
+
+         The bearings are not round numbers, and that is the point. The twelve
+         spokes leave the hub at 0, 30, 60 ... and at this radius their 2.6 m
+         strips overlap each other, so there is no gap between them to stand in;
+         what there is, is the middle. Measured from the middle of the drum —
+         not from the well, which the ring is centred on and sits 0.8 m north of
+         that middle — the six pedestals land at 45, 75, 105, 255, 285 and 315,
+         each one 1.04 m off the nearest spoke's centreline, which is the widest
+         place the deck offers and enough that a pedestal never stands in the
+         walking line. `check-collision` walked the spokes and found eight solid
+         stations on the deck before this; the bearings were 35, 75, 150, 225,
+         265 and 340, which are all but one degree off the spokes themselves. */
       const a = deg * Math.PI / 180, r = 3.9;
       const px = Math.sin(a) * r, pz = S.CUPOLA_WELL_Z + Math.cos(a) * r;
       /* the room's u runs west and its v runs south from the entry; the
@@ -862,8 +874,68 @@ export function buildPlan() {
     place.code = `HUB-${String(zoneBy.HUB.rooms).padStart(2, '0')}`;
   });
 
+  /* A pedestal must not stand in a corridor. The rows come out of the room's
+     own frame and the frame does not know that a range runs past the door, so
+     the front row of four rooms landed on the walking line: `check-collision`
+     reported ten blocked stations down a corridor and `check-placement` named
+     nine pick nodes sitting inside corridor rects. The route goes round them
+     and the visitor walks into them, which is correct behaviour and bad
+     architecture. So the plan now checks its own furniture against its own
+     circulation and pushes the pedestal into the room rather than pinching the
+     corridor — the smallest push that clears, deeper first, because the corridor
+     is always the way you came in. */
+  const corridorRects = walkable.rects.filter((r) => r.kind === 'corridor');
+  const roomRect = (room) => walkable.rects.find((r) => r.room === room.id && r.kind === 'room');
+  function rectLocal(r, x, z) {
+    const dx = x - r.cx, dz = z - r.cz;
+    const c = Math.cos(r.angle), s = Math.sin(r.angle);
+    /* the same axes `inside()` uses, and no others: a rect's local +X is
+       (cos, -sin) and its local +Z is (sin, cos), which for a corridor is the
+       way it runs. Getting this backwards measures the corridor across. */
+    return { across: dx * c - dz * s, along: dx * s + dz * c };
+  }
+  const inRect = (r, x, z, pad) => {
+    const l = rectLocal(r, x, z);
+    return Math.abs(l.across) < r.halfX + pad && Math.abs(l.along) < r.halfZ + pad;
+  };
+  function spotWorld(room, sp) {
+    const c = Math.cos(room.angle), s = Math.sin(room.angle);
+    return { x: room.entry.x + sp.u * c + sp.v * s, z: room.entry.z - sp.u * s + sp.v * c };
+  }
+  const plinthRepairs = [];
+  rooms.forEach((room) => {
+    const spots = room.plinths || [];
+    if (!spots.length || room.kind === 'cupola') return;
+    const own = roomRect(room);
+    if (!own) return;
+    spots.forEach((sp, i) => {
+      const at = spotWorld(room, sp);
+      if (!corridorRects.some((cr) => cr.floor === room.floor && inRect(cr, at.x, at.z, 0.55))) return;
+      const others = spots.filter((_, j) => j !== i).map((o) => spotWorld(room, o));
+      const deep = room.d - 1.6;
+      let best = null;
+      for (let dv = 0.35; dv <= deep - sp.v + 0.01 && !best; dv += 0.35) {
+        for (let du = 0; du <= Math.abs(sp.u) + 0.01 && !best; du += 0.6) {
+          const u = sp.u >= 0 ? Math.max(0, sp.u - du) : Math.min(0, sp.u + du);
+          for (const sgn of [1, -1]) {
+            const v = sp.v + dv;
+            const p = spotWorld(room, { u, v });
+            if (corridorRects.some((cr) => cr.floor === room.floor && inRect(cr, p.x, p.z, 0.55))) continue;
+            if (!inRect(own, p.x, p.z, -0.55)) continue;
+            if (others.some((o) => Math.hypot(o.x - p.x, o.z - p.z) < 1.25)) continue;
+            best = { u, v };
+            break;
+          }
+        }
+      }
+      if (!best) { plinthRepairs.push(room.id + ' (' + at.x.toFixed(2) + ', ' + at.z.toFixed(2) + ')'); return; }
+      sp.u = best.u; sp.v = best.v;
+    });
+  });
+
   return {
     rotunda, rooms, corridors, walkable, order, stair, unplaced,
+    plinthRepairs,
     stairHall, stairRoom,
     zones,
     reach,
