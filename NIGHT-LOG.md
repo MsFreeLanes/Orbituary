@@ -39,9 +39,11 @@ row for a step's own commit is added at the top of the next step's entry:
 | 01:44 | a70e273 | `..\Backups\orbituary-a70e273.bundle` |
 | 01:45 | 0b42d7f | `..\Backups\orbituary-0b42d7f.bundle` |
 
-The last row is the exception to the rule that a row is added at the top of the
-next step's entry: there is no next step, so the bundle for the commit that
-wrote this row is listed here as well, made seconds after it.
+A row is normally added at the top of the entry for the step that follows the
+commit it names, so the row for a step's own commit appears in the commit after
+it. The commits after `0b42d7f` only write rows, so they are not listed here —
+each is still in `..\Backups\orbituary-<sha>.bundle`, named for its own sha, and
+`git log` is the complete record.
 
 ## Green baseline before touching anything
 
