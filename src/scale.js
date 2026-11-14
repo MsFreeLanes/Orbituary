@@ -162,14 +162,25 @@ export const S = {
      across the south, and the lining stops at that chord: the stair comes in
      through the side of the well, which is the only way it can. */
   CUPOLA_LIGHT_R: 2.70,   // the mouth's radius at the cellar slab
-  /* half the sector the well's lining leaves out, radians, measured from due
-     south — the side the stair comes in from. The lining is a cone from the
-     1.45 m tube down to this mouth, and the flight crosses the circle that
-     cone sweeps about 3.1 m down, within 31° of south; the wall stops 50°
-     short of south so the treads and the handrail posts pass through the gap
-     instead of through the wall. The bottom landing then stands inside the
-     mouth, on the glazing. */
-  CUPOLA_LIGHT_GAP: 0.87,
+  /* the flat the mouth is cut by, metres south of the well's axis. It used to be
+     kept as a half-angle of the sector the lining leaves out, which described
+     the hole only where the wall was missing and said nothing about the glazing
+     stretched over it — and the glazing is what the Cupola looks through. A
+     distance says both. It is set at the bottom landing's north edge, which is
+     where the stair's own floor ends: the whole flight and the whole landing
+     then sit on the cellar slab, and the well's wall stands on the edge of the
+     landing rather than through the middle of it. The three round holes the
+     shaft passes through are 1.45, 1.55 and 1.57 m across, so they overhang
+     this flat by up to 0.57 m; what they overhang is the stair's dark steel
+     landing and the shaft's own wall behind it, so nothing pale shows inside
+     the well's silhouette, which is what the flat is there to stop. Nothing
+     needs a gap in the lining any more: the flight used to cross the circle
+     that cone sweeps about 3.1 m down, some 31 degrees off due south, and the
+     wall had to stop short of south to let it through. The flat is north of
+     that crossing, so the wall can run the whole arc of the mouth, the glazing
+     and the hole in the hall's slab can stop at the same line, and the stair
+     lands on a floor instead of on the window. */
+  CUPOLA_LIGHT_CHORD: 1.00,
 
   /* the plan: a twelve-spoke wheel (2026-11-13 revision) */
   ROTUNDA_R: 8.00,        // interior radius of the central hall

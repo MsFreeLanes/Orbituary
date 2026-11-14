@@ -812,18 +812,46 @@ function buildStairHall(parent, plan, M, L) {
      the well is a two-storey shaft, and the planet under the keel is meant
      to be read from the gallery above and from this hall below.
 
-     It pierces it as a mouth 2.70 m across, not as the 1.45 m tube the
+     It pierces it as a mouth 5.4 m across, not as the 1.45 m tube the
      rotunda floor carries, and that is not generosity: a straight tube puts
      this slab 5.25 m under a Cupola eye, and at 1.45 m the slab is then the
      whole of the view — a grey plate with a coin of planet in the middle of
      it, which is what the first Cupola drawings looked like. Opened out, the
      3.2 m of ceiling void between reads as a depth you are looking into, and
-     the mouth is what frames the planet. The flight comes in through the side
-     of the well: the lining stops short of it and the bottom landing stands
-     inside the mouth on the glazing, an island in the window where the stair
-     arrives. The glazing stays flush, so it is still a floor you walk on and
-     the hall keeps its whole floor. */
-  const lr = S.CUPOLA_LIGHT_R, lg = S.CUPOLA_LIGHT_GAP;
+     the mouth is what frames the planet.
+
+     The mouth used to be a whole circle and the stair was let into it: the
+     lining left a sector out, the glazing spanned the lot, and the bottom
+     landing stood inside the window, an island of pale concrete in the planet.
+     That is what the Cupola photograph shows — not a bloom artefact: the slab
+     sits well under the bloom threshold, it is simply the brightest thing in
+     front of the planet, and muting it takes the parallelogram out of the disc
+     while taking 0.4 of the frame's haze with it (measured 2026-11-13).
+
+     So the mouth is cut by a flat now, and the wall, the glazing, the steel
+     edge and the hole in this slab all stop at that one line. Of the four ways
+     to settle the landing — darken it, sink it, narrow the glass over that
+     sector, move the foot of the flight — narrowing the glass is the only one
+     that asks nothing else of the building. The landing cannot sink: the cellar
+     slab is the lowest floor there is. The foot of the flight cannot move: the
+     stair well's place in the plan is what keeps the two holes in the rotunda
+     floor from meeting, and the walkable union is not this file's to change.
+     Darkening it alone trades a pale bar across the planet for a dark one. The
+     flat stands at the bottom landing's north edge, so the whole flight and
+     the whole landing are on this slab and the well's wall rises on the edge
+     of the landing rather than through the middle of it: 0.80 m of floor in
+     front of the last tread, which is what a landing is for. The tube's round
+     holes overhang the flat by up to 0.57 m, and what they look down on is the
+     stair's own dark steel and the wall behind it, not pale concrete. The
+     mouth keeps 5.2 m of glass where the planet is, and the stair reads as a
+     stair arriving at a wall. */
+  const lr = S.CUPOLA_LIGHT_R;
+  /* the flat, and the two numbers that fall out of standing 1.00 m south of
+     the axis: the half-angle of the arc the wall still carries, and the
+     length of the flat itself. */
+  const cut = S.CUPOLA_LIGHT_CHORD;
+  const arc = Math.acos(cut / (lr + 0.10));
+  const flat = 2 * Math.sqrt((lr + 0.10) * (lr + 0.10) - cut * cut);
   const slab = new THREE.Shape();
   slab.moveTo(-hw, -hd);
   slab.lineTo(hw, -hd);
@@ -831,7 +859,11 @@ function buildStairHall(parent, plan, M, L) {
   slab.lineTo(-hw, hd);
   slab.closePath();
   const floorWell = new THREE.Path();
-  floorWell.absarc(0, -S.CUPOLA_WELL_Z, lr + 0.10, 0, TAU, true);
+  /* the hole follows the outline the wall makes: the arc, closed by the flat.
+     Shape space is world x and world -z, so the cap the flat removes is the
+     one towards shape +y. */
+  const wellCap = Math.asin(cut / (lr + 0.10));
+  floorWell.absarc(0, -S.CUPOLA_WELL_Z, lr + 0.10, Math.PI - wellCap, TAU + wellCap, false);
   slab.holes.push(floorWell);
   B.put(uvScale(new THREE.ShapeGeometry(slab, 24), 1 / 2.2, 1 / 2.2), M.mat('concrete', 1, 1),
     0, -0.012, 0, { rx: -Math.PI / 2, receive: true });
@@ -845,32 +877,46 @@ function buildStairHall(parent, plan, M, L) {
      the lamps' specular into the bloom and washes the photograph. Not black:
      the hall's lamp and the planet both light this surface, and a shaft whose
      walls take no light at all reads as a pasted hole rather than as three
-     and a half metres of building you are looking through. The sector it
-     leaves out is the one the flight crosses its line in: the slope passes
-     through the circle the lining sweeps at about 3.1 m down, within 31° of
-     due south, so the wall stops 50° short of south and the stair comes
-     through the gap. */
+     and a half metres of building you are looking through. What it leaves out is
+     the sector the flat closes, and the flat is a wall, not an opening: the
+     stair used to cross the circle this cone sweeps about 3.1 m down, so the
+     wall had to stop short of south and let it through. The flat sits north of
+     that crossing, so the wall can run the whole arc of the mouth and the
+     south side of the shaft can be a plane you can stand against. */
+  const shaft = M.solid(0x2b3037, { roughness: 0.75, metalness: 0.25, side: THREE.DoubleSide });
   B.put(new THREE.CylinderGeometry(S.CUPOLA_WELL_R + 0.10, lr + 0.10, h, 44, 1, true,
-    Math.PI + lg, TAU - lg * 2),
-    M.solid(0x2b3037, { roughness: 0.75, metalness: 0.25, side: THREE.DoubleSide }),
-    0, h / 2, S.CUPOLA_WELL_Z, { cast: false });
+    Math.PI + arc, TAU - arc * 2), shaft, 0, h / 2, S.CUPOLA_WELL_Z, { cast: false });
+  B.put(new THREE.PlaneGeometry(flat, h), shaft, 0, h / 2, S.CUPOLA_WELL_Z - cut, { cast: false });
 
   /* the pane over the mouth, and the sheen on it. From the gallery this is
      the floor the planet shows through; from here it is the floor under your
      feet with 300 m of nothing below, and the same near-invisible wall
      glazing cannot say both. The pane is the walking glazing, and the sheen
-     is the faint reflection of the hall's own lamp in it. */
-  B.put(new THREE.CircleGeometry(lr - 0.02, 56), M.floorGlass, 0, 0.05, S.CUPOLA_WELL_Z,
+     is the faint reflection of the hall's own lamp in it. Both are cut to the
+     mouth's own outline rather than to a disc: glass under the flat would be
+     glass where the building has a floor, and the flight would be standing on
+     nothing. Shape space here is the pane's own x and -z, so the cap the flat
+     removes is the one towards shape +y. */
+  const pane = (r) => {
+    const s = new THREE.Shape();
+    const b = Math.asin(cut / r);
+    s.absarc(0, 0, r, Math.PI - b, TAU + b, false);
+    return new THREE.ShapeGeometry(s, 40);
+  };
+  B.put(pane(lr - 0.02), M.floorGlass, 0, 0.05, S.CUPOLA_WELL_Z,
     { rx: -Math.PI / 2, order: 5, userData: { window: true } });
-  B.put(new THREE.CircleGeometry(lr - 0.06, 56), M.glazingSheen, 0, 0.07, S.CUPOLA_WELL_Z,
+  B.put(pane(lr - 0.06), M.glazingSheen, 0, 0.07, S.CUPOLA_WELL_Z,
     { rx: -Math.PI / 2, order: 6 });
 
-  /* the steel edge round the mouth, and the rail the flight stops against:
-     an arc rather than a ring, because the gap is where the stair is */
-  const collar = new THREE.TorusGeometry(lr + 0.09, 0.09, 8, 44, TAU - lg * 2);
-  collar.rotateZ(lg - Math.PI / 2);
-  B.put(collar, M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 }), 0, -0.01, S.CUPOLA_WELL_Z,
-    { rx: Math.PI / 2, cast: false });
+  /* the steel edge round the mouth: the arc the wall leaves, and a bar across
+     the flat. The bar is the line where the glass ends and the hall's own
+     floor begins, and the flight stops against it, so it is the fitting that
+     says where the planet is underfoot. */
+  const edge = M.solid(PALETTE.panelShadow, { roughness: 0.45, metalness: 0.6 });
+  const collar = new THREE.TorusGeometry(lr + 0.09, 0.09, 8, 44, TAU - arc * 2);
+  collar.rotateZ(arc - Math.PI / 2);
+  B.put(collar, edge, 0, -0.01, S.CUPOLA_WELL_Z, { rx: Math.PI / 2, cast: false });
+  B.put(boxUV(flat + 0.18, 0.18, 0.18, 2.4), edge, 0, -0.01, S.CUPOLA_WELL_Z - cut, { cast: false });
 
   /* the ceiling is the soffit of the rotunda floor, so it is at the same
      height as the cellar corridors' and runs away under the drum. three
@@ -953,6 +999,16 @@ function buildStair(parent, plan, M, L) {
   const rise = S.STAIR_DROP / steps;                        // 0.18
   const tread = s.run / steps;                              // 0.28, twice the rise plus the tread is 0.64
   const stone = M.mat('concrete', 1, 1);
+  /* the flight and the bottom landing are steel rather than the hall's
+     concrete. The mouth's flat now stops at the landing's north edge, so the
+     stair is out of the window — but the tube's round hole is 1.45 to 1.57 m
+     across and the flat stands only 1.00 m south of the axis, so a 0.57 m
+     crescent of the well still looks straight down on the landing. Pale
+     concrete there is the same pale plate, only smaller and tucked against the
+     edge where it would read as part of the planet's disc. Steel also lets the
+     stair and the wall it arrives against read as one fitting, which is what
+     they look like from the hall below in any case. */
+  const steel = M.solid(0x33383f, { roughness: 0.8, metalness: 0.25 });
   const well = wellOf(plan);
   const zBack = s.z - S.STAIR_LAND / 2;                     // back of the top landing
   const zHall = -S.STAIR_HALL_D / 2;                        // the hall wall the flight comes through
@@ -967,26 +1023,23 @@ function buildStair(parent, plan, M, L) {
      corridor and not a processional one. */
   const slope = Math.atan(s.drop / s.run);
   const len = Math.hypot(s.run, s.drop);
-  B.put(boxUV(s.w, 0.22, len, 1.6), stone, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
+  B.put(boxUV(s.w, 0.22, len, 1.6), steel, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
     { cast: true, receive: true, rx: slope });
   for (let i = 1; i <= steps; i++) {
     const top = -i * rise;
-    B.put(boxUV(s.w, 0.07, tread, 1.6), stone, s.x, top - 0.035, s.z + (i - 0.5) * tread,
+    B.put(boxUV(s.w, 0.07, tread, 1.6), steel, s.x, top - 0.035, s.z + (i - 0.5) * tread,
       { cast: true, receive: true });
   }
 
   /* the two landings, flagged so you can feel where the slope starts and
-     ends: the top one is the rotunda floor, the bottom one the hall floor,
-     and in both cases the flag sits a centimetre proud of the sheet under it
-     instead of coplanar with it */
-  const land = [
-    [s.z - S.STAIR_LAND / 2, s.z, 0.012],
-    [s.z + s.run, s.z + s.run + S.STAIR_LAND / 2, S.FLOOR_BASE + 0.012]
-  ];
-  for (const [z0, z1, y] of land) {
-    B.put(boxUV(s.w, 0.024, z1 - z0, 2.2), stone, s.x, y - 0.012, (z0 + z1) / 2,
-      { cast: false, receive: true });
-  }
+     ends: the top one is the rotunda floor and stays in the floor's own
+     concrete, the bottom one is the well's sill and stays in the stair's
+     steel. In both cases the flag sits a centimetre proud of the sheet under
+     it instead of coplanar with it */
+  B.put(boxUV(s.w, 0.024, S.STAIR_LAND / 2, 2.2), stone, s.x, 0,
+    s.z - S.STAIR_LAND / 4, { cast: false, receive: true });
+  B.put(boxUV(s.w, 0.024, S.STAIR_LAND / 2, 2.2), steel, s.x, S.FLOOR_BASE,
+    s.z + s.run + S.STAIR_LAND / 4, { cast: false, receive: true });
 
   /* two side walls, the whole length of the well. above the ground floor they
      are the drum's own stone and stand as a parapet, so nobody walks into

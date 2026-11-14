@@ -325,13 +325,19 @@ function paintEarthBase(cv) {
          across the disc, so the sheet organises into belts and clear gaps.
          The crossing is a fifth of the field's whole range wide, which is
          what makes the fronts soft and the masses irregular instead of
-         cellular, and it tops out at 0.80 of white — under the bloom
-         threshold, so the planet lights the room and does not blow the
-         photograph. */
+         cellular. The colour it crosses *to* is a cool grey, not a white, and
+         that is a threshold question rather than a taste one: the high pass
+         takes a whole texel once it is over the line, not the part of it above
+         the line, so the 0.80 of (238,243,249) this used to top out at — 0.75
+         of linear luminance, comfortably under the 1.30 the station used to
+         run — is now a cloud sheet sitting a quarter of a point over 0.70 and
+         glowing with the same authority as a lamp. Held to 0.63 at the crest,
+         the sea underneath still reads a fifth as bright against it, which is
+         all the contrast a planet needs and none of the bloom. */
       const thr = 0.47 + 0.09 * Math.cos(ny * 3.6 + 0.9);
       const cl = atField(cloud, C, u, v);
-      const ca = soft(thr, thr + 0.16, cl) * 0.80;
-      R += (238 - R) * ca; G += (243 - G) * ca; Bb += (249 - Bb) * ca;
+      const ca = soft(thr, thr + 0.16, cl) * 0.74;
+      R += (206 - R) * ca; G += (214 - G) * ca; Bb += (226 - Bb) * ca;
       /* and the air standing off the limb: at the edge of a world the last
          few hundred kilometres of it are what you are looking through */
       const haze = soft(0.72, 1.0, dd) * 0.30;
@@ -452,6 +458,13 @@ export function createSky(THREE) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  /* the field is additive, and its brightest point — Sirius, at 1.33 of linear
+     luminance — is knowingly over the bloom threshold. A star is the one
+     fitting in this building that is meant to glow: the pass spends its energy
+     over the twelve pixels of a point and buys the halo that makes a star read
+     as a star rather than as a dead pixel, and it cannot fog a photograph
+     because there is no area to fog. The bodies that had to come under 0.70
+     are the ones with an area — the planet, and the moon. */
   const stars = new THREE.Points(geo, new THREE.PointsMaterial({
     size: 3.6, map: dotTexture(), vertexColors: true, transparent: true,
     depthWrite: false, sizeAttenuation: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false
@@ -470,7 +483,9 @@ export function createSky(THREE) {
   group.add(moon);
   moon.renderOrder = 4;
 
-  /* planets are points too, brighter and steadier than the field */
+  /* planets are points too, brighter and steadier than the field — and over
+     the threshold for the same reason: 0.94 at Venus, over thirty pixels,
+     where the glow is the whole of the effect and there is no area to spill */
   const planetPos = [], planetCol = [];
   PLANETS.forEach(() => { planetPos.push(0, 0, 0); planetCol.push(1, 1, 1); });
   const planetGeo = new THREE.BufferGeometry();
@@ -507,8 +522,10 @@ export function createSky(THREE) {
      out behind the planet without the field's own treatment changing at all.
      fog: false for the same reason the stars have it: the scene's fog is
      museum air, and at 300 m it would erase the planet. toneMapped stays on:
-     the day side runs at plaster brightness, under the bloom threshold, so
-     the Earth lights the room rather than blowing the photograph. */
+     the disc is painted, not lit, so the pass reads its paint at face value:
+     the cloud crest is held at 0.63 of linear luminance, under the 0.70 the
+      pass now cuts at, so the planet lights the room rather than blowing the
+      middle of the photograph out. */
   const earthBase = document.createElement('canvas');
   earthBase.width = earthBase.height = EARTH_S;
   paintEarthBase(earthBase);
@@ -576,7 +593,13 @@ export function createSky(THREE) {
     x.clearRect(0, 0, S, S);
     x.save();
     x.beginPath(); x.arc(S / 2, S / 2, S * 0.34, 0, TAU); x.clip();
-    x.fillStyle = '#f2eee2'; x.fillRect(0, 0, S, S);
+    /* moon white, and no longer quite white. The disc is unlit, so the bloom
+       pass reads it at exactly what the paint is: this used to sit at 0.86 of
+       linear luminance, which the 1.30 threshold the station used to run let
+       through and the 0.70 it runs now turns into a lamp the size of a window.
+       0.69 before the material's own opacity, and it is still the second
+       brightest thing in the night sky after the planet's own clouds. */
+    x.fillStyle = '#dcd9cf'; x.fillRect(0, 0, S, S);
     x.fillStyle = 'rgba(120,120,110,0.35)';
     const rand = rng(7);
     for (let i = 0; i < 22; i++) {
