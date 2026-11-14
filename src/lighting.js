@@ -86,7 +86,12 @@ function hallWall(plan, c) {
 function roomAnchors(room, skyTint) {
   const A = [];
   const key = {
-    x: room.center.x, z: room.center.z, y: baseOf(room) + room.ceil - 1.6,
+    /* the lamp hangs where the fitting is. the old rule hung every room's key
+       1.6 m below the ceiling, which is right under a 4.2 m hall and wrong in a
+       3.2 m cellar room, where the tube is only 0.5 m down: fourteen rooms were
+       lit from a source at eye height, 1.1 m below the thing you could see. */
+    x: room.center.x, z: room.center.z,
+    y: baseOf(room) + room.ceil - (room.ceil > S.CEIL_BASE + 0.01 ? 1.6 : 0.5),
     color: room.key, i: room.keyI * 11, r: Math.max(room.w, room.d) * 1.4, room: room.id
   };
   /* the plan says how hard this room's tube is trying. materials.js already

@@ -1226,10 +1226,17 @@ function buildStair(parent, plan, M, L) {
      says that stretch is walkable, and a mass of masonry under the stair
      would be a wall the plan cannot see. 0.26 m of stone leaves 1.67 m of
      headroom where the arm passes under, which is why the arm is a service
-     corridor and not a processional one. */
+     corridor and not a processional one.
+
+     The slab used to sit with its top 2 cm below the nosing line, so the
+     twenty tread boxes the loop lays next were 2 cm ribs in a smooth ramp:
+     the HUD said twenty steps down, the audio played twenty footfalls, and
+     the flight looked like a slide. The stone is thinner now and hung lower,
+     which costs 4 cm of headroom under the arm and gives the steps 10 cm of
+     riser you can actually see. */
   const slope = Math.atan(s.drop / s.run);
   const len = Math.hypot(s.run, s.drop);
-  B.put(boxUV(s.w, 0.22, len, 1.6), steel, s.x, -s.drop / 2 - 0.13, s.z + s.run / 2,
+  B.put(boxUV(s.w, 0.18, len, 1.6), steel, s.x, -s.drop / 2 - 0.19, s.z + s.run / 2,
     { cast: true, receive: true, rx: slope });
   for (let i = 1; i <= steps; i++) {
     const top = -i * rise;
@@ -1733,10 +1740,20 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
     }
   }
 
-  /* the name plate over the room's mouth, facing the arch you came in by */
+  /* the name plate over the room's mouth, facing the arch you came in by.
+     Every other plate in the building is hung inside a room group that is
+     turned to face its corridor, and the sign texture is painted for that:
+     the generic builder puts its plate down with ry π. This one is hung in
+     the hub frame with no turn, so the texture arrives back to front and the
+     first thing a visitor reads at the front door is "yɿoʇsɒɘpʇǝ". The
+     texture is flipped rather than the plate, because the plate has to face
+     the door it is over. */
   if (!room._signMat) {
     const signTex = roomSign(Object.assign({ no: plan.rooms.indexOf(room) + 1 }, room), THREE, 4);
     signTex.userData.room = room.id;
+    signTex.wrapS = THREE.RepeatWrapping;
+    signTex.repeat.x = -1;
+    signTex.offset.x = 1;
     room._signMat = new THREE.MeshStandardMaterial({
       map: signTex, emissive: 0xffffff, emissiveMap: signTex,
       emissiveIntensity: 0.72, roughness: 0.8, side: THREE.DoubleSide

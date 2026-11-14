@@ -309,6 +309,12 @@ function windowOffsets(width, count, winW) {
   const span = Math.min(width - 1.6, count * winW + (count - 1) * 1.0);
   const step = count > 1 ? span / (count - 1) : 0;
   const out = [];
+  /* one window goes in the middle of the wall. the span arithmetic below
+     measures from the first opening to the last, so with a single opening it
+     returned -winW/2 and every cabinet room had its window, its hole in the
+     hull and its patch of daylight 0.6 m off the door axis, with a 3 m pier on
+     one side and 1.8 m on the other. */
+  if (count === 1) return [0];
   for (let i = 0; i < count; i++) out.push(-span / 2 + i * step);
   return out;
 }
@@ -776,9 +782,9 @@ export function buildPlan() {
      there is no doorway, and the three bearings the well covers are skipped:
      the north half of the hub is the stair. */
   rotunda.plinths = [];
-  for (const deg of [45, 75, 105, 255, 285, 345]) {
+  for (const [deg, r] of [[45, 4.2], [75, 5.0], [105, 5.0], [255, 5.0], [285, 5.0], [345, 5.0]]) {
     const a = deg * Math.PI / 180;
-    rotunda.plinths.push({ u: Math.sin(a) * 5.0, v: Math.cos(a) * 5.0, face: a + Math.PI });
+    rotunda.plinths.push({ u: Math.sin(a) * r, v: Math.cos(a) * r, face: a + Math.PI });
   }
 
   let reach = 0;
