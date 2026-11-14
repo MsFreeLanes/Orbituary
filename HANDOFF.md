@@ -39,11 +39,12 @@ Acquisitions Hall, Rules Room, Trophy Hall). 8 zones, 12 ranges (8 ground, 4
 cellar arms), 16 corridors, 192 links, 204 pick nodes, 32 rooms with something on
 the walls and 19 without — and all nineteen now have furniture in them, because
 the fourteen cellar empties were given the archive's own shelving, flat file,
-bench and pallet. The cellar holds those 14 under a 10 × 8 m stair hall; the
-emptiest categories were put there deliberately, so the basement is the place the
-museum has not decided about yet.
+bench and pallet, and each one an empty plinth with a card saying what it is
+waiting for. The cellar holds those 14 under a 10 × 8 m stair hall; the emptiest
+categories were put there deliberately, so the basement is the place the museum
+has not decided about yet.
 
-The building is solid: 1419 collision circles by storey (204 pedestals, 1187
+The building is solid: 1433 collision circles by storey (218 pedestals, 1187
 pieces of furniture, 28 for the lift's partition), none of them inert where they
 stand, none of them pinching a doorway, and no corridor centreline blocked.
 
@@ -86,6 +87,9 @@ controllers deferred, everything needs collision, and the hardware question.
 | 8 | `fd9a41c` | the lift: a glazed shaft in the east metre of the stair well beside the flight, a cabin that carries one person and a box of books, `E` to ride, the storey changing at the door — `check-lift`, 20 assertions |
 | 9 | `14d9a3c` | the pedestals on the Observatory deck were standing in the spokes; and three probes had been measuring the corridors across, which is where the phantom obstructions came from — blocked centrelines 10 → 0 |
 | 10 | `be58780` | the cellar is a storeroom: shelving, flat file, bench, pallet, ladder, pipes, and 868 new collision circles tagged to the basement |
+| 11 | `47cf506` | a wing waits 0.35 s before it goes away: the walk's oscillations 11 → 5, and the cull now counts seconds handed in by the frame instead of reading the clock |
+| 12 | `5730d35` | `HARDWARE.md` — what this machine runs, in plain language, measured with `nvidia-smi` rather than remembered |
+| 13 | `655f2b1` | the cellar's empty plinths with a WANTED card, and the fix for a bug since the plinth kit: **every wall label in the building was in the doorway, 4.72 m from its plinth** |
 
 **The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
 5090 with 32 GB of its own memory, 62 GB, 3440×1440 at 143 Hz. The whole station

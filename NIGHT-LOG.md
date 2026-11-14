@@ -751,13 +751,66 @@ galleries — and it is not an invisible wall, since the rig filters by floor. W
 matters is whether a piece of furniture is solid where it actually stands: **0
 inert out of 1419**.
 
+### 17:1x — a wing now waits a third of a second before it goes away (`47cf506`)
+
+Hysteresis and the look-ahead point took a 223 m walk from 114 flips and 35
+oscillations to 84 and 11. The 11 were a wing arriving, leaving and arriving again
+within five metres of walking — a threshold crossed twice, which is the pop a
+visitor actually sees because it happens in front of them. So the cull holds a
+wing up for **0.35 s** after it stops qualifying: coming on is still instant, only
+going away waits. Same walk: 84 → 78 flips, 46 → 43 going out behind you, 37 → 34
+appearing ahead, **11 → 5 oscillating**. A longer grace (0.45 s) bought one fewer
+oscillation and held two metres of building on for nothing, so it is not taken.
+
+The wait is counted in seconds handed in by the frame rather than read off the
+clock, because the probes step the building a hundred times in a heartbeat and a
+cull that read the wall clock would answer about the probe; `check-pop` now passes
+the 0.05 s it steps by. The first attempt changed nothing at all — 84 and 11,
+exactly, twice — because the helper asked a wing record for a `visible` field it
+has never had, and `undefined` is falsy, so every wing took the fast path out.
+
+### 17:2x — the hardware question, answered once (`5730d35`)
+
+`HARDWARE.md`. Measured rather than remembered: `nvidia-smi` says 32607 MiB and
+driver 621.24; WMI's `AdapterRAM` says 4 GB for a 5090, which is a 32-bit counter
+and not a fact. The verdict in the file: the museum is not the problem (477 pieces
+of geometry, 125k triangles, against a machine that draws cities), the demanding
+part of this box is a screen of 4.95 million pixels refreshed every 7 ms, so a
+missed frame would come from the post chain and not the geometry; and a local
+language model fits with room to spare up to about 30 billion parameters, with a
+70-billion one running out of the card into ordinary memory, where it works and is
+slow and nothing in this repository can fix that.
+
+### 17:2x — the cellar's empty plinths, and the labels that were not on any plinth (`655f2b1`)
+
+Fourteen cellar rooms have furniture and nothing to look at, so they get a plinth
+and a card that says what the plinth is for: **WANTED**, the room's code, *the
+first thing in The Newsroom*. It is the sentence the Acquisitions Hall already
+says with four empty frames, said in the room where the things are kept. The plan
+hands it out in `makeRoom` — middle of the room, facing the door, clear of the
+shelving, bench, flat file and pallet — and the building draws it as stone with
+the room's colour inlaid and a circle you cannot walk through (plinth blockers
+204 → 218). It is deliberately not a pick node: the pointer aims at exhibits and
+there is nothing here for a plaque to open, so 204 pick nodes still all have one.
+
+**Putting a card on it found a bug that has been in the building since the plinth
+kit was written.** A plinth's wall label was welded into the room's batch at
+`(sin face · labelD, 0.66, cos face · labelD)` — the offset from the stone,
+without the stone's own place in the room. A room's origin is its doorway, so
+**every wall label in the station was standing in the door reveal, at knee height,
+4.72 m from the plinth it belonged to.** `scratch/probe-wanted.mjs` measures the
+distance from a card to the stone it should be on: 4.72 m → **0.32 m**, which is
+the half-width of the plinth plus the 8 mm it stands proud. Two hundred and four
+labels are on their plinths now (`privacy-bench.png`, `wanted-plinth.png`).
+
 **Still open, in the order I would take them.**
-- The fourteen cellar rooms are furnished but still have **no exhibits**: no
-  links, no plinths, no pick nodes. The tour walks you into a storeroom with
-  nothing in it. Which categories get a first exhibit, and whether any of them
-  get it downstairs, is a content decision for the owner.
-- A real distance fade at the wing edges — hysteresis and look-ahead are in, the
-  fade is not.
+- The fourteen cellar rooms are furnished and now hold an empty plinth each, but
+  still have **no exhibits**: no links, no pick nodes. Which categories get a
+  first exhibit, and whether any of it goes downstairs, is a content decision for
+  the owner.
+- A real distance fade at the wing edges. Hysteresis, the look-ahead point and now
+  a dwell are in; the fade itself is not, and with the oscillations down to 5 it
+  may not be worth the transparency it would cost.
 - Door and window placement beyond the lone-window fix.
 - The small-creature ambience out of sight, ships and comets outside, and gating
   sound and effects to what is actually visible.
