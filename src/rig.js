@@ -143,8 +143,31 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     x: 0, z: 4.5, yaw: Math.PI, pitch: 0,
     storey: 'ground', level: S.FLOOR_GROUND,
     speed: 0, room: 'rotunda', moving: false, bob: 0, stride: 0,
-    touring: null, mouseIdle: 0, locked: false
+    touring: null, mouseIdle: 0, locked: false, ride: null
   };
+
+  /* The lift. building.js hands the cabin over once the building exists; the
+     rig owns the ride, because the ride is the one thing in the building that
+     moves a person vertically for a reason other than a slope under their
+     feet. The shaft is open — a glass partition and a cabin with no door
+     panels — so there is nothing to open before you step in, and the ride
+     starts the moment you ask for it while you are standing in the cabin. */
+  let lift = null;
+  function setLift(h) { lift = h; if (lift) lift.cabin.position.y = lift.top; }
+  const inLift = (x, z) => !!lift && Math.abs(x - lift.x) < 0.62 &&
+    z > lift.z - S.LIFT_IN / 2 - 0.2 && z < lift.z + S.LIFT_IN / 2 + 0.2;
+  function callLift() {
+    if (!lift || state.ride || state.touring) return false;
+    if (!inLift(state.x, state.z)) return false;
+    const down = state.storey !== 'basement';
+    state.ride = {
+      t: 0, dur: lift.ride,
+      from: down ? lift.top : lift.bottom, to: down ? lift.bottom : lift.top,
+      toStorey: down ? 'basement' : 'ground', down
+    };
+    if (hooks.onRide) hooks.onRide(down ? 'down' : 'up');
+    return true;
+  }
 
   /* What stands on the floor.
 
@@ -193,6 +216,15 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     const owner = plan.byId ? plan.byId(o.room) : null;
     addBlocker(o.x, o.z, o.r, (owner && owner.floor) || 'ground', 'prop');
   });
+  /* the lift's glass partition, down the whole length of the well. The flight
+     and the shaft share a hole in the floor, and at the height of the flight
+     the shaft is empty air: without this a step east off the treads is a step
+     into the shaft. The shaft is entered at its doors, at the north end. */
+  const shaftX = stair.x + stair.w / 2 - S.LIFT_W + S.LIFT_PARTITION / 2;
+  for (let z = stair.z + 0.30; z < stair.z + stair.run; z += 0.40) {
+    addBlocker(shaftX, z, 0.24, 'ground', 'lift shaft');
+    addBlocker(shaftX, z, 0.24, 'basement', 'lift shaft');
+  }
 
   /* Slide a body out of whatever it has landed inside. Used by the tour and by
      any jump: a route is a polyline through the plan and the plan does not
@@ -445,7 +477,26 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     state.mouseIdle += dt;
     const tour = state.touring;
 
-    if (tour) {
+    /* A ride owns the visitor: the cabin is the floor, the walls are the room,
+       and the only thing that changes is the height. The storey flips at the
+       end of the ride rather than at the middle, because the lift has no
+       halfway — the cabin is either on a floor or travelling between two, and
+       the lights, the HUD's name and the footfalls should all change together
+       when the doors part. */
+    if (state.ride) {
+      const ride = state.ride;
+      ride.t = Math.min(ride.dur, ride.t + dt);
+      const y = ride.from + (ride.to - ride.from) * easeInOut(ride.t / ride.dur);
+      lift.cabin.position.y = y;
+      state.x = lift.x; state.z = lift.z;
+      state.level = y;
+      state.speed = 0;
+      if (ride.t >= ride.dur) {
+        state.ride = null;
+        state.storey = ride.toStorey;
+        if (hooks.onRide) hooks.onRide(ride.down ? 'arrived-below' : 'arrived-above');
+      }
+    } else if (tour) {
       tour.t = Math.min(tour.dur, tour.t + dt);
       const u = easeInOut(tour.t / tour.dur) * tour.total;
       let acc = 0, px = state.x, pz = state.z, heading = state.yaw;
@@ -526,7 +577,19 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     const down = flightT(state.x, state.z, S.BODY_R);
     onFlight = down !== null;
     if (onFlight) state.storey = down > 0.5 ? 'basement' : 'ground';
-    state.level = levelAt(state.x, state.z);
+    if (state.ride) state.level = lift.cabin.position.y;
+    else state.level = levelAt(state.x, state.z);
+
+    /* the cabin goes back to the top dock on its own once you are out of it and
+       downstairs, because the top dock is a hole in the rotunda floor when the
+       cabin is not standing in it. It only runs while the visitor is on the
+       cellar storey: the flight takes about ten seconds and the return takes
+       five, so the lift is parked before anyone can walk back up to it. */
+    if (lift && !state.ride && state.storey === 'basement' && !inLift(state.x, state.z)) {
+      const y = lift.cabin.position.y;
+      if (y < lift.top - 0.001)
+        lift.cabin.position.y = Math.min(lift.top, y + (-S.FLOOR_BASE / lift.ride) * dt);
+    }
 
     /* head bob and footsteps, driven by distance travelled, not by time */
     const moved = state.speed * dt;
@@ -567,6 +630,7 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
 
   return {
     state, update, walkTo, stopTour, teleportTo, lock, roomAt, flightT,
+    setLift, callLift, inLift,
     /* the probes ask the rig what it thinks is solid, rather than guessing at
        it from the mesh list — the whole point is that these two answers used
        to be different */

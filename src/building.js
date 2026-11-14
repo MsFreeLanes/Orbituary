@@ -1236,11 +1236,19 @@ function buildStair(parent, plan, M, L) {
      riser you can actually see. */
   const slope = Math.atan(s.drop / s.run);
   const len = Math.hypot(s.run, s.drop);
-  B.put(boxUV(s.w, 0.18, len, 1.6), steel, s.x, -s.drop / 2 - 0.19, s.z + s.run / 2,
+  /* the well is 3.00 m wide and the flight now only needs 1.84 of it: the
+     lift stands in the remaining 1.10 m, against the east wall, and the well's
+     rectangle in the plan — the hole in the rotunda floor, the hole in the
+     stair hall's ceiling, the walkable union — does not move by a centimetre.
+     Everything below that used `s.w` and `s.x` is the flight, so it narrows
+     and shifts west with it. */
+  const fw = s.w - S.LIFT_W - S.LIFT_PARTITION;
+  const fx = s.x - (S.LIFT_W + S.LIFT_PARTITION) / 2;
+  B.put(boxUV(fw, 0.18, len, 1.6), steel, fx, -s.drop / 2 - 0.19, s.z + s.run / 2,
     { cast: true, receive: true, rx: slope });
   for (let i = 1; i <= steps; i++) {
     const top = -i * rise;
-    B.put(boxUV(s.w, 0.07, tread, 1.6), steel, s.x, top - 0.035, s.z + (i - 0.5) * tread,
+    B.put(boxUV(fw, 0.07, tread, 1.6), steel, fx, top - 0.035, s.z + (i - 0.5) * tread,
       { cast: true, receive: true });
   }
 
@@ -1249,9 +1257,9 @@ function buildStair(parent, plan, M, L) {
      concrete, the bottom one is the well's sill and stays in the stair's
      steel. In both cases the flag sits a centimetre proud of the sheet under
      it instead of coplanar with it */
-  B.put(boxUV(s.w, 0.024, S.STAIR_LAND / 2, 2.2), stone, s.x, 0,
+  B.put(boxUV(fw, 0.024, S.STAIR_LAND / 2, 2.2), stone, fx, 0,
     s.z - S.STAIR_LAND / 4, { cast: false, receive: true });
-  B.put(boxUV(s.w, 0.024, S.STAIR_LAND / 2, 2.2), steel, s.x, S.FLOOR_BASE,
+  B.put(boxUV(fw, 0.024, S.STAIR_LAND / 2, 2.2), steel, fx, S.FLOOR_BASE,
     s.z + s.run + S.STAIR_LAND / 4, { cast: false, receive: true });
 
   /* two side walls, the whole length of the well. above the ground floor they
@@ -1269,9 +1277,12 @@ function buildStair(parent, plan, M, L) {
   /* a handrail down one side, hung 0.90 above the nosing line. Polished, and
      so the one fitting in the cellar that takes `panel` rather than
      `panel-shadow`: in this palette the brighter token is the highlights, and
-     a handrail is where a room puts them. */
+     a handrail is where a room puts them. It used to stand on the east side of
+     the flight, which is where the lift shaft is now: the rail is on the west
+     side, against the well's own wall, and the glass partition between the
+     stair and the cabin carries the other. */
   const rail = M.solid(PALETTE.panel, { roughness: 0.35, metalness: 0.75 });
-  const rx = s.x + s.w / 2 - 0.10;
+  const rx = fx - fw / 2 + 0.10;
   B.put(new THREE.CylinderGeometry(0.028, 0.028, len, 10), rail,
     rx, 0.9 - s.drop / 2, s.z + s.run / 2, { cast: true, rx: Math.atan2(s.run, -s.drop) });
   for (let k = 0; k <= 5; k++) {
@@ -1289,6 +1300,109 @@ function buildStair(parent, plan, M, L) {
   }
   B.flush();
   return g;
+}
+
+/* ── the lift ────────────────────────────────────────────────────────────
+   The second way down, standing in the east 1.10 m of the stair well. The
+   owner asked for the grand stair to stay *and* for a lift, and the well is
+   the one place in the building where a shaft already exists: 3.00 m wide, of
+   which the flight only needs 1.84. So the lift takes the remainder, and the
+   plan does not change at all — the well's rectangle, the holes it leaves in
+   the rotunda floor and in the stair hall's ceiling, and the walkable union
+   are exactly what they were.
+
+   It is a glass shaft on purpose. A lift in a dark hole in the middle of the
+   drum would be a door you cannot find; behind glass you can see the cabin
+   going down while you are still deciding, and from the cabin you can see the
+   flight you did not take, which is the whole reason the two are side by side.
+
+   The cabin is its own group rather than part of the welded hub, because it
+   moves. It docks with its floor flush with whichever floor it is at: the
+   rotunda's terrazzo above, the stair hall's concrete below, and the door at
+   the north end, which is the end the well's opening faces on both storeys. */
+function buildLift(parent, plan, M, L) {
+  const s = plan.stair;
+  const well = wellOf(plan);
+  const partX = s.x + s.w / 2 - S.LIFT_W;            // the west face of the shaft
+  const liftX = partX + S.LIFT_W / 2;                // the shaft's axis
+  const z0 = well.z0, z1 = well.z1;
+  const g = new THREE.Group();
+  parent.add(g);
+  const B = batch(g);
+  const steel = M.solid(0x33383f, { roughness: 0.8, metalness: 0.25 });
+  const bright = M.solid(PALETTE.panel, { roughness: 0.35, metalness: 0.75 });
+  /* the cabin's walls: painted steel, the same token the handrail and the
+     ticket are printed in, because a lift box is a fitting and not a wall */
+  const panel = M.solid(PALETTE.panel, { roughness: 0.55, metalness: 0.15 });
+  const pt = S.LIFT_PARTITION;
+
+  /* the partition between the stair and the shaft, glazed for the whole
+     height of the well, with the same 0.90 m parapet the well's own walls
+     carry above the ground floor: the shaft is a hole in the floor, and the
+     building puts a rail across its holes */
+  B.put(boxUV(pt, -S.FLOOR_BASE, z1 - z0, 2.4), M.glass,
+    partX + pt / 2, S.FLOOR_BASE / 2, (z0 + z1) / 2, { cast: false, receive: false });
+  B.put(boxUV(pt, 0.9, z1 - z0, 2.4), M.mat('marbleDark', 1, 1),
+    partX + pt / 2, 0.45, (z0 + z1) / 2, { cast: true, receive: true });
+  /* the guide the cabin runs on, in the shaft's east corner, and the cill the
+     shaft's two doors are hung from */
+  B.put(new THREE.CylinderGeometry(0.05, 0.05, -S.FLOOR_BASE + 1.0, 8), steel,
+    s.x + s.w / 2 - 0.14, S.FLOOR_BASE + (-S.FLOOR_BASE + 1.0) / 2, (z0 + z1) / 2, { cast: true });
+  for (const z of [z0, z1]) {
+    B.put(boxUV(S.LIFT_W, 0.04, 0.14, 1), bright, liftX, 0.004, z, { receive: true });
+    B.put(boxUV(S.LIFT_W, 0.04, 0.14, 1), bright, liftX, S.FLOOR_BASE + 0.004, z, { receive: true });
+  }
+  /* the two landings. A lift in a hole in the floor needs a door standing on
+     the floor, not a cabin standing in the hole: without the frame the shaft
+     reads as a white booth on the terrazzo and the well is hidden behind it.
+     The frame stands just outside the well's edge, so it never moves and the
+     cabin never touches it, and the cabin's own opening lines up with it when
+     the cabin arrives. */
+  const zf = z0 - 0.07;
+  for (const y of [0, S.FLOOR_BASE]) {
+    for (const x of [partX + 0.06, s.x + s.w / 2 - 0.06]) {
+      B.put(boxUV(0.09, 2.16, 0.10, 1), M.mat('marbleDark', 1, 1), x, y + 1.08, zf, { cast: true, receive: true });
+    }
+    B.put(boxUV(S.LIFT_W + 0.18, 0.12, 0.10, 1), M.mat('marbleDark', 1, 1),
+      liftX, y + 2.20, zf, { cast: true, receive: false });
+    B.put(boxUV(0.14, 0.20, 0.05, 1), bright, partX + 0.20, y + 1.20, zf - 0.06, { cast: false });
+  }
+  B.flush();
+
+  /* the cabin. 1.00 m by 1.60 m inside, which is a lift for one person and a
+     box of books, and not a lift for a stretcher — the stair keeps that job. */
+  const cabin = new THREE.Group();
+  g.add(cabin);
+  const cb = batch(cabin);
+  const inZ = S.LIFT_IN;
+  const cz = z0 + inZ / 2;
+  const w = S.LIFT_W - 0.14;
+  const cx = partX + 0.07 + w / 2;
+  const H = 2.10;
+  const doorW = 0.92;
+  cb.put(boxUV(w, 0.10, inZ, 1.6), steel, cx, -0.05, cz, { receive: true });
+  cb.put(boxUV(w, 0.08, inZ, 1.6), panel, cx, H + 0.04, cz, { cast: false });
+  cb.put(boxUV(0.05, H, inZ - 0.2, 1.6), M.glass, partX + 0.09, H / 2, cz, { cast: false });
+  cb.put(boxUV(0.06, H, inZ, 1.6), steel, s.x + s.w / 2 - 0.11, H / 2, cz, {});
+  cb.put(boxUV(w, H, 0.06, 1.6), steel, cx, H / 2, z0 + inZ - 0.03, {});
+  /* the north face is the door: jambs each side and a header over a 0.92 m
+     opening, so the cabin and the floor it docks with are one threshold. The
+     outside of the box is the well's own dark steel and the inside is the
+     palette's bright token: from the rotunda it reads as a machine in a shaft,
+     and from inside it reads as a room. */
+  const jamb = (w - doorW) / 2;
+  for (const sx of [-1, 1]) {
+    cb.put(boxUV(jamb, H, 0.05, 1), steel,
+      cx + sx * (doorW / 2 + jamb / 2), H / 2, z0 + 0.025, {});
+  }
+  cb.put(boxUV(doorW, H - 1.95, 0.05, 1), panel,
+    cx, 1.95 + (H - 1.95) / 2, z0 + 0.025, {});
+  cb.put(boxUV(w - 0.36, 0.05, 0.14, 1), L.glow, cx, H - 0.02, cz, { cast: false });
+  cb.put(boxUV(0.10, 0.16, 0.06, 1), bright, partX + 0.16, 1.15, z0 + 0.10, { cast: false });
+  cb.flush();
+
+  return { group: g, cabin, x: cx, z: cz, top: 0, bottom: S.FLOOR_BASE,
+    ride: S.LIFT_RIDE, door: { x: cx, z: z0 } };
 }
 
 /* ── the pressure hull ───────────────────────────────────────────────────
@@ -1898,6 +2012,11 @@ export function buildBuilding(THREE, plan, M) {
   buildRotunda(hub, plan, M, pickables, L, kit, H);
   const hall = buildStairHall(cellarHub, plan, M, L);
   buildStair(cellarHub, plan, M, L);
+  /* the lift hangs on the hub and not on the cellar hub with the stair: the
+     shaft and the cabin are meant to be seen from the rotunda, which is the
+     place where the choice between the stair and the lift is made, and the
+     cull keeps the hub on whenever the visitor is anywhere near the well */
+  const lift = buildLift(hub, plan, M, L);
   const anim = (hall.userData.anim || []).slice();
 
   const wings = plan.corridors.map((c) => {
@@ -1957,5 +2076,5 @@ export function buildBuilding(THREE, plan, M) {
      asks the building what it can see whether the composer or a probe is
      holding the renderer */
   group.userData.cull = cull;
-  return { group, pickables, cull, anim, wings };
+  return { group, pickables, cull, anim, wings, lift };
 }

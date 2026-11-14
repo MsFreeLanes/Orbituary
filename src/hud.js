@@ -295,7 +295,7 @@ export function createHUD(plan, actions = {}) {
   /* ── bottom bar ── */
   const bar = el('div', 'bar');
   const keys = el('div', 'keys',
-    '<b>WASD</b> walk <b>SHIFT</b> stride <b>MOUSE</b> look <b>T</b> tour <b>R</b> random room <b>G</b> ground track <b>M</b> mute <b>H</b> front door <b>TAB</b> brochure');
+    '<b>WASD</b> walk <b>SHIFT</b> stride <b>MOUSE</b> look <b>T</b> tour <b>R</b> random room <b>G</b> ground track <b>M</b> mute <b>E</b> lift <b>H</b> front door <b>TAB</b> brochure');
   const meter = el('div', 'meter');
   for (let i = 0; i < 12; i++) meter.appendChild(el('i', ''));
   const stats = el('div', 'stats', '');
@@ -372,6 +372,7 @@ export function createHUD(plan, actions = {}) {
         <tr><td><b>R</b></td><td>a room at random</td></tr>
         <tr><td><b>G</b></td><td>the ground track: seven regions and an hour</td></tr>
         <tr><td><b>M</b></td><td>mute</td></tr>
+        <tr><td><b>E</b></td><td>the lift, at the north end of the stair well — stand in the cabin and press it</td></tr>
         <tr><td><b>H</b></td><td>walk back to the front door</td></tr>
         <tr><td><b>Shift + H</b></td><td>stand at the front door now</td></tr>
         <tr><td><b>Tab</b></td><td>this brochure</td></tr>

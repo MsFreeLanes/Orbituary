@@ -155,9 +155,20 @@ function boot() {
         closingPending = false;
         hud.showBrochure('closing');
       }
+    },
+    /* the lift says two things: that it is moving, and that it has stopped. The
+       arrival is the one worth hearing, because it is the moment the cellar's
+       room tone is handed to you or taken away. */
+    onRide: (what) => {
+      if (what === 'down') { hud.toast('the lift goes down', 2200); return; }
+      if (what === 'up') { hud.toast('the lift goes up', 2200); return; }
+      const below = what === 'arrived-below';
+      audio.enterRoom(below ? plan.stairHall : plan.rotunda);
+      hud.toast(below ? 'the lift: below' : 'the lift: the rotunda', 2200);
     }
   });
   rig.teleportTo('rotunda');
+  rig.setLift(built.lift);
   setStorey(rig.state.storey);
 
   /* ── the tour circuit and the arrow that leads you ── */
@@ -301,7 +312,16 @@ function boot() {
       muted = !muted;
       audio.setMuted(muted);
       hud.toast(muted ? 'sound off' : 'sound on');
-    } else if (k === 'Enter' || k === 'NumpadEnter') openTarget();
+    } else if (k === 'KeyE') {
+      /* the lift answers wherever you are, and says where it is when the
+         answer is no: the shaft is at the north end of the stair well, on both
+         storeys, and it is the only way down that does not need your legs. */
+      if (!rig.callLift()) {
+        const at = rig.state.storey === 'basement' ? 'below, at the north end of the stair well' : 'in the rotunda, at the north end of the stair well';
+        hud.toast('the lift is ' + at + ' — stand in the cabin and press E', 3800);
+      }
+    }
+    else if (k === 'Enter' || k === 'NumpadEnter') openTarget();
     else if (k === 'Escape') {
       rig.stopTour();
       hud.root.classList.remove('sky-open');

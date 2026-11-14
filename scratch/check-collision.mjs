@@ -43,8 +43,13 @@ const probe = `(() => {
     }
   });
 
-  /* and the storey test: a blocker must not be solid on the floor above it */
-  const wrongFloor = blockers.filter((b) => b.floor && b.floor !== 'ground' &&
+  /* and the storey test: a blocker must not be solid on the floor above it.
+     Only furniture is asked this. The lift's partition runs the whole height of
+     the well and is deliberately solid on both storeys, and a check that flags
+     a two-storey thing as a one-storey thing would only teach us to stop
+     trusting it. */
+  const wrongFloor = blockers.filter((b) => (b.what === 'plinth' || b.what === 'prop') &&
+    b.floor && b.floor !== 'ground' &&
     rig.blocked(b.x, b.z)).length;
 
   return { blockers: blockers.length, byWhat, nodes: nodes.length, soft: soft.slice(0, 8), softCount: soft.length,

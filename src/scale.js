@@ -226,6 +226,18 @@ export const S = {
   STAIR_LAND: 1.60,       // flat at each end, so the door is never on the slope
   STAIR_INSET: 1.40,      // how far inside the drum the top of the stair stands
 
+  /* the lift: the second way down, standing alongside the grand stair inside
+     the same well. The well is 3.00 m wide and the flight only needs 1.84 of
+     it — two people abreast is 1.40 m, and a stretcher turns on a flight that
+     width — so the remaining 1.10 m is a shaft. That is why the lift is here
+     and not in a hole of its own: the well's rectangle in the plan, the holes
+     it leaves in the rotunda floor, the stair hall's ceiling and the walkable
+     union all stay exactly as they were. */
+  LIFT_W: 1.10,           // the shaft, clear of the flight
+  LIFT_PARTITION: 0.06,   // the glass between the stair and the cabin
+  LIFT_IN: 1.60,          // the cabin's length along the well
+  LIFT_RIDE: 5.0,         // seconds for one storey: 0.72 m/s, a lift you feel
+
   /* walk */
   WALK_SPEED: 1.45,       // m/s, a museum pace
   RUN_SPEED: 2.60,
