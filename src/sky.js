@@ -474,7 +474,7 @@ export function createSky(THREE) {
 
   /* the moon: a disc painted for tonight's phase */
   const moonCanvas = document.createElement('canvas');
-  moonCanvas.width = moonCanvas.height = 128;
+  moonCanvas.width = moonCanvas.height = 1024;
   const moonTex = new THREE.CanvasTexture(moonCanvas);
   moonTex.colorSpace = THREE.SRGBColorSpace;
   const moon = new THREE.Mesh(new THREE.PlaneGeometry(11, 11),
@@ -587,12 +587,58 @@ export function createSky(THREE) {
   const iq = new THREE.Quaternion();
   let lastEarthAlt = Number.NaN, lastEarthAz = Number.NaN;
 
+  /* The maria, at their real selenographic positions: longitude east of the
+     central meridian, latitude, and an angular radius in degrees. A photograph
+     cannot go into a file that has to double-click and work on a train, so the
+     moon is drawn — but it is drawn as the thing itself, not as twenty-two grey
+     blobs scattered on a 128 px disc, which is what it used to be. */
+  const MARIA = [
+    [34.3, 32.8, 30], [17.5, 28.0, 26], [59.1, 17.0, 15], [31.4, 8.5, 20],
+    [51.7, -7.8, 22], [35.8, -15.2, 13], [0.6, -21.3, 15], [-38.6, -24.4, 16],
+    [-57.0, 18.0, 40], [-23.3, -10.0, 11], [30.8, 7.5, 10], [60.0, 56.0, 20],
+    [-15.0, 40.0, 13], [45.0, 40.0, 12], [-70.0, -5.0, 18]
+  ];
+  /* Tycho and Copernicus: the two that throw rays across the near side */
+  const RAYS = [[-11.2, -43.0, 1.0], [-20.1, 9.7, 0.5]];
+
+  /* orthographic projection of the near side: a point at selenographic (lon,
+     lat) lands at (cos lat · sin lon, sin lat) on the unit disc, and is
+     foreshortened by cos lat · cos lat... by cos lat · cos lon as it goes to
+     the limb. Everything on the moon is drawn through this, so a mare near the
+     edge is an ellipse and not a circle. */
+  function moonPlace(lon, lat) {
+    const l = lon * D2R, b = lat * D2R;
+    const inc = Math.cos(b) * Math.cos(l);
+    return { px: Math.cos(b) * Math.sin(l), py: -Math.sin(b), inc };
+  }
+  function moonSpot(x, C, R, p, rr, squash) {
+    if (p.inc <= 0.03) return;
+    const ang = Math.atan2(p.py, p.px);
+    x.save();
+    x.translate(C + p.px * R, C + p.py * R);
+    x.rotate(ang);
+    x.scale(squash === undefined ? p.inc : squash, 1);
+    x.beginPath(); x.arc(0, 0, rr, 0, TAU); x.fill();
+    x.restore();
+  }
+  /* the same, stroked: what a crater actually is at this scale */
+  function moonRing(x, C, R, p, rr) {
+    if (p.inc <= 0.03) return;
+    const ang = Math.atan2(p.py, p.px);
+    x.save();
+    x.translate(C + p.px * R, C + p.py * R);
+    x.rotate(ang);
+    x.scale(p.inc, 1);
+    x.beginPath(); x.arc(0, 0, rr, 0, TAU); x.stroke();
+    x.restore();
+  }
+
   function paintMoon(phase) {
     const x = moonCanvas.getContext('2d');
-    const S = 128;
+    const S = moonCanvas.width, C = S / 2, R = S * 0.34;
     x.clearRect(0, 0, S, S);
     x.save();
-    x.beginPath(); x.arc(S / 2, S / 2, S * 0.34, 0, TAU); x.clip();
+    x.beginPath(); x.arc(C, C, R, 0, TAU); x.clip();
     /* moon white, and no longer quite white. The disc is unlit, so the bloom
        pass reads it at exactly what the paint is: this used to sit at 0.86 of
        linear luminance, which the 1.30 threshold the station used to run let
@@ -600,20 +646,95 @@ export function createSky(THREE) {
        0.69 before the material's own opacity, and it is still the second
        brightest thing in the night sky after the planet's own clouds. */
     x.fillStyle = '#dcd9cf'; x.fillRect(0, 0, S, S);
-    x.fillStyle = 'rgba(120,120,110,0.35)';
     const rand = rng(7);
-    for (let i = 0; i < 22; i++) {
+    /* weather in the highlands before anything sits on them */
+    for (let i = 0; i < 120; i++) {
+      const a = rand() * TAU, d = Math.sqrt(rand()) * R * 0.98;
+      x.globalAlpha = 0.025 + rand() * 0.03;
+      x.fillStyle = rand() > 0.45 ? '#cfccc2' : '#e8e5db';
       x.beginPath();
-      x.arc(S * (0.2 + rand() * 0.6), S * (0.2 + rand() * 0.6), 3 + rand() * 12, 0, TAU);
+      x.arc(C + Math.cos(a) * d, C + Math.sin(a) * d, R * (0.03 + rand() * 0.11), 0, TAU);
       x.fill();
     }
-    /* the shadow: an ellipse sweeping across the disc */
+    x.globalAlpha = 1;
+    /* the maria: dark, low-albedo plains. Each one is a handful of overlapping
+       blobs rather than one disc — the real ones have irregular, soft edges, and
+       a single circle at 40° across is the thing that made this read as a
+       diagram rather than a surface. */
+    x.fillStyle = 'rgba(118,119,116,0.26)';
+    MARIA.forEach(([lon, lat, rho]) => {
+      const base = R * Math.sin(rho * D2R) * 0.9;
+      for (let k = 0; k < 5; k++) {
+        const q = moonPlace(lon + (rand() - 0.5) * rho * 1.1, lat + (rand() - 0.5) * rho * 0.9);
+        moonSpot(x, C, R, q, base * (0.5 + rand() * 0.45));
+      }
+    });
+    /* the crater field. A point is picked on the disc and the projection is
+       inverted to find where on the moon it is, which keeps every crater on the
+       near side and squashes the ones near the limb for free. A crater at this
+       scale is a rim, not a disc: the first version filled them and the result
+       read as grey confetti scattered on the surface. */
+    for (let i = 0; i < 420; i++) {
+      const a = rand() * TAU, d = Math.sqrt(rand()) * 0.98;
+      const px = Math.cos(a) * d, py = Math.sin(a) * d;
+      const b = Math.asin(Math.max(-1, Math.min(1, -py)));
+      const cb = Math.cos(b);
+      const sl = Math.max(-1, Math.min(1, px / Math.max(cb, 1e-4)));
+      const inc = cb * Math.cos(Math.asin(sl));
+      const rr = (0.8 + Math.pow(rand(), 3.4) * 17) * (S / 1024);
+      const p = { px, py, inc };
+      x.strokeStyle = 'rgba(250,248,241,0.30)';
+      x.lineWidth = Math.max(0.6, rr * 0.34);
+      moonRing(x, C, R, p, rr);
+      if (rr > 9) {
+        x.fillStyle = 'rgba(126,124,118,0.09)';
+        moonSpot(x, C, R, p, rr * 0.72);
+      }
+      if (rand() > 0.94) {
+        x.fillStyle = 'rgba(252,251,246,0.55)';
+        moonSpot(x, C, R, p, rr * 0.5);
+      }
+    }
+    /* ray systems: bright streaks thrown out of the two young craters */
+    RAYS.forEach(([lon, lat, strength]) => {
+      const p = moonPlace(lon, lat);
+      if (p.inc <= 0.05) return;
+      const cx = C + p.px * R, cy = C + p.py * R;
+      x.strokeStyle = 'rgba(248,246,238,' + (0.05 * strength).toFixed(3) + ')';
+      x.lineCap = 'round';
+      for (let i = 0; i < 90; i++) {
+        const a = rand() * TAU, len = R * (0.18 + rand() * 0.62) * strength;
+        const w = 1 + rand() * 5;
+        x.lineWidth = w * (S / 1024);
+        x.beginPath();
+        x.moveTo(cx + Math.cos(a) * R * 0.02, cy + Math.sin(a) * R * 0.02);
+        x.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+        x.stroke();
+      }
+      x.fillStyle = 'rgba(250,248,242,0.5)';
+      x.beginPath(); x.arc(cx, cy, R * 0.018 * strength, 0, TAU); x.fill();
+    });
+    /* the shadow: an ellipse sweeping across the disc, with a soft edge so the
+       terminator is a place rather than a cut */
     const k = Math.cos(TAU * phase);
-    x.fillStyle = 'rgba(8,10,16,0.94)';
-    x.beginPath();
-    x.arc(S / 2, S / 2, S * 0.34, Math.PI / 2, -Math.PI / 2, phase > 0.5);
-    x.ellipse(S / 2, S / 2, S * 0.34 * Math.abs(k), S * 0.34, 0, -Math.PI / 2, Math.PI / 2, k < 0);
-    x.fill();
+    const shade = (w, alpha) => {
+      x.fillStyle = 'rgba(8,10,16,' + alpha + ')';
+      x.beginPath();
+      x.arc(C, C, R, Math.PI / 2, -Math.PI / 2, phase > 0.5);
+      x.ellipse(C, C, Math.max(0, R * Math.abs(k) + w), R + 2, 0, -Math.PI / 2, Math.PI / 2, k < 0);
+      x.fill();
+    };
+    shade(R * 0.035, 0.30);
+    shade(R * 0.018, 0.45);
+    shade(0, 0.94);
+    /* earthshine. The planet is four times the diameter of the moon and thirty
+       times the brightness in that sky, and what comes back off it is enough to
+       hold the outline of the unlit part of the disc. Without it the crescent
+       hangs in the dark with no edge to it. */
+    x.globalAlpha = 0.05;
+    x.fillStyle = '#9fb4c8';
+    x.beginPath(); x.arc(C, C, R, 0, TAU); x.fill();
+    x.globalAlpha = 1;
     x.restore();
     moonTex.needsUpdate = true;
   }
