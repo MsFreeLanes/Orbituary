@@ -199,9 +199,17 @@ export function createRig(THREE, camera, canvas, plan, hooks = {}) {
     let hall = null;
     for (const rect of plan.walkable.rects) {
       if (rect.floor !== storey) continue;
-      const st = Math.sin(rect.angle), ct = Math.cos(rect.angle);
-      const px = x - rect.cx, pz = z - rect.cz;
-      if (Math.abs(px * ct - pz * st) > rect.halfX || Math.abs(px * st + pz * ct) > rect.halfZ) continue;
+      /* the Observatory is a deck ring, not a box: its rect used to reach 6.4 m
+         of floor south of the well and claim the middle of the hub, so the
+         front door announced itself as The Observatory. Round rooms are tested
+         by radius. */
+      if (rect.shape === 'disc') {
+        if (Math.hypot(x - rect.cx, z - rect.cz) > rect.halfX) continue;
+      } else {
+        const st = Math.sin(rect.angle), ct = Math.cos(rect.angle);
+        const px = x - rect.cx, pz = z - rect.cz;
+        if (Math.abs(px * ct - pz * st) > rect.halfX || Math.abs(px * st + pz * ct) > rect.halfZ) continue;
+      }
       if (rect.kind === 'room') return rect.room;
       /* the stair hall is the one corridor the plan gives a name to: it is a
          floor you stand on, not a way through to somewhere else. the cellar

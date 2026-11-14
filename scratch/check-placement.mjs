@@ -43,7 +43,11 @@ const probe = `(() => {
   nodes.forEach((n) => {
     if (n.x > hole.x0 - 0.3 && n.x < hole.x1 + 0.3 && n.z > hole.z0 - 0.3 && n.z < hole.z1 + 0.3) bad.hole.push(n);
     if (Math.hypot(n.x - well.x, n.z - well.z) < well.r + 0.3) bad.hole.push(n);
-    const c = corridors.find((r) => inRect(r, n.x, n.z));
+    /* a pedestal in a corridor is only an obstruction where the corridor meets
+       something: the plan's corridor rects run from the centre of what they
+       grow out of, so most of a spoke lies inside the hub, and a pedestal
+       standing there is standing on hub floor. Only flag it past the drum. */
+    const c = corridors.find((r) => inRect(r, n.x, n.z) && Math.hypot(n.x, n.z) > S.ROTUNDA_R);
     if (c) bad.corridor.push(Object.assign({ where: (c.room || 'corridor') }, n));
     /* whose room is it standing in? */
     const owner = plan.walkable.rects.filter((r) => r.room).find((r) => inRect(r, n.x, n.z));

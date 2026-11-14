@@ -670,8 +670,14 @@ export function buildPlan() {
       doorW: S.DOOR_BIG, doorH: S.DOOR_BIG_H,
       winCount: 0, winW: 0, winH: 0, sill: 0
     });
-    cupola.plinths = [35, 80, 124, 236, 280, 325].map((deg) => {
-      const a = deg * Math.PI / 180, r = 3.2;
+    cupola.plinths = [20, 75, 150, 225, 265, 340].map((deg) => {
+      /* six pedestals on the deck ring, facing the well. The old ring was laid
+         at radius 3.2 about the well, which is wider than the gallery's own
+         box and put two of them outside a wall that does not exist; and the
+         bearings were the arch bearings, so they stood in the doorway. These
+         sit at 3.9 — clear of the rail at 1.62, the benches at 2.55 and the
+         deck edge at 4.6 — and off the door bearing (11°) and the sign (0°). */
+      const a = deg * Math.PI / 180, r = 3.9;
       const px = Math.sin(a) * r, pz = S.CUPOLA_WELL_Z + Math.cos(a) * r;
       /* the room's u runs west and its v runs south from the entry; the
          plaque faces the well, and the room itself is turned π, so the face
@@ -679,6 +685,17 @@ export function buildPlan() {
          plinths carry a+π when their room carries no turn */
       return { u: entry.x - px, v: entry.z - pz, face: a };
     });
+    /* The gallery is a disc, not a box. The generic rect reached 6.4 m of
+       floor south of the well and claimed the middle of the rotunda, so the
+       nameplate at the front door read "The Observatory" and the hub had no
+       name of its own. The area you can stand in is the deck the builder
+       actually draws. */
+    const deck = walkable.rects.find((r) => r.room === cupola.id);
+    if (deck) {
+      deck.shape = 'disc';
+      deck.cx = 0; deck.cz = S.CUPOLA_WELL_Z;
+      deck.halfX = deck.halfZ = S.CUPOLA_RING_R; deck.angle = 0;
+    }
     /* the well is the gallery's floor opening, and the dome is its ceiling.
        both facts belong to the plan so the builder can honour them without
        inventing a special case: the hole is given in the room's own frame
@@ -751,10 +768,16 @@ export function buildPlan() {
   };
   const places = { 'stair-hall': stairHall, stair: stairRoom };
 
-  /* rotunda plinths: six empty pedestals under the oculus, waiting */
+  /* rotunda plinths: six empty pedestals under the oculus, waiting. They were
+     laid as a circle at radius 5 on bearings 0, 60, 120 — which are arch
+     bearings, so five of them stood dead centre in a doorway and one stood in
+     mid-air over the stair well, because the flight's opening runs from z -6.6
+     to -1.0 right across that radius. These sit on the pier bearings, where
+     there is no doorway, and the three bearings the well covers are skipped:
+     the north half of the hub is the stair. */
   rotunda.plinths = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * TAU;
+  for (const deg of [15, 75, 105, 255, 285, 345]) {
+    const a = deg * Math.PI / 180;
     rotunda.plinths.push({ u: Math.sin(a) * 5.0, v: Math.cos(a) * 5.0, face: a + Math.PI });
   }
 

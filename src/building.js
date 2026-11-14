@@ -1749,9 +1749,14 @@ function buildCupolaGallery(g, plan, M, H, kit, pickables) {
   }
 
   /* the Observatory's exhibits: acquisition slots for now — Astronomy holds
-     nothing yet — standing in a ring that faces the well rather than a wall */
-  addPlinths(g, B, kit, room, pickables, room.plinths,
-    (r, i, spot) => ({ room: r.id, link: r.items[i] === undefined ? null : r.items[i], spot }));
+     nothing yet — standing in a ring that faces the well rather than a wall.
+     The plan writes plinth spots in the room's own frame, which is turned π
+     and hinged at the door; this group is the hub, unrotated, so the spots are
+     carried across by hand. Read straight, the ring lands a few metres off
+     where the plan put it — one pedestal ended up inside the well. */
+  addPlinths(g, B, kit, room, pickables, room.plinths.map((s) => ({
+    u: room.entry.x - s.u, v: room.entry.z - s.v, face: s.face
+  })), (r, i, spot) => ({ room: r.id, link: r.items[i] === undefined ? null : r.items[i], spot }));
   B.flush();
 }
 
@@ -1887,6 +1892,12 @@ export function buildBuilding(THREE, plan, M) {
       cx: room.center.x, cz: room.center.z,
       halfX: room.w / 2, halfZ: room.d / 2, angle: room.angle
     });
+    /* The Observatory is a round gallery with its own builder — deck ring,
+       well, rail, dome — and the generic room builder was laying a rectangular
+       box of walls and a ceiling over the top of it, plus a second ring of
+       pedestals in a second frame. Twelve pedestals for six spots, and a
+       backwards sign. The gallery wins; the generic builder stands down. */
+    if (room.kind === 'cupola') return;
     buildRoom(w.group, plan, M, room, pickables, L, kit);
   });
 
