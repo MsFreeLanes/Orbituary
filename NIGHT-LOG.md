@@ -37,6 +37,11 @@ row for a step's own commit is added at the top of the next step's entry:
 | 01:31 | 4d95a31 | `..\Backups\orbituary-4d95a31.bundle` |
 | 01:42 | df1dea8 | `..\Backups\orbituary-df1dea8.bundle` |
 | 01:44 | a70e273 | `..\Backups\orbituary-a70e273.bundle` |
+| 01:45 | 0b42d7f | `..\Backups\orbituary-0b42d7f.bundle` |
+
+The last row is the exception to the rule that a row is added at the top of the
+next step's entry: there is no next step, so the bundle for the commit that
+wrote this row is listed here as well, made seconds after it.
 
 ## Green baseline before touching anything
 
