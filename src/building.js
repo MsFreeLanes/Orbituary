@@ -45,6 +45,7 @@ import {
   plaqueSheets, roomSign, uvRect, rulesBoardTexture, trophyPlaqueTexture,
   wantedCardTexture, counterSignTexture
 } from './signage.js';
+import { furnish, furnishRotunda } from './props.js';
 
 const TAU = Math.PI * 2;
 
@@ -717,6 +718,11 @@ function buildRoom(parent, plan, M, room, pickables, L, kit) {
      can give them. before the ceiling, because the boards are hung from it */
   if (PURPOSE.has(room.cat)) addPurposeFittings(B, M, room);
 
+  /* and the rooms that have furniture of their own — a workbench, a shelf, a
+     counter, a rack of CRTs. `furnish` returns null for the rooms that have
+     nothing written for them yet, which is most of them. */
+  furnish(g, plan, room, M);
+
   addCeiling(B, lamps, M, room);
   /* the pendant the room's key light hangs from. The group origin is the door,
      local +Z runs into the room, so the room centre is (0, ?, d/2). A cellar
@@ -929,6 +935,10 @@ function buildRotunda(parent, plan, M, pickables, L, kit, H) {
      gallery is part of the hub: you see the well exactly when you see the
      drum */
   buildCupolaGallery(g, plan, M, H, kit, pickables);
+
+  /* the crates, the hand truck and the ladder: the hub is where the museum
+     keeps the things it has taken in and not yet put on a wall */
+  furnishRotunda(g, plan, M);
 
   plan.rotunda.group = g;
   return g;
@@ -1796,6 +1806,9 @@ export function buildBuilding(THREE, plan, M) {
   const L = lampMats(M);
   const H = hullMats(M);
   const kit = plinthKit(M);
+  /* the props write their collision circles here, and the hub is built before
+     any room, so the list has to exist before the first `block` call */
+  plan.obstacles = plan.obstacles || [];
 
   /* the building is hung in the spaces the visitor moves between, not in the
      order they were built: a hub, a cellar floor, and one group per range and

@@ -44,6 +44,12 @@ function boot() {
   const built = buildBuilding(THREE, plan, M);
   scene.add(built.group);
 
+  /* the animated props — a CRT breathing, an eye blinking, a lattice turning —
+     are collected once, here, so the frame loop never has to walk the scene to
+     find them. They are a few dozen closures in the whole building. */
+  const propAnim = plan.rooms
+    .reduce((all, r) => all.concat((r._props && r._props.anim) || []), []);
+
   const sky = createSky(THREE);
   scene.add(sky.group);
   const lighting = createLighting(THREE, plan);
@@ -305,6 +311,7 @@ function boot() {
 
     rig.update(dt);
     setStorey(rig.state.storey);
+    for (const a of propAnim) a(now);
 
     skyClock += dt;
     if (skyClock > 0.1) {

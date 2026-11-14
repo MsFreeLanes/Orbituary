@@ -44,16 +44,20 @@ const PALETTE = {
   bookGreen: { hex: 0x33513c, rough: 0.85 },
   bookBlue: { hex: 0x2f4260, rough: 0.85 },
   greenGlass: { hex: 0x2f6b4a, rough: 0.25, metal: 0.05, glass: 0.55 },
-  /* light */
-  crt: { hex: 0x0d1116, rough: 0.28, metal: 0.1, emis: 0x2f5f8f, ei: 0.9 },
-  screenGreen: { hex: 0x0a1210, rough: 0.3, emis: 0x35d08a, ei: 1.15 },
-  neonCyan: { hex: 0x0d1418, rough: 0.4, emis: 0x4fd0ff, ei: 2.1 },
-  neonMagenta: { hex: 0x140d18, rough: 0.4, emis: 0xff5fae, ei: 1.9 },
-  warmBulb: { hex: 0x1a1512, rough: 0.5, emis: 0xffc27a, ei: 2.4 },
-  coldStrip: { hex: 0x0e131a, rough: 0.4, emis: 0x8fc4ff, ei: 1.7 },
-  led: { hex: 0x0a0d10, rough: 0.4, emis: 0x54e08a, ei: 2.2 },
-  ledAmber: { hex: 0x0a0d10, rough: 0.4, emis: 0xffb347, ei: 2.0 },
-  lattice: { hex: 0x10161d, rough: 0.35, metal: 0.6, emis: 0x4a86c8, ei: 1.5 },
+  /* light. these are all above the bloom threshold, so a prop that glows
+     glows; the numbers are as low as they can go and still do that. The
+     twelve-room building had one lamp per room and could afford a bright
+     screen; the station has a lamp in every bay and the same value blooms a
+     2 cm neon strip into a foot-wide blob. */
+  crt: { hex: 0x0d1116, rough: 0.28, metal: 0.1, emis: 0x2f5f8f, ei: 0.8 },
+  screenGreen: { hex: 0x0a1210, rough: 0.3, emis: 0x35d08a, ei: 0.85 },
+  neonCyan: { hex: 0x0d1418, rough: 0.4, emis: 0x4fd0ff, ei: 1.25 },
+  neonMagenta: { hex: 0x140d18, rough: 0.4, emis: 0xff5fae, ei: 1.1 },
+  warmBulb: { hex: 0x1a1512, rough: 0.5, emis: 0xffc27a, ei: 2.2 },
+  coldStrip: { hex: 0x0e131a, rough: 0.4, emis: 0x8fc4ff, ei: 1.0 },
+  led: { hex: 0x0a0d10, rough: 0.4, emis: 0x54e08a, ei: 1.3 },
+  ledAmber: { hex: 0x0a0d10, rough: 0.4, emis: 0xffb347, ei: 1.2 },
+  lattice: { hex: 0x10161d, rough: 0.35, metal: 0.6, emis: 0x27435f, ei: 0.6 },
   glass: { glass: true }
 };
 
@@ -103,6 +107,15 @@ function makeKit(M, room, plan) {
       if (ry) geo.rotateY(ry);
       geo.translate(x, y, z);
       bucket(name).push(geo);
+      /* one box per piece, not one per merge bucket: three crate stacks welded
+         into one buffer still leave three footprints, and a check that tests
+         the union of them reports half the room as buried */
+      geo.computeBoundingBox();
+      if (geo.boundingBox) {
+        const b = geo.boundingBox;
+        (room._propBoxes = room._propBoxes || [])
+          .push({ name, min: [b.min.x, b.min.y, b.min.z], max: [b.max.x, b.max.y, b.max.z] });
+      }
       return K;
     },
     box(name, w, h, d, x, y, z, rx, ry, rz) {
@@ -115,10 +128,13 @@ function makeKit(M, room, plan) {
     cyl(name, rt, rb, h, x, y, z, seg, rx, ry, rz) {
       return K.put(name, new THREE.CylinderGeometry(rt, rb, h, seg || 14), x, y, z, rx, ry, rz);
     },
-    /* a horizontal rod along x (rx = PI/2 puts a cylinder on its side) */
+    /* a horizontal rod. a cylinder stands along +Y, so it takes a quarter turn
+       about X to lie along z and about Z to lie along x — the other way round
+       from what the axis names sound like, which is how the velvet rope in the
+       shop ended up strung across the room instead of between its two posts. */
     rod(name, r, len, x, y, z, axis, seg) {
-      const rx = axis === 'x' ? Math.PI / 2 : 0;
-      const rz = axis === 'z' ? Math.PI / 2 : 0;
+      const rx = axis === 'z' ? Math.PI / 2 : 0;
+      const rz = axis === 'x' ? Math.PI / 2 : 0;
       return K.cyl(name, r, r, len, x, y, z, seg || 10, rx, 0, rz);
     },
     ball(name, r, x, y, z, seg) {
@@ -144,6 +160,12 @@ function makeKit(M, room, plan) {
         if (ry) geo.rotateY(ry);
         geo.translate(x + lx * c + lz * s, ly, z - lx * s + lz * c);
         bucket(name).push(geo);
+        geo.computeBoundingBox();
+        if (geo.boundingBox) {
+          const b = geo.boundingBox;
+          (room._propBoxes = room._propBoxes || [])
+            .push({ name, min: [b.min.x, b.min.y, b.min.z], max: [b.max.x, b.max.y, b.max.z] });
+        }
       }
       return K;
     },
@@ -238,31 +260,36 @@ function gaming(K, room, plan, anim) {
   K.box('darkSteel', 0.44, 0.10, d - 1.4, 0, h - 0.52, d / 2);
   for (let p = 1.6; p < d - 1.0; p += 2.4) K.box('iron', 0.62, 0.05, 0.08, 0, h - 0.42, p);
 
-  /* cabinets along both walls, fronts turned in towards the plinths */
+  /* cabinets along both walls, fronts turned in towards the plinths. the
+     bodies are steel, not the near-black cabinet colour: in a room lit by one
+     lamp a black cabinet is the same colour as the wall behind it and all you
+     see is a neon strip floating on its own */
   for (let s = -1; s <= 1; s += 2) {
     for (let i = 0; i < 4; i++) {
       const z = 2.4 + i * 2.15;
       const x = s * (hw - 0.58);
-      K.box('case', 0.76, 1.72, 0.74, x, 0.86, z);
+      K.box('darkSteel', 0.76, 1.72, 0.74, x, 0.86, z);
       K.box('neonCyan', 0.04, 0.20, 0.60, x - s * 0.39, 1.58, z);
       K.box('crt', 0.03, 0.40, 0.50, x - s * 0.39, 1.16, z);
-      K.box('rubber', 0.80, 0.06, 0.78, x, 0.03, z);
+      K.box('steel', 0.80, 0.06, 0.78, x, 0.03, z);
       K.block(x, z, x, z, 0.44);
     }
   }
 
   /* the CRT wall: dead televisions stacked beside the doorway, the kind of
-     hoard a gaming room keeps because somebody collected them */
+     hoard a gaming room keeps because somebody collected them. stacked close
+     enough to the door reveal to be seen from the corridor, not close enough
+     to stand in it */
   for (let s = -1; s <= 1; s += 2) {
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        const x = s * (1.42 + c * 0.66);
+        const x = s * (1.66 + c * 0.66);
         const y = 1.02 + r * 0.62;
         K.box('case', 0.58, 0.52, 0.44, x, y, 0.42);
         K.box('crt', 0.42, 0.34, 0.02, x, y, 0.65);
       }
     }
-    K.block(s * 1.1, 0.2, s * 3.4, 0.2, 0.42);
+    K.block(s * 1.35, 0.2, s * 3.6, 0.2, 0.42);
   }
 
   /* one screen in the room is awake, and it flickers */
@@ -295,10 +322,12 @@ function creative(K, room, plan, anim) {
     K.block(x, 0.3, x, 2.7, 0.42);
   }
 
-  /* a wall of prints beside the doorway, and a drying line under the window */
+  /* a wall of prints beside the doorway, and a drying line under the window.
+     the first frame starts 1.85 m off the centre line so it is clear of the
+     door reveal rather than over it */
   for (let s = -1; s <= 1; s += 2) {
     for (let i = 0; i < 3; i++) {
-      const x = s * (1.5 + i * 0.92);
+      const x = s * (1.85 + i * 0.92);
       K.box('walnut', 0.78, 1.02, 0.05, x, 1.72, 0.22);
       K.box('paper', 0.62, 0.86, 0.02, x, 1.72, 0.26);
     }
@@ -328,9 +357,12 @@ function media(K, room, plan, anim) {
   K.box('case', 3.60, 2.20, 0.10, scx, 1.90, scz);
   K.plane('canvasWhite', 3.36, 1.96, scx, 1.90, scz + 0.07);
 
-  /* the projector on a tripod, and the beam that comes off it */
-  const px = -2.6, pz = 1.9;
-  K.assemble(px, pz, 0, [
+  /* the projector on a tripod at the far end of the room, firing down the
+     aisle at the screen beside the door. it stood 1.7 m from the screen, which
+     is a slide viewer and not a projector, and it put anybody walking in
+     straight into the middle of its own beam */
+  const px = 3.4, pz = 8.6;
+  K.assemble(px, pz, Math.PI, [
     ['darkSteel', new THREE.BoxGeometry(0.52, 0.22, 0.40), 0, 1.34, 0],
     ['darkSteel', new THREE.CylinderGeometry(0.09, 0.09, 0.16, 12), 0, 1.34, 0.26],
     ['iron', new THREE.CylinderGeometry(0.02, 0.02, 1.24, 8), -0.20, 0.62, 0.14, 0, 0.20],
@@ -341,12 +373,14 @@ function media(K, room, plan, anim) {
   K.block(px, pz, px, pz, 0.40);
 
   /* the beam is a cone with its point at the lens. it is additive and writes
-     no depth, so it brightens the air without hiding anything in it */
+     no depth, so it brightens the air without hiding anything in it — which
+     only works while the eye is outside it: a cone this bright around the
+     camera is a wash over the whole room */
   const len = Math.hypot(scx - px, scz - pz);
   const beam = new THREE.Mesh(
-    new THREE.ConeGeometry(0.62, len, 20, 1, true),
+    new THREE.ConeGeometry(0.52, len, 20, 1, true),
     new THREE.MeshBasicMaterial({
-      color: 0xbfd6ee, transparent: true, opacity: 0.055,
+      color: 0xbfd6ee, transparent: true, opacity: 0.03,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false
     })
   );
@@ -358,12 +392,14 @@ function media(K, room, plan, anim) {
   K.extra(beam);
   anim.push((t) => { beam.material.opacity = 0.05 + Math.sin(t * 0.0013) * 0.012; });
 
-  /* film reels on a shelf by the window */
-  K.box('walnut', 2.40, 0.06, 0.42, -(hw - 0.5), 1.15, d - 0.6);
+  /* film reels on a shelf by the window. the shelf is 2.4 m of board, so its
+     centre has to sit 1.2 m clear of the wall or the outer end is in the
+     corridor with the rest of the room behind it */
+  K.box('walnut', 2.40, 0.06, 0.42, -(hw - 1.7), 1.15, d - 0.6);
   for (let i = 0; i < 5; i++) {
-    K.cyl('brass', 0.19, 0.19, 0.05, -(hw - 1.5) + i * 0.44, 1.40, d - 0.6, 16, 0, 0, Math.PI / 2);
+    K.cyl('brass', 0.19, 0.19, 0.05, -(hw - 0.9) + i * 0.40, 1.40, d - 0.6, 16, 0, 0, Math.PI / 2);
   }
-  K.block(-(hw - 0.5), d - 0.6, -(hw - 0.5), d - 0.6, 0.36);
+  K.block(-(hw - 1.7), d - 0.6, -(hw - 1.7), d - 0.6, 0.36);
 }
 
 function privacy(K, room, plan, anim) {
@@ -437,7 +473,9 @@ function tools(K, room, plan, anim) {
   K.block(-(hw - 0.52), 3.0, -(hw - 0.52), 4.2, 0.44);
 
   for (let i = 0; i < 3; i++) {
-    const x = -(1.4 + i * 0.72);
+    /* clear of the door reveal: a dial hung over the doorway is a dial you
+       walk through on your way in */
+    const x = -(1.75 + i * 0.72);
     K.ring('brass', 0.22, 0.03, x, 1.70, 0.24, 0, 0, 20);
     K.cyl('paper', 0.20, 0.20, 0.02, x, 1.70, 0.22, 20, Math.PI / 2, 0, 0);
     K.rod('iron', 0.012, 0.16, x, 1.70, 0.26, 'z', 6);
@@ -471,8 +509,10 @@ function dev(K, room, plan, anim) {
   K.ball('iron', 0.09, px + 1.10, 2.05, 3.4, 10);
   K.block(px, 2.0, px, 4.8, 0.5);
 
-  /* paper, everywhere: stacks at the door, a galley on the press table */
-  const stacks = [[-2.2, 0.9, 0.24], [-1.6, 0.9, 0.42], [1.9, 0.8, 0.30], [2.5, 0.7, 0.52]];
+  /* paper, everywhere: stacks at the door, a galley on the press table. the
+     two on the left stand clear of the reveal, which is 1.8 m of doorway
+     centred on the wall and does not want a ream of paper in it */
+  const stacks = [[-2.6, 0.9, 0.24], [-2.0, 0.9, 0.42], [1.9, 0.8, 0.30], [2.5, 0.7, 0.52]];
   for (const [x, w, hh] of stacks) {
     K.box('paper', w, hh, w * 1.3, x, hh / 2, 0.95);
     /* each stack is its own obstacle: the gap between them is how you get in */
@@ -542,25 +582,28 @@ function android(K, room, plan, anim) {
 function shopping(K, room, plan, anim) {
   const hw = room.w / 2, d = room.d;
 
-  /* the counter, a single marble slab on two blocks */
-  const cx = hw - 0.62;
-  K.box('marbleSlab', 0.86, 0.12, 4.2, cx, 1.00, 3.3);
-  K.box('marbleSlab', 0.70, 0.94, 0.60, cx, 0.47, 1.6);
-  K.box('marbleSlab', 0.70, 0.94, 0.60, cx, 0.47, 4.9);
-  K.rod('brass', 0.028, 4.2, cx - 0.44, 0.34, 3.3, 'z', 8);
-  for (const z of [1.5, 5.1]) K.rod('brass', 0.028, 0.7, cx - 0.44, 0.17, z, 'y', 8);
+  /* the counter, a single marble slab on two blocks. it runs the right wall,
+    45 cm clear of it: the plinth grid puts a column at x = 1.7 in a room this
+    narrow, and a slab centred where the wall wants it stands on that plinth */
+  const cx = hw - 0.45;
+  K.box('marbleSlab', 0.78, 0.12, 4.2, cx, 1.00, 3.3);
+  K.box('marbleSlab', 0.62, 0.94, 0.60, cx, 0.47, 1.6);
+  K.box('marbleSlab', 0.62, 0.94, 0.60, cx, 0.47, 4.9);
+  K.rod('brass', 0.028, 4.2, cx - 0.39, 0.34, 3.3, 'z', 8);
+  for (const z of [1.5, 5.1]) K.rod('brass', 0.028, 0.7, cx - 0.39, 0.17, z, 'y', 8);
   K.block(cx, 1.3, cx, 5.3, 0.5);
 
-  /* the scales on the counter */
+  /* the scales on the counter: the beam is as wide as the slab is deep, or
+     the further pan hangs out through the wall */
   const sx = cx, sz = 3.3;
   K.assemble(sx, sz, 0, [
     ['brass', new THREE.CylinderGeometry(0.16, 0.20, 0.06, 16), 0, 1.09, 0],
     ['brass', new THREE.CylinderGeometry(0.025, 0.025, 0.62, 10), 0, 1.42, 0],
-    ['brass', new THREE.BoxGeometry(1.06, 0.04, 0.05), 0, 1.70, 0, 0, 0, 0.05],
-    ['brass', new THREE.CylinderGeometry(0.19, 0.19, 0.02, 16), -0.52, 1.60, 0],
-    ['brass', new THREE.CylinderGeometry(0.19, 0.19, 0.02, 16), 0.52, 1.66, 0],
-    ['brass', new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), -0.52, 1.78, 0],
-    ['brass', new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), 0.52, 1.78, 0]
+    ['brass', new THREE.BoxGeometry(0.52, 0.04, 0.05), 0, 1.70, 0, 0, 0, 0.05],
+    ['brass', new THREE.CylinderGeometry(0.17, 0.17, 0.02, 16), -0.26, 1.60, 0],
+    ['brass', new THREE.CylinderGeometry(0.17, 0.17, 0.02, 16), 0.26, 1.66, 0],
+    ['brass', new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), -0.26, 1.78, 0],
+    ['brass', new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), 0.26, 1.78, 0]
   ]);
 
   /* the safe beside the door, and the keys on the wall opposite */
@@ -577,22 +620,25 @@ function shopping(K, room, plan, anim) {
     K.box('brass', 0.05, 0.09, 0.02, -(hw - 0.30), 1.53, z);
   }
 
-  /* a velvet rope across the far end: this side of the line is business */
-  for (const z of [2.0, 4.6]) {
-    K.cyl('brass', 0.05, 0.09, 0.92, hw - 1.55, 0.46, z, 12);
-    K.ball('brass', 0.06, hw - 1.55, 0.94, z, 10);
-    K.block(hw - 1.55, z, hw - 1.55, z, 0.28);
+  /* a velvet rope across the far end: this side of the line is business. the
+     posts go in the gap between two plinth columns, which in this room is a
+     strip about a metre wide down the middle */
+  for (const z of [2.75, 3.85]) {
+    K.cyl('brass', 0.05, 0.09, 0.92, 0.85, 0.46, z, 12);
+    K.ball('brass', 0.06, 0.85, 0.94, z, 10);
+    K.block(0.85, z, 0.85, z, 0.22);
   }
-  K.rod('cloth', 0.022, 2.6, hw - 1.55, 0.80, 3.3, 'z', 8);
+  K.rod('cloth', 0.022, 1.10, 0.85, 0.80, 3.30, 'z', 8);
 }
 
 function ai(K, room, plan, anim) {
   const hw = room.w / 2, d = room.d, h = room.ceil;
 
-  /* the engine: a lattice hung from the ceiling over the entrance, turning
-     slowly. it is above the walking line rather than in it, so the room stays
-     crossable and the thing still dominates the doorway */
-  const lx = 0, lz = 1.15, ly = h - 1.55;
+  /* the engine: a lattice hung from the ceiling, turning slowly. it hangs over
+     the middle of the room now — over the doorway it was 60 cm from the face
+     of anybody walking in, where a 1.4 m ring is not an object but a colour
+     wash across the whole frame */
+  const lx = 0, lz = d / 2, ly = h - 0.85;
   /* this one cannot be merged into the room: it has to turn, so it stays a
      group of a dozen meshes hanging off the ceiling */
   const latMat = matFor('lattice');
@@ -603,23 +649,26 @@ function ai(K, room, plan, anim) {
     m.castShadow = true;
     lat.add(m);
   };
-  addPart(new THREE.TorusGeometry(0.72, 0.022, 6, 28));
-  addPart(new THREE.TorusGeometry(0.60, 0.022, 6, 28), Math.PI / 2);
-  addPart(new THREE.TorusGeometry(0.48, 0.022, 6, 28), 0, Math.PI / 2);
+  addPart(new THREE.TorusGeometry(0.72, 0.035, 6, 28));
+  addPart(new THREE.TorusGeometry(0.60, 0.035, 6, 28), Math.PI / 2);
+  addPart(new THREE.TorusGeometry(0.48, 0.035, 6, 28), 0, Math.PI / 2);
   for (let i = 0; i < 8; i++) {
-    addPart(new THREE.BoxGeometry(0.02, 0.02, 1.44), 0, (i / 8) * Math.PI, Math.PI / 2);
+    addPart(new THREE.BoxGeometry(0.03, 0.03, 1.44), 0, (i / 8) * Math.PI, Math.PI / 2);
   }
   addPart(new THREE.SphereGeometry(0.14, 12, 8));
   lat.position.set(lx, ly, lz);
   K.extra(lat);
-  K.rod('darkSteel', 0.014, 1.3, lx, h - 0.65, lz, 'y', 6);
+  K.rod('darkSteel', 0.014, 0.5, lx, h - 0.35, lz, 'y', 6);
 
-  /* cold rim light in the two far corners, and a bank of fins on each wall */
+  /* cold rim light in the two far corners, and a bank of fins on each wall:
+     the fins are bare steel, because a black fin against a black wall is a
+     wall, and the tubes sit 9 cm off the plaster so they read as fitted to it
+     rather than as two bars of light standing in the room */
   for (let s = -1; s <= 1; s += 2) {
-    K.box('coldStrip', 0.05, 2.6, 0.05, s * (hw - 0.16), 1.5, d - 0.22);
+    K.box('coldStrip', 0.05, 2.6, 0.05, s * (hw - 0.09), 1.5, d - 0.22);
     for (let i = 0; i < 6; i++) {
       const z = 2.0 + i * 0.62;
-      K.box('darkSteel', 0.10, 2.20, 0.34, s * (hw - 0.28), 1.10, z);
+      K.box('steel', 0.10, 2.20, 0.34, s * (hw - 0.28), 1.10, z);
     }
     K.block(s * (hw - 0.28), 2.0, s * (hw - 0.28), 5.1, 0.32);
   }
@@ -627,7 +676,7 @@ function ai(K, room, plan, anim) {
   anim.push((t) => {
     lat.rotation.y = t * 0.00012;
     lat.rotation.x = Math.sin(t * 0.0002) * 0.12;
-    latMat.emissiveIntensity = 1.4 + Math.sin(t * 0.0016) * 0.25;
+    latMat.emissiveIntensity = 0.55 + Math.sin(t * 0.0016) * 0.12;
   });
 }
 
@@ -673,18 +722,20 @@ function reading(K, room, plan, anim) {
   ]);
   K.block(-(hw - 1.35), 1.5, -(hw - 1.35), 1.5, 0.34);
 
-  /* a desk and a chair by the door, and two warm lamps on the gallery rail */
+  /* a desk and a chair by the door, and two warm lamps on the gallery rail.
+     the chair is on the far side of the desk from the door: put it where the
+     room's first plinth column runs and it is an exhibit instead of a seat */
   K.box('oak', 1.10, 0.07, 0.66, 1.55, 0.76, 0.95);
   for (const dx of [-0.48, 0.48]) K.box('walnut', 0.07, 0.76, 0.58, 1.55 + dx, 0.38, 0.95);
   K.box('paper', 0.30, 0.05, 0.22, 1.35, 0.82, 0.95, 0, 0.3);
   K.block(1.1, 0.95, 2.0, 0.95, 0.42);
-  K.assemble(1.0, 1.9, 0.5, [
+  K.assemble(1.55, 0.42, Math.PI, [
     ['walnut', new THREE.BoxGeometry(0.44, 0.06, 0.44), 0, 0.46, 0],
     ['walnut', new THREE.BoxGeometry(0.44, 0.52, 0.06), 0, 0.75, -0.19],
     ...[[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].map(([dx, dz]) =>
       ['walnut', new THREE.BoxGeometry(0.05, 0.46, 0.05), dx, 0.23, dz])
   ]);
-  K.block(1.0, 1.9, 1.0, 1.9, 0.34);
+  K.block(1.55, 0.42, 1.55, 0.42, 0.34);
 
   for (const z of [2.2, 4.2]) {
     K.cyl('warmBulb', 0.075, 0.075, 0.14, gx + 0.60, 3.20, z, 12);
@@ -762,7 +813,9 @@ function fun(K, room, plan, anim) {
   }
   K.block(wx, 1.9, wx, 4.7, 0.36);
 
-  /* the clutter the museum keeps buying: a barrel, a crate, books on the floor */
+  /* the clutter the museum keeps buying: a barrel, a crate, books on the
+     floor. in a 6 m cabinet the floor beside the door is the only part of the
+     room the plinth grid has not claimed */
   K.cyl('oak', 0.30, 0.34, 0.72, hw - 0.75, 0.36, 1.15, 16);
   K.ring('iron', 0.31, 0.02, hw - 0.75, 0.20, 1.15, Math.PI / 2, 0, 18);
   K.ring('iron', 0.33, 0.02, hw - 0.75, 0.54, 1.15, Math.PI / 2, 0, 18);
@@ -771,12 +824,25 @@ function fun(K, room, plan, anim) {
   K.block(-(hw - 0.75), d - 1.0, -(hw - 0.75), d - 1.0, 0.42);
   for (let i = 0; i < 4; i++) {
     K.box(['bookRed', 'bookBlue', 'bookGreen', 'bookRed'][i], 0.30, 0.05, 0.22,
-      -(hw - 1.55), 0.03 + i * 0.055, 1.9 + (i % 2) * 0.02, 0, 0.2 + i * 0.14);
+      -(hw - 0.65), 0.03 + i * 0.055, 1.55 + (i % 2) * 0.02, 0, 0.2 + i * 0.14);
   }
 }
 
 const BUILDERS = {
   gaming, creative, media, privacy, tools, dev, android, shopping, ai, reading, linux, fun
+};
+
+/* The 51-room building split and renamed the twelve categories, so five of
+   these sets of furniture no longer share a name with a room. They still
+   belong where they were written: the easels in Content Creation, the
+   workbench in PC Tweaks, the terminals in Programming, the handset wall in
+   Android Dev, the oscilloscope and the LED strips in Modding. */
+const ALIAS = {
+  'content-creation': creative,
+  'pc-tweaks': tools,
+  'programming': dev,
+  'android-dev': android,
+  'modding': fun
 };
 
 /* ── the rotunda: nothing on display yet, so it stores things ──────────── */
@@ -837,7 +903,7 @@ export function furnishRotunda(g, plan, M) {
 /* ── entry point ───────────────────────────────────────────────────────── */
 export function furnish(g, plan, room, M) {
   if (!plan.obstacles) plan.obstacles = [];
-  const build = BUILDERS[room.id];
+  const build = BUILDERS[room.id] || ALIAS[room.id];
   if (!build) return null;
   const K = makeKit(M, room, plan);
   const anim = [];

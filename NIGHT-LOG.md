@@ -217,3 +217,55 @@ its door (`purpose-<room>.png`), `scratch/shot-wall.mjs` photographs one wall
 close up, and `scratch/inspect-room.mjs <room>` prints every mesh in a room's
 group — geometry, colour, texture kind, size — which is how the window-frame
 cross was found. All checks green, console clean.
+
+### 01:05–01:17 — step 4: the old furniture moves into the new building
+
+`src/props.js` is 849 lines of workbenches, easels, printing presses, vitrines,
+bookcases and CRT cabinets, and nothing imported it. It was written for the
+twelve-room building and orphaned when the plan became 51 rooms: its builders
+are keyed by room id, and only seven of the twelve ids survived the split into
+categories (gaming, media, privacy, shopping, ai, reading, linux). The other
+five sets of furniture — easels, a workbench, a print shop, a handset wall, an
+oscilloscope and a wall of curiosities' drawers — now have rooms under an
+`ALIAS` map: Content Creation, PC Tweaks, Programming, Android Dev, Modding.
+The rotunda got its crates, hand truck and ladder back too.
+
+**The real work was not the wiring, it was the plinths.** props.js was written
+for rooms that held a handful of exhibits; the new building puts up to 21
+plinths in a hall, on a grid the prop author never saw. So every piece a
+builder places now leaves its local bounding box on the room
+(`room._propBoxes`), and `scratch/check-props.mjs` asks three questions of it:
+does it stand on a plinth, does it poke through a wall, does it block a
+doorway. The first run found **142 collisions**. It now reports zero, and the
+fixes were mostly one line each: the shop counter moved 17 cm off the wall it
+was standing on, the library chair moved behind its own desk, the scales' beam
+shortened to the depth of the counter it stands on, the film shelf pulled in
+from the wall, the arcade CRTs and the shop's dials moved clear of the door
+reveal.
+
+**Three bugs that were not about position.** `K.rod(name, r, len, x, y, z,
+axis)` had its axis names backwards — a cylinder stands along +Y, so it takes
+a turn about *Z* to lie along x, not about X — which is how the shop's velvet
+rope ended up strung across the room instead of between its two posts, and how
+three 11 m pipes in the Linux room ran out through the door wall into the
+stair. The projector in the Screening Rooms stood 1.7 m from its own screen,
+which put anybody walking in inside the beam cone, so the whole room washed
+white; it now fires from the far end down the aisle. And the prop palette's
+emissive values were tuned for a building with one lamp per room: in the
+station, with a lamp in every bay, a 2 cm neon strip bloomed into a foot-wide
+blob and the arcade read as twelve cyan rectangles floating in the dark. Every
+glow in `PALETTE` came down (neon 2.1 → 1.25, cold strip 1.7 → 1.0, lattice
+1.5 → 0.6) and the near-black bodies that were invisible against the near-black
+walls — arcade cabinets, the AI room's fins — are steel now, so they catch the
+lamp.
+
+Cost: 55 draw calls and 12k triangles for twelve rooms and the hub (271 → 326
+calls, 75k → 87k tris, 46 textures), which is about four calls a room because
+each room's props weld into one mesh per material.
+
+**Proven:** `scratch/check-props.mjs` (zero collisions; pass a room id to dump
+every piece's box), `scratch/shot-props.mjs` photographs all twelve furnished
+rooms from just inside their doors (`props-<room>.png`), `scratch/boot-error.mjs`
+prints whatever the page threw on boot — it caught the first crash, where
+`furnishRotunda` wrote to `plan.obstacles` before anything had created it.
+`check-v2`, `check-scale`, `check-data`, `check-events` green; console clean.
