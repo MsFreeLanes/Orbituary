@@ -115,6 +115,7 @@ export function createRender(canvas) {
   let cullers = null;
   let childCount = -1;
   let ring = null;
+  let lastCullT = 0;
   const box = new THREE.Box3();
   const fwd = new THREE.Vector3();
 
@@ -167,7 +168,14 @@ export function createRender(canvas) {
       ring = ringOf(owner);
       childCount = scene.children.length;
     }
-    for (const c of cullers) c.update(camera.position, camera.getWorldDirection(fwd));
+    /* the cull's grace period is counted in seconds, and the seconds it wants
+       are the ones the frame took, not the ones the wall clock says: a probe
+       that steps the building a hundred times in a heartbeat is asking about a
+       walk, and a cull that read the clock would answer about the probe. */
+    const t = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const dt = lastCullT ? Math.min((t - lastCullT) / 1000, 0.25) : 1 / 60;
+    lastCullT = t;
+    for (const c of cullers) c.update(camera.position, camera.getWorldDirection(fwd), dt);
     keepNeighbours(camera.position);
   };
 

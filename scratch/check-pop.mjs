@@ -47,7 +47,7 @@ const run = `(async () => {
       const s = rig.state;
       metres += Math.hypot(s.x - last.x, s.z - last.z); last = { x: s.x, z: s.z };
       m.built.cull.update(new m.THREE.Vector3(s.x, s.level + 1.65, s.z),
-        new m.THREE.Vector3(-Math.sin(s.yaw), 0, -Math.cos(s.yaw)));
+        new m.THREE.Vector3(-Math.sin(s.yaw), 0, -Math.cos(s.yaw)), 0.05);
       sample();
     }
     rig.stopTour();

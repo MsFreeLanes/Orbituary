@@ -1936,6 +1936,30 @@ const CONE = 55 * Math.PI / 180;          // ±two ranges either side of the way
 const LEAVE = 3.0;
 const AHEAD = 7.0;
 const CONE_LEAVE = 10 * Math.PI / 180;
+/* How long a wing stays up after it stops qualifying. Hysteresis widened the
+   thresholds and the look-ahead point brought a wing on before you reach it,
+   and what was left in `check-pop` was eleven wings flipping on and off as the
+   visitor walked along the edge of one's reach — a threshold crossed twice in a
+   second is the pop a visitor actually sees, because it happens in front of
+   them rather than down a corridor they have just turned into. A quarter of a
+   second of grace is longer than a stride and shorter than a glance, so the
+   flicker goes and nothing visible is held on any longer than it was. */
+const DWELL = 0.35;
+
+/* one wing's decision, with the grace period attached to the wing rather than
+   to the loop, so a wing that has been off for a while does not inherit
+   somebody else's timer. Coming on is always instant; only going away waits.
+   The wait is counted in seconds handed in by the frame, not by the wall clock:
+   a probe that steps the building a hundred times in a heartbeat has to be
+   asked about the same walk the visitor takes, and a cull that reads the clock
+   would answer about the probe instead. */
+function hold(w, show, dt, was) {
+  if (show) { w.offFor = 0; return true; }
+  if (!was) { w.offFor = 0; return false; }
+  w.offFor = (w.offFor || 0) + dt;
+  if (w.offFor >= DWELL) { w.offFor = 0; return false; }
+  return true;
+}
 
 /* distance from a point to a rotated rect, 0 when inside it */
 function distToRect(x, z, r) {
@@ -1951,13 +1975,23 @@ function spokeCull(o) {
   const { wings, hub, cellarHub, hall, well } = o;
   let on = true;
   const groups = [hub, cellarHub].concat(wings.map((w) => w.group));
+  /* the two hubs are not records of their own the way a wing is, so their
+     dwell timers live here */
+  const hubState = { offFor: 0 };
+  const cellarState = { offFor: 0 };
   return {
     /* the probe wants the whole building on the GPU at once, once, to have
        something to compare the standing positions against */
-    off() { on = false; groups.forEach((g) => { g.visible = true; }); },
+    off() {
+      on = false;
+      groups.forEach((g) => { g.visible = true; });
+      wings.forEach((w) => { w.offFor = 0; });
+      hubState.offFor = cellarState.offFor = 0;
+    },
     enable() { on = true; },
-    update(pos, fwd) {
+    update(pos, fwd, dt) {
       if (!on) return;
+      const step = dt === undefined ? 1 / 60 : Math.min(Math.max(dt, 0), 0.25);
       /* the same storey line lighting.js draws for the light pool, so the
          rooms you can see and the rooms that light you are one answer */
       const basement = (pos.y - S.EYE_H) < S.FLOOR_BASE / 2;
@@ -1968,7 +2002,11 @@ function spokeCull(o) {
       const facing = Math.atan2(fwd.x, fwd.z);
       const ax = pos.x + fwd.x * AHEAD, az = pos.z + fwd.z * AHEAD;
       for (const w of wings) {
-        if ((w.storey === 'basement') !== basement) { w.group.visible = false; continue; }
+        if ((w.storey === 'basement') !== basement) {
+          /* the other storey is not a threshold, it is a different floor: that
+             one switches the instant you are on the other side of the slab */
+          w.group.visible = false; w.offFor = 0; continue;
+        }
         const was = w.group.visible;
         const reach = was ? REACH + LEAVE : REACH;
         let show = false;
@@ -1981,12 +2019,14 @@ function spokeCull(o) {
           while (d < -Math.PI) d += TAU;
           show = Math.abs(d) < CONE + (was ? CONE_LEAVE : 0);
         }
-        w.group.visible = show;
+        w.group.visible = hold(w, show, step, was);
       }
       /* the drum is visible from the first metres of every range, through the
          arch you came out of, and from the head of the stair looking down */
-      hub.visible = nearWell || (basement ? false : r0 < S.ROTUNDA_R + HUB_REACH);
-      cellarHub.visible = nearWell || (basement && hall && distToRect(pos.x, pos.z, hall) < REACH);
+      hub.visible = hold(hubState,
+        nearWell || (basement ? false : r0 < S.ROTUNDA_R + HUB_REACH), step, hub.visible);
+      cellarHub.visible = hold(cellarState,
+        nearWell || (basement && hall && distToRect(pos.x, pos.z, hall) < REACH), step, cellarHub.visible);
     }
   };
 }
