@@ -280,7 +280,7 @@ export function boardTexture(plan, THREE, aniso) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffd9a0';
   ctx.font = `600 26px ${MONO}`;
-  spaced(ctx, 'ORBITUARY · THE MUSEUM OF USEFUL LINKS', 60, 92, 4);
+  spaced(ctx, `${IDENTITY.entity} · ${IDENTITY.building.toUpperCase()}`, 60, 92, 4);
   ctx.font = `76px ${SERIF}`;
   ctx.fillStyle = '#f6f3ec';
   ctx.fillText('Acquisitions wanted', 58, 172);
@@ -329,6 +329,194 @@ export function boardTexture(plan, THREE, aniso) {
   ctx.fillText('WALK TO A ROOM · OR PRESS R FOR ONE AT RANDOM', 60, H - 52);
   const tex = texture(cv, aniso);
   tex.userData.kind = 'board';
+  return tex;
+}
+
+/* ── the words the museum says about itself, printed at wall size ────────
+   Four rooms in this building are about the museum rather than about a
+   subject — the Box Office, the Acquisitions Hall, the Rules Room and the
+   Trophy Hall — and what hangs in them is the same text the visitor was
+   handed at the door, set in the same two faces. A board is not a poster:
+   it has to be recognisably the same document as the ticket. */
+
+import { IDENTITY } from './identity.js';
+
+/* Rules Room: the ticket, the size of a door. The body text is measured
+   before it is drawn, because these six sentences are the owner's and the
+   board has to fit whatever he writes into them. */
+export function rulesBoardTexture(THREE, aniso) {
+  THREEref = THREE;
+  const W = 1024, H = 1024;
+  const cv = canvas(W, H);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#100e0c';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(0,229,255,0.5)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(22, 22, W - 44, H - 44);
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#ffb700';
+  ctx.font = `600 24px ${MONO}`;
+  spaced(ctx, `${IDENTITY.entity} · ${IDENTITY.building.toUpperCase()}`, 62, 96, 4);
+  ctx.font = `72px ${SERIF}`;
+  ctx.fillStyle = '#f6f3ec';
+  ctx.fillText('The rules of this museum', 60, 176);
+  ctx.font = `italic 27px ${SERIF}`;
+  ctx.fillStyle = '#a9a294';
+  ctx.fillText(IDENTITY.thesis, 62, 218);
+
+  const rules = IDENTITY.rules || [];
+  const maxW = W - 62 - 128;
+  let bpx = 22, hpx = 34;
+  for (;;) {
+    let y = 272;
+    for (const [, body] of rules) {
+      ctx.font = `${bpx}px ${SERIF}`;
+      y += hpx + 10 + wrap(ctx, body, maxW).length * (bpx + 8) + 24;
+    }
+    if (y <= H - 92 || bpx <= 15) break;
+    bpx -= 1;
+    if (bpx < 20) hpx = 30;
+  }
+
+  let y = 272;
+  rules.forEach(([head, body], i) => {
+    ctx.font = `600 26px ${MONO}`;
+    ctx.fillStyle = '#00e5ff';
+    ctx.fillText(String(i + 1).padStart(2, '0'), 62, y + hpx * 0.8);
+    ctx.font = `${hpx}px ${SERIF}`;
+    ctx.fillStyle = '#efe9dd';
+    ctx.fillText(head, 128, y + hpx * 0.9);
+    ctx.font = `${bpx}px ${SERIF}`;
+    ctx.fillStyle = '#a29b8d';
+    let ly = y + hpx + 10 + bpx;
+    for (const line of wrap(ctx, body, maxW)) { ctx.fillText(line, 128, ly); ly += bpx + 8; }
+    y = ly + 24;
+    if (i < rules.length - 1) {
+      ctx.strokeStyle = 'rgba(246,243,236,0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(62, y - 12); ctx.lineTo(W - 62, y - 12); ctx.stroke();
+    }
+  });
+
+  ctx.font = `600 21px ${MONO}`;
+  ctx.fillStyle = '#6f6a5e';
+  spaced(ctx, 'THE DOOR IS THE AGREEMENT · NO ACCOUNT · NO SIGNATURE · NOTHING TO SCAN',
+    62, H - 56, 1.6);
+
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'rules';
+  return tex;
+}
+
+/* Trophy Hall: the ladder, printed under the three empty stands. */
+export function trophyPlaqueTexture(room, THREE, aniso) {
+  THREEref = THREE;
+  const W = 1024, H = 512;
+  const cv = canvas(W, H);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#100e0c';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,183,0,0.5)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#ffb700';
+  ctx.font = `600 22px ${MONO}`;
+  spaced(ctx, `${(room.code || 'HUB-04')} · TROPHY HALL`, 56, 78, 4);
+  ctx.font = `58px ${SERIF}`;
+  ctx.fillStyle = '#f6f3ec';
+  ctx.fillText('Three stands, nothing on them', 54, 142);
+
+  const ladder = [
+    ['01', 'whoever keeps this museum open', 'The first stand is a sponsor’s, if one ever steps forward. The name goes on the plinth, not on the exhibit.'],
+    ['02', 'whoever gave past the line we publish', 'The second is for the people who paid for the hosting. The line will be published before any name is put up.'],
+    ['03', 'the keeper’s own work', 'The third is the reason the building exists. It is the only stand that will never be empty for long.']
+  ];
+  let y = 196;
+  for (const [n, head, body] of ladder) {
+    ctx.font = `600 22px ${MONO}`;
+    ctx.fillStyle = '#ffb700';
+    ctx.fillText(n, 56, y);
+    ctx.font = `30px ${SERIF}`;
+    ctx.fillStyle = '#efe9dd';
+    ctx.fillText(head, 112, y + 2);
+    ctx.font = `21px ${SERIF}`;
+    ctx.fillStyle = '#a29b8d';
+    let ly = y + 30;
+    for (const line of wrap(ctx, body, W - 112 - 56)) { ctx.fillText(line, 112, ly); ly += 27; }
+    y = ly + 22;
+  }
+
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'trophy';
+  return tex;
+}
+
+/* Acquisitions Hall: the frames on the wall that nothing has been hung in
+   yet. One texture, four frames — the emptiness is the point, so the four
+   cards say the same thing. */
+export function wantedCardTexture(label, THREE, aniso) {
+  THREEref = THREE;
+  const W = 512, H = 640;
+  const cv = canvas(W, H);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#f4f4f5';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0c';
+  ctx.fillRect(0, 0, W, 96);
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#ffb700';
+  ctx.font = `600 34px ${MONO}`;
+  spaced(ctx, 'WANTED', 40, 62, 8);
+
+  ctx.font = `52px ${SERIF}`;
+  ctx.fillStyle = '#141416';
+  let ly = 176;
+  for (const line of wrap(ctx, `an acquisition for the ${label}`, W - 80)) {
+    ctx.fillText(line, 40, ly); ly += 58;
+  }
+  ctx.font = `26px ${SERIF}`;
+  ctx.fillStyle = '#5c5a5e';
+  ly += 18;
+  for (const line of wrap(ctx, 'Nothing has been hung on this wall yet. When something is, it will be because somebody opened it first.', W - 80)) {
+    ctx.fillText(line, 40, ly); ly += 34;
+  }
+  ctx.font = `600 20px ${MONO}`;
+  ctx.fillStyle = '#8a888e';
+  ctx.fillText(IDENTITY.entity, 40, H - 48);
+
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'wanted';
+  return tex;
+}
+
+/* Box Office: the sign over the counter. */
+export function counterSignTexture(THREE, aniso) {
+  THREEref = THREE;
+  const W = 1024, H = 256;
+  const cv = canvas(W, H);
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#0a0a0c';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#ffb700';
+  ctx.fillRect(0, 0, W, 8);
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `600 64px ${MONO}`;
+  ctx.fillStyle = '#f4f4f5';
+  spaced(ctx, 'TICKETS', 56, 116, 14);
+  ctx.font = `26px ${SERIF}`;
+  ctx.fillStyle = '#a9a294';
+  ctx.fillText('Take one. The rules are printed on the back, and the door is the agreement.', 58, 176);
+
+  const tex = texture(cv, aniso);
+  tex.userData.kind = 'counter';
   return tex;
 }
 

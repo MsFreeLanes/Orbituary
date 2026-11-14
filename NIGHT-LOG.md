@@ -23,11 +23,14 @@ should be enough for someone to pick the building up without asking me anything.
 4. `index-v2.html` is rebuilt and committed with the step, so the built site
    itself is versioned — a checkout of any commit is a double-clickable museum.
 
-Bundles taken this session:
+Bundles taken this session. A bundle is named for the commit it holds, so the
+row for a step's own commit is added at the top of the next step's entry:
 
 | time | sha | file |
 |---|---|---|
 | 00:47 | 6141319 | `..\Backups\orbituary-6141319.bundle` |
+| 00:50 | fa95d34 | `..\Backups\orbituary-fa95d34.bundle` |
+| 00:58 | 34470f3 | `..\Backups\orbituary-34470f3.bundle` |
 
 ## Green baseline before touching anything
 
@@ -61,7 +64,7 @@ the morning rather than discovered.
 
 ## Entries
 
-### 00:44–00:50 — orientation and backups
+### 00:44–00:47 — orientation and backups
 Read `HANDOFF.md`, `MUSEUM-V2-PLAN.md`, `README.md`, `hud.js`, `main.js`,
 `shell.html`, `materials.js`, and grepped the plan and the builder for what is
 actually implemented. Findings:
@@ -78,7 +81,7 @@ actually implemented. Findings:
 - `HANDOFF.md` and `README.md` both describe the twelve-room building and are
   now badly out of date. Fixing them is step 6.
 
-### 00:50–01:20 — step 1: the ticket and the brochure
+### 00:44–00:49 — step 1: the ticket and the brochure
 
 **What landed.** Agreeing to the rules *is* the door.
 
@@ -128,7 +131,7 @@ git, like all scratch PNGs). `check-v2` still boots clean: console clean,
 `.intro-kicker`, and `hud.hideIntro()` still closes everything, because about
 twenty probes in `scratch/` drive the museum through those names.
 
-### 01:20–02:05 — step 2: eight zones, and a code on every door
+### 00:49–00:57 — step 2: eight zones, and a code on every door
 
 You said forty-seven colours was too many and to find a better approach. This is
 it. **The colour belongs to the zone; the code belongs to the room.**
@@ -168,3 +171,49 @@ photographs a ground plate (`codes-door-privacy.png`), a cellar plate
 (`codes-door-cellar.png`), the board (`codes-board-rotunda.png`) and the map
 with its key (`codes-map-rotunda.png`). `check-scale`, `check-data`, `check-v2`
 all green; console clean; 258 calls / 74k tris, unchanged.
+
+### 00:57–01:05 — step 3: the four rooms about the museum itself
+
+The Box Office, the Acquisitions Hall, the Rules Room and the Trophy Hall are
+four identical 6 × 6 cabinets off the rotunda, and until tonight they were the
+only rooms in the building with nothing in them. They are also the only rooms
+whose subject is the museum, so they are now the only rooms furnished from
+`identity.js` rather than from the link table.
+
+- **Trophy Hall (HUB-04)** — three stands, nothing on any of them. Each is a
+  base, a paper column, a machined cap and a mounting plate 13 cm across: the
+  plate is the only thing on top, because an empty plinth with a bronze trophy
+  already cast into it is a lie. On the side wall, the ladder — sponsor, then
+  donor past a line that will be published, then the keeper's own work — and a
+  bench in the palette's rust, the one surface a visitor wears.
+- **Rules Room (HUB-03)** — the ticket the size of a door: all six rules,
+  numbered, from `IDENTITY.rules`, with the footer *the door is the agreement ·
+  no account · no signature · nothing to scan*. The body text is measured
+  before it is drawn, so when you rewrite a rule the board re-fits itself.
+- **Box Office (HUB-01)** — a counter facing the door, carcass in machine grey
+  and the front panel in the same paper white as the ticket, with the sign on
+  the counter's own face rather than on a wall: *TICKETS — take one. The rules
+  are printed on the back, and the door is the agreement.* Six ticket blanks
+  stacked badly on the top slab, and a stool pushed in behind it.
+- **Acquisitions Hall (HUB-02)** — four framed cards on the two side walls,
+  all four reading *WANTED — an acquisition for the hub*, two crates, and a
+  ladder leaning on the wall under the window. One card texture serves all four
+  frames: the emptiness is the same emptiness everywhere in this museum.
+
+**Two bugs found by looking, not by checking.** First: a board hung on the far
+wall of any room sits *behind* that wall's window frame, whose inner lip then
+cuts a grey cross through the words — the Trophy Hall plaque did exactly that,
+and the fix is that every board in these four rooms hangs on a side wall,
+which is the only solid wall a cabinet has. Second: the ladder leaned away
+from the wall it was leaning on, because a positive `rx` takes the top of a
+vertical box towards `+z` and the rungs were being set on the mirror of the
+line the rails stood on.
+
+Cost: 13 draw calls and 1.1k triangles for all four rooms, four textures.
+271 calls / 75k tris at the Cupola probe, still well inside the budget.
+
+**Proven:** `scratch/shot-purpose.mjs` photographs each room from just inside
+its door (`purpose-<room>.png`), `scratch/shot-wall.mjs` photographs one wall
+close up, and `scratch/inspect-room.mjs <room>` prints every mesh in a room's
+group — geometry, colour, texture kind, size — which is how the window-frame
+cross was found. All checks green, console clean.

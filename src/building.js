@@ -41,7 +41,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { S } from './scale.js';
 import { PALETTE } from './materials.js';
 import { LINKS } from './data.js';
-import { plaqueSheets, roomSign, uvRect } from './signage.js';
+import {
+  plaqueSheets, roomSign, uvRect, rulesBoardTexture, trophyPlaqueTexture,
+  wantedCardTexture, counterSignTexture
+} from './signage.js';
 
 const TAU = Math.PI * 2;
 
@@ -461,6 +464,149 @@ function addPlinths(g, B, kit, room, pickables, spots, linkAt) {
   g.add(inst);
 }
 
+/* ── the four rooms that are about the museum itself ─────────────────────
+   The Box Office, the Acquisitions Hall, the Rules Room and the Trophy Hall
+   are four identical cabinets off the rotunda and the only rooms in the
+   building with no plinths in them. Left empty they read as unfinished
+   rooms; furnished they are the argument for the other forty-seven, which is
+   why they get fittings the plinth kit cannot give them.
+
+   The words on their walls are the words on the ticket — painted by
+   signage.js out of identity.js — so the boards cannot drift from what the
+   visitor agreed to at the door. Everything else here is the same batcher
+   and the same materials as the walls: the four rooms cost about sixty
+   boxes, which weld into the piles the room already has, and four textures
+   between them. */
+const PURPOSE = new Set(['Box Office', 'Acquisitions Hall', 'Rules Room', 'Trophy Hall']);
+
+function addPurposeFittings(B, M, room) {
+  const t = S.WALL_T, w = room.w;
+  const cat = room.cat;
+  const trim = M.solid(PALETTE.panelShadow, { roughness: 0.42, metalness: 0.7 });
+  const dark = M.solid(0x24272c, { roughness: 0.6, metalness: 0.2 });
+  /* the palette's rust, on the one surface a visitor wears: a bench seat */
+  const seat = M.solid(PALETTE.rust, { roughness: 0.78 });
+  const paper = M.solid(PALETTE.panel, { roughness: 0.85 });
+  const board = (tex) => new THREE.MeshStandardMaterial({
+    map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.55,
+    roughness: 0.85, side: THREE.DoubleSide
+  });
+  /* a board hung flat against a wall with no frame is a decal. the frame is
+     four pieces of the same fitting metal the rails are, and it is what makes
+     the thing read as hung rather than printed on the plaster. */
+  const hang = (tex, cw, ch, x, y, z, ry) => {
+    B.put(new THREE.PlaneGeometry(cw, ch), board(tex), x, y, z, { ry });
+    const f = 0.05;
+    /* which way the board is turned decides which axis its width runs along:
+       one on the far wall spans x, one on a side wall spans z. the frame is
+       two uprights and a head and a sill, and that is all it is. */
+    const alongZ = (ry === Math.PI / 2 || ry === -Math.PI / 2);
+    for (const s of [-1, 1]) {
+      if (alongZ) {
+        B.put(boxUV(f, ch + 2 * f, f, 1), trim, x, y, z + s * (cw / 2 + f / 2), { ry });
+        B.put(boxUV(f, f, cw + 2 * f, 1), trim, x, y + s * (ch / 2 + f / 2), z, { ry });
+      } else {
+        B.put(boxUV(f, ch + 2 * f, f, 1), trim, x + s * (cw / 2 + f / 2), y, z, { ry });
+        B.put(boxUV(cw + 2 * f, f, f, 1), trim, x, y + s * (ch / 2 + f / 2), z, { ry });
+      }
+    }
+  };
+  const bench = (x, z, ry) => {
+    B.put(boxUV(1.50, 0.09, 0.44, 1.2), seat, x, 0.45, z, { ry, cast: true, receive: true });
+    for (const sx of [-1, 1]) {
+      B.put(boxUV(0.09, 0.45, 0.40, 1.2), dark,
+        x + sx * 0.62 * Math.cos(ry), 0.225, z - sx * 0.62 * Math.sin(ry), { ry, cast: true });
+    }
+  };
+
+  if (cat === 'Trophy Hall') {
+    /* three stands and nothing on any of them. The mounting plate is the only
+       thing on the cap: an empty plinth with a trophy cast bronze into it is a
+       lie, and the whole room is here to say not yet. */
+    for (const x of [-1.85, 0, 1.85]) {
+      const z = 3.4;
+      B.put(boxUV(0.62, 0.12, 0.62, 1.2), dark, x, 0.06, z, { cast: true, receive: true });
+      B.put(boxUV(0.44, 0.95, 0.44, 1.2), paper, x, 0.595, z, { cast: true, receive: true });
+      B.put(boxUV(0.54, 0.07, 0.54, 1.2), trim, x, 1.105, z, { cast: true });
+      B.put(uvScale(new THREE.CylinderGeometry(0.13, 0.13, 0.014, 20), 0.4, 0.4), trim, x, 1.147, z);
+      /* the small plate that will one day carry a name, blank for now */
+      B.put(new THREE.PlaneGeometry(0.30, 0.10), paper, x, 0.82, z - 0.226, { ry: Math.PI });
+    }
+    /* the plaque goes on a side wall, not the far one. The far wall of every
+       room in this building is the window wall, and a board hung there sits
+       behind the window frame's inner lip, which then cuts a grey cross
+       through the words. */
+    hang(trophyPlaqueTexture(room, THREE, 8), 2.00, 1.00, -w / 2 + t / 2 + 0.04, 1.95, 3.4, Math.PI / 2);
+    bench(-1.35, 1.9, Math.PI / 2);
+    return;
+  }
+
+  if (cat === 'Rules Room') {
+    /* the ticket, the size of a door, on the wall you turn to once you are in */
+    hang(rulesBoardTexture(THREE, 8), 2.10, 2.10, -w / 2 + t / 2 + 0.04, 1.90, 3.1, Math.PI / 2);
+    bench(-1.30, 3.1, Math.PI / 2);
+    return;
+  }
+
+  if (cat === 'Box Office') {
+    /* the counter faces the door you came in by, because this is the room
+       where the museum hands you the thing you already agreed to */
+    const cx = 0.2, cz = 2.35;
+    B.put(boxUV(2.30, 0.10, 0.70, 1.2), dark, cx, 0.05, cz, { receive: true });
+    B.put(boxUV(2.30, 0.95, 0.66, 1.2), dark, cx, 0.525, cz, { cast: true, receive: true });
+    B.put(boxUV(2.50, 0.06, 0.80, 1.2), trim, cx, 1.03, cz, { cast: true });
+    /* the front of the counter is the one face a visitor reads, so it is the
+       same paper white as the ticket and the brochure rather than the machine
+       grey of the carcass: the brand's one piece of furniture */
+    B.put(new THREE.PlaneGeometry(2.30, 0.95), paper,
+      cx, 0.525, cz - 0.335, { ry: Math.PI });
+    /* the sign is on the face of the counter that looks at the door, not on
+       the wall behind the visitor: this is the first thing in the room that
+       speaks to you, and it should speak from where the counter is */
+    hang(counterSignTexture(THREE, 8), 1.05, 0.26, cx, 0.70, cz - 0.345, Math.PI);
+    /* ticket blanks, squared up badly, the way a stack goes after a day */
+    for (let i = 0; i < 6; i++) {
+      B.put(boxUV(0.22, 0.008, 0.14, 1.2), paper,
+        cx - 0.72 + (i % 2) * 0.012, 1.066 + i * 0.009, cz - 0.16 + (i % 3) * 0.011,
+        { ry: -0.05 + i * 0.035 });
+    }
+    /* the stool behind it, pushed in */
+    B.put(uvScale(new THREE.CylinderGeometry(0.19, 0.19, 0.07, 20), 0.5, 0.5), seat, cx + 1.05, 0.62, cz + 0.75, { cast: true });
+    B.put(uvScale(new THREE.CylinderGeometry(0.04, 0.05, 0.62, 12), 0.3, 0.6), trim, cx + 1.05, 0.31, cz + 0.75, { cast: true });
+    return;
+  }
+
+  if (cat === 'Acquisitions Hall') {
+    /* four frames, nothing in them but the card. One texture serves all four:
+       the emptiness is the same emptiness in every corner of this museum.
+       Both side walls, because the far wall is the window wall. */
+    const card = wantedCardTexture(room.zoneName ? room.zoneName.toLowerCase() : 'museum', THREE, 8);
+    const cw = 0.62, ch = 0.775;
+    const at = [
+      [-w / 2 + t / 2 + 0.04, 2.2, Math.PI / 2], [-w / 2 + t / 2 + 0.04, 4.2, Math.PI / 2],
+      [w / 2 - t / 2 - 0.04, 2.2, -Math.PI / 2], [w / 2 - t / 2 - 0.04, 4.2, -Math.PI / 2]
+    ];
+    for (const [ax, az, ry] of at) hang(card, cw, ch, ax, 1.72, az, ry);
+    /* the crates and the ladder: this is the room where things arrive, and a
+       museum that has twenty walls still empty has not put its tools away */
+    B.put(boxUV(0.80, 0.50, 0.60, 1.2), dark, -2.25, 0.25, 1.05, { cast: true, receive: true });
+    B.put(boxUV(0.70, 0.44, 0.55, 1.2), dark, -2.20, 0.72, 1.02, { ry: 0.22, cast: true });
+    /* the ladder leans on the far wall: a positive rx takes the top of a
+       vertical box towards +z, which is the wall, and the rungs have to be
+       set on the same tilted line the rails stand on or the whole thing is a
+       parallelogram */
+    const lean = 0.13, lz = 5.55, ly = 1.28;
+    for (const sx of [-0.24, 0.24]) {
+      B.put(boxUV(0.06, 2.60, 0.06, 1.2), trim, 2.35 + sx, ly, lz, { rx: lean, cast: true });
+    }
+    for (let i = 0; i < 5; i++) {
+      const rungY = 0.42 + i * 0.46;
+      B.put(boxUV(0.54, 0.05, 0.06, 1.2), trim, 2.35, rungY, lz + (rungY - ly) * Math.tan(lean), { cast: true });
+    }
+    return;
+  }
+}
+
 function buildRoom(parent, plan, M, room, pickables, L, kit) {
   const g = new THREE.Group();
   /* one offset for the whole room: the slab, the four walls, the ceiling, the
@@ -566,6 +712,10 @@ function buildRoom(parent, plan, M, room, pickables, L, kit) {
     B.put(new THREE.PlaneGeometry(1.44, 0.36), room._signMat,
       0, signY, -S.WALL_T / 2 - 0.02, { ry: Math.PI });
   }
+
+  /* the four rooms about the museum itself, furnished with more than plinths
+     can give them. before the ceiling, because the boards are hung from it */
+  if (PURPOSE.has(room.cat)) addPurposeFittings(B, M, room);
 
   addCeiling(B, lamps, M, room);
   /* the pendant the room's key light hangs from. The group origin is the door,
