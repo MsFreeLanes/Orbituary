@@ -197,6 +197,38 @@ function boot() {
     if (rig.walkTo(room.id)) hud.toast('a room at random: ' + room.name);
   }
 
+  /* ── back to the front door ──
+     A tour and a random room scatter a visitor across six wings, and until now
+     the only way back to where they started was to walk it from wherever they
+     happened to be. H walks them home along the route network, the same way a
+     tour walks them anywhere; Shift+H puts them there at once. Both, because
+     some people want to see the building on the way back and some of them are
+     standing in the cellar at the end of a long session. */
+  const HOME = { x: 0, z: 4.5 };
+  function goHome(instant) {
+    if (Math.hypot(rig.state.x - HOME.x, rig.state.z - HOME.z) < 1.6) {
+      hud.toast('you are at the front door');
+      return;
+    }
+    if (instant) {
+      rig.teleportTo('rotunda');
+      hud.toast('at the front door');
+      return;
+    }
+    if (rig.walkTo('rotunda', { arriveYaw: 0 })) hud.toast('walking you back to the front door');
+    else hud.toast('no route to the front door from here');
+  }
+
+  /* The mouse belongs to the building only while you are walking it. The
+     ground track has a slider and seven buttons in it and the brochure has
+     links in it, and a locked pointer cannot touch any of them: the panel
+     reads as something painted on the window rather than something you can
+     turn. Opening either one hands the cursor back. Clicking the floor takes
+     it again. */
+  function freeCursor() {
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+
   /* ── exhibits: look at a plinth, press enter ── */
   const ray = new THREE.Raycaster();
   let target = null;
@@ -252,8 +284,19 @@ function boot() {
     if (hud.gateVisible && k !== 'KeyM') return;
     if (k === 'KeyT') tourNext();
     else if (k === 'KeyR') tourRandom();
-    else if (k === 'KeyH') hud.toggleHelp();
-    else if (k === 'KeyG') hud.root.classList.toggle('sky-open');
+    else if (k === 'KeyH') goHome(e.shiftKey);
+    else if (k === 'Tab') {
+      /* Tab belongs to the browser, not to the museum: without this the key
+         walks the focus ring out to the address bar and the page stops taking
+         input. H used to be the brochure, and H is now the way home. */
+      e.preventDefault();
+      hud.toggleHelp();
+      freeCursor();
+    }
+    else if (k === 'KeyG') {
+      hud.root.classList.toggle('sky-open');
+      if (hud.root.classList.contains('sky-open')) freeCursor();
+    }
     else if (k === 'KeyM') {
       muted = !muted;
       audio.setMuted(muted);
