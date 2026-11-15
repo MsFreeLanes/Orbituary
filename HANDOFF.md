@@ -65,7 +65,9 @@ is a hole, a stair down through the mouth and a lift beside it. Cellar slab 3.6 
 down, 3.2 m of clear ceiling, and the pressure hull's belly 4 cm above the cellar
 soffit. Lighting is a pool of 10 point lights handed between anchors, plus one
 static light in the stair hall that the pool does not know about. The bundle is
-897 KB and the Cupola view runs 476 draw calls / 125229 triangles / 53 textures.
+897 KB. The Cupola view runs about 462 draw calls / 120437 triangles / 52 textures
+— and that number is read from wherever a headless tour reached after four seconds,
+so it is a description rather than a baseline (`MASTER-BUGS.md` T12).
 
 ## What landed on 2026-11-14
 
@@ -105,6 +107,23 @@ controllers deferred, everything needs collision, and the hardware question.
 | 14 | `5faee66` | an empty room says WANTED on its door plate and its room card, not `0 LINKS` |
 | 15 | `9bf6698`+ | the logs closed, and `REVIEW-BRIEF.md` written for whoever reviews this next |
 
+## What landed in the fifth pass, 2026-11-15 overnight — and nothing was fixed
+
+The instruction was explicit: find every defect you can, change no code, write it
+down once. Eight read-only audits went over `src/`, `build.mjs`, `src/shell.html`
+and the whole of `scratch/`'s measuring layer. The result is `MASTER-BUGS.md`: 68
+defects and 30 problems with the checks, ranked, each with a confidence label and
+the check that would catch a regression. **No file in `src/` changed in this pass**;
+the only code-adjacent file touched was `.gitattributes`.
+
+| step | commit | what |
+|---|---|---|
+| 1 | `a3f971f` | `.gitattributes`, so the built museum stops churning in every diff — defect D9, and the one file touched under the no-changes rule |
+| 2 | `96ce00e` | `MASTER-BUGS.md`: the consolidated list in tiers, plus the corrections table for claims in my own documents that the audits disproved; `REVIEW-BRIEF.md` corrected in place |
+| 3 | `eb8c007` | `QUESTIONS-FOR-OWNER.md` (ten decisions, each with the default I would take), `MMMM.md` (the prompting wiki, vendors fetched and dated), `CODING-HEURISTICS.md` (for a person who does not write code) |
+| 4 | `69f9d23` | the `NIGHT-LOG.md` entry for those three |
+| 5 | `d116f9e` | the test-layer audit, T12–T30: two of `check-collision`'s zeros are tautologies, `check-v2`'s counters are time-dependent, and only one of the fifteen checks sets an exit code. My own evidence for the plated-over doorways downgraded from *seen* to *reasoned* |
+
 **The hardware, since it changes what is worth doing.** Ryzen 9 9900X3D, RTX
 5090 with 32 GB of its own memory, 62 GB, 3440×1440 at 143 Hz. The whole station
 is 309–478 draw calls and 85k–125k triangles. There is no object-count problem on
@@ -120,7 +139,10 @@ which local models this box will actually run.
   decision, not a build one — see *Waiting on the owner*.
 - A real distance fade at the wing edges. Hysteresis, a look-ahead point and a
   0.35 s dwell are in (`6959ee6`, `47cf506`: 114 flips and 35 oscillations over a
-  223 m walk became 78 and 5); the fade itself is not.
+  223 m walk became 78 and 5 — those last two numbers do not reproduce; today the
+  same walk gives 104 and 9, see `MASTER-BUGS.md` T08); the fade itself is not.
+  And the cull has logic bugs found since: all twelve ranges stay lit in the
+  rotunda, and wings vanish when you look down at a label (B11, B12).
 - Door and window placement beyond the lone-window fix, and nothing yet asserts
   how openings are placed at all.
 - Creature ambience out of sight; ships and comets outside; gating sound and

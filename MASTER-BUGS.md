@@ -123,7 +123,10 @@ All 28 shaft circles sit on the west partition line (x 0.43, z −6.30…−1.10
 Nothing blocks the shaft's east or south edge, and the well's east wall geometry
 stops at z −4.0. `rig.blocked(1.2, -2.6, 'ground')` is false and the point is
 inside the walkable union. `REVIEW-BRIEF.md` D7 said the circles were the only
-thing between a visitor and a 3.6 m hole; they cover one side of four.
+thing between a visitor and a 3.6 m hole; they cover one side of four. Re-run
+myself at 06:3x: `node scratch/probe-lift-diag.mjs` reports `shaftBlockers: 28` all
+at `shaftX: 0.43`, and `stairMouth: false` for the well — the only side of the
+shaft the rig can see is the one facing the partition.
 
 **B05 · `rig.js:577-581` + `301-313` · the lift can fail to deliver you** —
 *reasoned, high confidence*
