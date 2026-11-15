@@ -1,8 +1,8 @@
 ---
 tags: [museum, project, handoff]
-updated: 2026-11-14 (fourth pass)
+updated: 2026-11-15 (fifth pass)
 build: v2
-head: 9bf6698
+head: a3f971f
 remote: https://github.com/MsFreeLanes/Orbituary
 ---
 
@@ -16,7 +16,10 @@ what is waiting on a decision. If you are being handed the project to
 **review and fix defects** rather than to continue it, start at
 `REVIEW-BRIEF.md` instead: it has the green baseline to compare against, the
 invariants the building depends on, the traps that cost this session hours, and a
-numbered defect queue with the probe that demonstrates each one.
+numbered defect queue with the probe that demonstrates each one. The full defect
+list itself is **`MASTER-BUGS.md`**: 68 findings and 11 problems with the checks,
+ranked into tiers with confidence labels, plus a *Corrections* table for claims in
+these documents that the audit disproved.
 
 ## Where the build stands against the plan
 
@@ -48,9 +51,14 @@ waiting for. The cellar holds those 14 under a 10 × 8 m stair hall; the empties
 categories were put there deliberately, so the basement is the place the museum
 has not decided about yet.
 
-The building is solid: 1433 collision circles by storey (218 pedestals, 1187
-pieces of furniture, 28 for the lift's partition), none of them inert where they
-stand, none of them pinching a doorway, and no corridor centreline blocked.
+The building is **solid in the way the checks can measure**: 1433 collision
+circles by storey (218 pedestals, 1187 pieces of furniture, 28 for the lift's
+partition), none of them inert where they stand, none of them pinching a doorway,
+and no corridor centreline blocked. Read that last clause narrowly — the check
+samples the exact centreline, and the audit found pedestals, a ladder and a
+furniture footprint standing inside corridors that the number never reported.
+There are also two holes in the rotunda floor the rig lets you stand in, and every
+doorway is drawn plated over with plaster. See `MASTER-BUGS.md` Tier 1.
 
 One storey up: rotunda 16 m across, dome springing at 6.5 m, cupola whose floor
 is a hole, a stair down through the mouth and a lift beside it. Cellar slab 3.6 m

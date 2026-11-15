@@ -1,8 +1,8 @@
 ---
 tags: [museum, project, review, handoff]
-updated: 2026-11-14
+updated: 2026-11-15
 build: v2
-head: 9bf6698
+head: a3f971f
 remote: https://github.com/MsFreeLanes/Orbituary
 audience: a reviewer whose job is to find and fix defects
 ---
@@ -17,6 +17,13 @@ step by step, including the mistakes. This one is about the mechanics of
 changing code here safely: what to run, what the numbers are when nothing is
 broken, what must stay true, what is deliberately the way it is, and what is
 actually wrong.
+
+**The defect list now lives in `MASTER-BUGS.md`** — 68 findings and 11 problems
+with the checks themselves, ranked into tiers, each with a file and line, a
+confidence label and the check that would catch a regression. The queue further
+down this file is the shorter list I wrote before that audit; where the two
+disagree, `MASTER-BUGS.md` is right, and its *Corrections* table lists the claims
+in this brief that the audit disproved.
 
 ## Getting the code and running it
 
@@ -39,7 +46,7 @@ prints a verdict. Run them from the repo root:
 
 ```
 node scratch/check-v2.mjs        # boots clean, reports draw calls / tris / errors
-node scratch/check-scale.mjs     # every dimension is in scale.js, none unused
+node scratch/check-scale.mjs     # resolves every S.* reference (does NOT report unused ones)
 node scratch/check-sky.mjs       # 16 astronomy assertions
 node scratch/check-events.mjs    # 2000 ambient events, no clustering
 node scratch/check-data.mjs      # the exhibit table is well-formed
@@ -75,7 +82,7 @@ a regression unless the commit says why.
 | links / pick nodes | 192 exhibits, 204 pick nodes, **0 pick nodes without an exhibit** |
 | collision | 1433 circles (218 plinth, 1187 prop, 28 lift shaft), 0 inert, 0 doors pinched, 0 blocked corridor centrelines |
 | tours | 8 routes walked with no clipping |
-| pop-in over 223 m | 78 appearance/disappearance events, 43 behind you, 34 ahead, **5 oscillating** |
+| pop-in over ~230 m | 104 appearance/disappearance events, 46 appearing ahead, **6 oscillating** — and the walk is not deterministic, so treat this as an order of magnitude, not a number to match exactly |
 | lift | 20/20 |
 | terminator | correct at every hour |
 | keys | `H` walks home, `Shift+H` → (0, 4.5), `Tab` opens the brochure |
@@ -157,32 +164,43 @@ of these that nothing was asserting.
   again. Use `!(Math.abs(a - b) <= 0.01)`.
 - **Byte-exact comparison of a built file:** `cmd /c "git show HEAD:index-v2.html > scratch\prev.html"`.
   Redirection inside PowerShell re-encodes and the diff lies.
+- **Every CDP harness binds port 9223** (`scratch/cdp.mjs:18`). Two checks running
+  at the same time read each other's page: running `check-lift.mjs` alongside
+  `check-pop.mjs` produced five lift failures that did not exist. **Run the checks
+  one at a time**, and if a check fails in a batch, re-run it alone before
+  believing it.
 
 ## The defect queue
 
 Ordered by what I would take first. Each has the evidence that it exists.
 
-**D1 — pedestals on the Observatory deck are hand-tuned numbers.**
+**D1 — pedestals on the Observatory deck are hand-tuned numbers, and they are
+wrong today.**
 `plan.js:700`: `cupola.plinths = [53.3, 86.4, 116.4, 243.6, 273.6, 306.7]`. Those
 bearings exist because the twelve 2.6 m spoke strips overlap at the deck radius,
 so pedestals can only sit between spokes, and the ring is centred on the well at
-`(0, S.CUPOLA_WELL_Z = 0.8)`, 0.8 m off the deck's middle. They are correct today
-and land in a spoke the moment the ring radius or the well offset moves. *Fixed*
-means computed from the geometry, with the current bearings asserted as the
-expected output. Probe: `scratch/probe-deck-ring.mjs`.
+`(0, S.CUPOLA_WELL_Z = 0.8)`, 0.8 m off the deck's middle. **Correction after the
+audit: at r 3.9 the strips overlap everywhere** — the widest gap is 1.14 m from a
+spoke centreline against a half-width of 1.3 m — so all six pedestals stand inside
+a corridor (`MASTER-BUGS.md` B09). The "centrelines blocked: 0" figure that
+appeared to prove otherwise only ever sampled the exact centreline (T01).
+*Fixed* means computed from the geometry, with the corrected bearings asserted as
+the expected output. Probe: `scratch/probe-deck-ring.mjs`.
 
-**D2 — furniture collision circles come from the drawn bounding box.**
-`props.js:180` writes footprints into `plan.obstacles`; `rig.js:192`
-(`addBlocker`) turns them into circles, and `rig.js:189` (`inDoorway`)
-**silently drops** any circle that lands in a door. Consequences a reviewer can
-act on: a prop that moves in a builder needs a hand-written circle; a prop whose
-drawn box is much larger than its footprint (the leaning ladder, the pulled-out
-flat-file drawer, the toppled box) blocks more than it occupies; and a piece of
-furniture placed in a doorway is solid nowhere at all. `check-collision` prints
-`furniture inert where it stands: 0`, which proves the circle is where the prop
-is — not that it matches the prop. *Fixed* means a probe comparing circle area to
-drawn footprint, and an assertion that the doorway exemption never swallows a
-whole item.
+**D2 — furniture collision circles are hand-written and are never compared to
+what is drawn.** *(This entry's original premise — that a circle comes from the
+drawn bounding box — was wrong, and the audit is what caught it.)*
+`props.js:180` calls `K.block` by hand beside each builder; `rig.js:192`
+(`addBlocker`) turns those into circles and `rig.js:189` (`inDoorway`) drops any
+circle that lands in a door. `room._propBoxes` holds the drawn boxes and is read
+only by `check-props.mjs`; nothing compares the two. Consequences a reviewer can
+act on, all measured: the cellar stool has no circle near it in all fourteen rooms
+(B59), the flat file's pulled-out drawer blocks 0.26 m less than it occupies
+(B60), and 59 floor props leave 0.06–0.17 m of footprint outside their circle
+(B65). `check-collision` prints `furniture inert where it stands: 0`, which proves
+a circle is where the rig says you cannot stand — not that every prop has one.
+*Fixed* means a probe comparing drawn boxes to circles, and an assertion that the
+doorway exemption never swallows a whole item.
 
 **D3 — nothing asserts how doors and windows are placed.** Only one case was
 fixed: a lone window off-centre in its wall. There is no check that a window
@@ -191,11 +209,16 @@ head respect the lintel. `check-placement.mjs` covers pedestals and furniture,
 not openings. *Fixed* means a probe over all 51 rooms' openings with the rules
 written down first.
 
-**D4 — the plinth-repair pass has never had to do anything.** `plan.js:926` and
-`:952` populate `plan.plinthRepairs`, and every run prints *nothing — every
-pedestal clears the circulation*. So the code that nudges a pedestal out of a
-corridor is untested in anger. *Fixed* means a synthetic case that forces an
-overlap and asserts the repair and the report.
+**D4 — the plinth-repair pass cannot fire at all.** `plan.js:926` and `:952`
+populate `plan.plinthRepairs`, and every run prints *nothing — every pedestal
+clears the circulation*. That is not because the building is clean: the trigger
+asks whether a plinth sits within 0.55 m of a corridor edge, and every row is laid
+out at v ≥ 2.2 m from the entry wall, which is exactly the corridor boundary plus
+2.2 m. The nearest non-cupola plinth is 2.20 m **outside** the nearest corridor
+edge, so the test is never true, and the pass also skips `kind === 'cupola'`,
+which is how the deck-ring pedestals (D1) stayed in the corridors. See
+`MASTER-BUGS.md` B31. *Fixed* means a synthetic case that forces an overlap and
+asserts the repair and the report.
 
 **D5 — wing edges still appear and disappear.** Hysteresis, a look-ahead point
 and a 0.35 s dwell are in; over a 223 m walk that is 78 events, 43 going out
@@ -205,29 +228,35 @@ implemented. Look at `building.js:1972-2010` (`DWELL`, `hold`, `spokeCull`) and
 transparent geometry in a building whose whole material set is opaque, and 5
 oscillations in 223 m is already quiet. Probe: `check-pop.mjs`.
 
-**D6 — sound and effects are not gated to what is visible.** Every room's tube
-flicker and every atmosphere mesh animates whether or not the cull has that wing
-shown (`built.anim`, and atmosphere meshes carry `userData.atmo`). Not a
-performance problem on this machine; it is an attention problem — a drip two
-ranges away. *Fixed* means the cull's visible set drives which animators run,
-with a probe counting active animators from a few standing positions.
+**D6 — sound and effects are not gated to what is visible.** *(Half fixed, found
+by the audit.)* Atmosphere meshes **are** gated: dust checks `group.visible`
+(`atmosphere.js:282`) and the cull toggles exactly that group, and damp and webs do
+not animate at all. What is still open is the **audio** half — the off-screen
+drip — and the animators in `built.anim`, which run for every room regardless of
+the cull. Not a performance problem on this machine; an attention problem. *Fixed*
+means the cull's visible set drives which animators and which room's audio play.
 
-**D7 — the lift shaft is a 3.6 m hole with no doors.** `building.js:1348`
-(`buildLift`) builds a glazed shaft, a cabin, and 28 collision circles around the
-partition on both storeys. Nothing physical stops a visitor walking into the
-well; the circles do. This is **an owner decision** (see below), not an oversight
-— but if doors are added they must not be batched if they open.
+**D7 — the lift shaft is a 3.6 m hole with no doors, and it is only half
+blocked.** `building.js:1348` (`buildLift`) builds a glazed shaft, a cabin, and 28
+collision circles — but **all 28 sit on the west partition line** (x 0.43). The
+east and south edges are open: `rig.blocked(1.2, -2.6, 'ground')` is false and that
+point is inside the walkable union (`MASTER-BUGS.md` B04). The stair well beside it
+is an open hole too (B03). Whether the shaft should get doors is an **owner
+decision** (see below); whether it should be blocked is not. If doors are added
+they must not be batched if they open.
 
 **D8 — `PLY-08 Recompiles and Decompiles` is the only room with nothing in it
 at all**: a sub-room, no links, no plinths, and not a cellar room, so it does not
 get the wanted plinth that the fourteen basement rooms get (`plan.js:421`).
 Content decision.
 
-**D9 — the built file's line endings churn.** Git warns
-`in the working copy of 'index-v2.html', LF will be replaced by CRLF the next
-time Git touches it`, and there is no `.gitattributes`. A reviewer who lets git
-normalise `index-v2.html` will produce a huge, meaningless diff in a generated
-artifact. *Fixed* means declaring the text policy once.
+**D9 — the built file's line endings churn.** *Fixed in `a3f971f`.* Git warned
+`in the working copy of 'index-v2.html', LF will be replaced by CRLF the next time
+Git touches it`, and there was no `.gitattributes`. A reviewer who lets git
+normalise `index-v2.html` produces a huge, meaningless diff in a generated
+artifact. `.gitattributes` now declares the policy: source, checks and prose are
+LF in the repository, `index-v2.html` is `-text` and stored byte for byte, images
+and bundles are binary.
 
 **D10 — creature ambience out of sight, ships and comets outside: not started.**
 The cellar has damp, webs and drifting dust, and the sky has the catalogue, the
@@ -280,9 +309,16 @@ step, including the attempts that did nothing and why.
 
 ## A prompt that works
 
-> Read `REVIEW-BRIEF.md`, then `HANDOFF.md`. Run `node build.mjs` and all fifteen
-> `scratch/check-*.mjs` scripts, and confirm the green baseline before changing
-> anything. Pick one defect from the queue in `REVIEW-BRIEF.md`, write the probe
-> that demonstrates it, fix it, re-run the whole check set, and commit with
-> numbers. Do not hand-edit `index-v2.html`. Do not change anything listed under
-> *Deliberate* without asking me.
+> Read `REVIEW-BRIEF.md`, then the Tier 1 list and the test-layer list in
+> `MASTER-BUGS.md`. Run `node build.mjs` and all fifteen `scratch/check-*.mjs`
+> scripts **one at a time** and confirm the green baseline before changing
+> anything. Pick one Tier 1 defect, write the probe that demonstrates it, fix it,
+> re-run the whole check set, and commit with numbers. If a check you did not touch
+> changes, say why. Do not hand-edit `index-v2.html`. Do not change anything listed
+> under *Deliberate* without asking me. Do not change the rig to satisfy
+> `probe-stair-up.mjs`'s `storeyAgainstRoom` count — that watcher is a false
+> positive and the cellar is correct.
+
+If your model budget is small, do Tier 1 only, in order, and stop. The plaque
+title (B01) and the plated-over doorways (B02) are the two that change what a
+visitor experiences for the least code.

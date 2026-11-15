@@ -882,3 +882,81 @@ code.
   Observatory*: geometrically true, and a design question for the owner rather
   than something to hack.
 - Controllers, deferred by you until the building is right.
+
+## Pass 15 — the whole source read by seven auditors, and one master list
+
+**03:4x — seven read-only audits over ~9,800 lines.** Told not to change a line of
+code, I sent read-only auditors out in file clusters instead of one pass over
+everything: `plan.js`+`scale.js`; `building.js` in halves; `rig.js`;
+`sky.js`+`lighting.js`+`events.js`; the interface files and `build.mjs`; and
+`props.js`+`atmosphere.js`+`tube.js`. Each got the project's eight invariants
+first, so they report violations rather than taste, and each had to say how it
+knew. Confirmations used only what already exists — `cdp.mjs` driving a real
+headless Chrome, the fifteen `check-*.mjs`, the existing probes, `dump-at.mjs`
+firing a ray into the geometry, and `node --input-type=module -e` computing
+straight from `src/plan.js`. No new scripts, no build, no edits.
+
+What came back was 68 defects and 11 problems with the checks themselves. The
+worst are not the ones I was looking for:
+
+- **Every plaque opens with a blank title.** `hud.js:509` reads `link.t`; the data
+  table stores names under `n`. All 192 exhibits show no name, and the toast says
+  "opened undefined". Nothing in the test layer reads the plaque, so `check-v2`
+  has been green through this the whole time.
+- **Every doorway in the building is plated over with solid plaster.**
+  `building.js:849` welds a full-width panel across each mouth to stop the range
+  shell going coplanar, and it fills the door hole; the door plate is buried
+  inside it. Collision does not know the panel exists, so you walk into a wall and
+  arrive in a room. `dump-at.mjs science 0 1.6` returns one solid plaster hit on
+  the door axis. It also explains a screenshot I misread earlier:
+  `plate-creative-writing.png` shows a blank wall where the door should be, and I
+  blamed my own camera framing.
+- **Two holes in the floor you can stand in.** The stair well is walkable air
+  because `canStand` falls back to the walkable union, which is a full disc of
+  radius 8 with no hole cut in it — and the tour graph walks across it at level 0.
+  The lift shaft's east and south edges have no blockers at all: all 28 circles
+  sit on the west partition line.
+- **The lift can fail to deliver you.** `flightT` tests the 3.00 m well instead of
+  the 1.84 m flight, so boarding at the cabin's own door latches the flight and
+  the arrival frame overwrites the storey: you end up at level -0.51 inside the
+  shaft. `check-lift.mjs` passes because it always starts a ride at the cabin
+  centre, where the latch never engages.
+
+Two auditors found the same axis error from different files: `rig.js:189` builds
+the doorway exemption box with the transpose of the plan's own rect axes, so on
+the plus or minus 30 and 60 degree spokes the box is rotated by twice the bearing
+- 16 of 51 door rects disagree, and furniture beside a diagonal door becomes
+walk-through.
+
+**05:3x — `MASTER-BUGS.md`.** One cohesive document instead of seven reports: a
+tier for what breaks, what is visibly wrong, what is fragile, and what is wrong
+with the measuring instruments themselves, then a tier for open work that is not a
+defect. Every entry carries a file and line, a plain-language symptom, the cause,
+a confidence label - *seen*, *reasoned* or *suspected* - and which existing check
+would catch a regression. No pasted code, because the next model to read this is
+paid by the token and can open the file. It opens with instructions on how to
+spend a limited model budget: read Tier 1 and the test layer and stop.
+
+The test-layer tier is the one I would least have expected and the one that will
+save the most time. `check-collision`'s "corridor centreline blocked: 0" samples
+only the exact centreline; its door test samples only door centres; its tour walk
+asserts `inside(...)`, which the full disc always satisfies. `check-lights` reads
+only key lights, so the rotunda sconces and the stair-hall flicker anchor have
+never been checked - and it prints a false "stair -1.1 m" of its own.
+`check-lift` starts every ride in the cabin centre and triggers auto-park by
+teleporting, so it misses three real lift bugs. `probe-stuck.mjs` never calls
+`settle`, despite its header saying it does.
+
+**A claim of mine that was wrong, corrected in the open.** In commit `14d9a3c` I
+wrote that the Cupola deck ring had been re-broken clear of the corridors, and
+cited "centrelines blocked: 0" as proof. Both halves are false: all six pedestals
+sit inside a 2.6 m spoke corridor at that radius, and the number I quoted only
+ever sampled the exact centreline of a corridor. `MASTER-BUGS.md` has a
+*Corrections* table listing every claim in my own documents and source comments
+that a reviewer should not trust - including `REVIEW-BRIEF.md` D2's premise, which
+the props auditor disproved: collision circles are hand-written in `K.block` and
+are never derived from the drawn box, which is why the cellar stool blocks nothing
+at all in fourteen rooms.
+
+**Still open, in the order I would take them.** Unchanged from the list at the end
+of pass 14, plus one: the plaque title field, which is now the first thing to fix.
