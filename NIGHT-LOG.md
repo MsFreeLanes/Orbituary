@@ -960,3 +960,40 @@ at all in fourteen rooms.
 
 **Still open, in the order I would take them.** Unchanged from the list at the end
 of pass 14, plus one: the plaque title field, which is now the first thing to fix.
+
+**05:5x-06:1x — three documents for the next person, and one for you.** Told to
+find bugs and change nothing, the finding was only half the job: the rest is making
+the finding usable by someone with a paid model and a limited budget.
+
+`QUESTIONS-FOR-OWNER.md` is the ten decisions that change what a reviewer should
+do, each with the default I would take so nobody waits on an answer: whether the
+front door still reads *The Observatory*; whether the fourteen cellar rooms get
+first exhibits (I would leave them empty - inventing links to fill a room is worse
+than the empty plinth); whether the lift shaft gets doors or just a proper
+boundary, which stopped being a taste question the moment the audit found the shaft
+half unblocked; the donor threshold; the zone hexes; the order to spend a paid
+model on; whether to playtest before Tier 1 is fixed; where fixes should land; what
+`identity.js` still needs from you; and whether to make the astronomy honest.
+
+`MMMM.md` - the Many Model Master Model - is a prompting wiki written for the
+models to read. Ten rules that hold across vendors, each naming the failure it
+prevents. Then what the vendors say today, fetched and dated: Anthropic's platform
+docs and OpenAI's prompt-engineering guide came back in full, and their most useful
+line is that reasoning models want a goal and trust while GPT-style models want
+explicit steps. Google's Gemini and Vertex prompting pages, and Meta's and
+Mistral's guides, have moved or 404'd - which is itself a heuristic: cite a vendor's
+index page, not a leaf page. Then the part that matters most for a project that
+will be handed between models: what changes between generations and quietly
+invalidates an old prompt - prefilled answers now rejected, thinking budgets
+replaced by an effort dial, anti-laziness prompting over-triggering on newer
+models, verbosity not controllable by effort, subagent overuse, and a model name in
+a prompt being a dependency.
+
+`CODING-HEURISTICS.md` is for you, and for anyone else who directs work without
+writing it. What a codebase is; how bugs actually happen - a sentence that is false
+about the world, and the two shapes of wrong, code-against-world and
+code-against-code, with the expensive ones in the second; what to ask for and the
+exact words; what costs what, and why cost follows how many places have to agree
+rather than how big the change looks; twelve typed prompt failures with the better
+ask; how to read a report about code without reading code; and fifteen one-sentence
+rules at the end.
