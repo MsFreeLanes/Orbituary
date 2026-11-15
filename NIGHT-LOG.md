@@ -1033,3 +1033,12 @@ that would settle it. The lesson is the same one as the deck ring two passes ago
 **I have been accepting a number from an instrument I had never asked what it
 measures.** Both times the instrument was in `scratch/`, both times the number was
 reassuring, and both times I quoted it in a commit message.
+
+**06:4x — one more check against myself, on the finding I put first.** I read
+`showPlaque` (`hud.js:506-516`) rather than trusting the auditor's DOM probe: the
+plaque sets its kicker from the room code and category, its **title from `link.t`**,
+its cost from `link.cost`, its body from `link.d` and its note from the URL. The
+data table has no `t` — the name is `n` — and grep over `src/` finds two reads of
+`.t` and no write of it anywhere; the only `t` fields in the codebase are the tour
+and lift timers. So a plaque shows everything about an exhibit except its name.
+That is B01, and it is now *seen* twice, from two different directions.

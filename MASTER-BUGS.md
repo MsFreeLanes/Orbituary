@@ -70,11 +70,16 @@ are *reasoned* for exactly that reason.
 
 **B01 · `hud.js:509` · every exhibit plaque opens with a blank title** — *seen*
 The plaque reads the field `link.t`; the data table stores names under `n`, and
-nothing anywhere sets `.t`. So all 192 plaques show an empty name line, and
-`main.js:270` toasts "opened undefined". Confirmed in the live build:
-`showPlaque(LINKS[0])` → `.plaque-title` is `""`, `link.t === undefined`.
-This is the single most visible defect in the museum: the one text a visitor
-comes to read is missing. No check reads the plaque, so `check-v2` is green.
+nothing anywhere sets `.t`. Confirmed twice: the auditor drove the live page
+(`showPlaque(LINKS[0])` → `.plaque-title` is `""`, `link.t === undefined`), and I
+read `showPlaque` myself — `hud.js:506-516` sets the kicker from the room code and
+category, the title from `link.t`, the cost from `link.cost`, the body from
+`link.d` and the note from the URL, so a plaque shows everything about an exhibit
+**except its name**. `main.js:270` toasts "opened undefined" for the same reason.
+Grep over `src/` finds exactly two reads of `.t` and no write of it; the only `t`
+fields in the codebase are the tour and lift timers.
+This is the single most visible defect in the museum: the one text a visitor comes
+to read is missing. No check reads the plaque, so `check-v2` is green.
 *Regression net: none. A plaque probe (aim the pick ray at a plinth, read
 `.plaque-title`) is the missing test.*
 
