@@ -852,7 +852,22 @@ placed; and the plinth-repair pass has never once had to move anything, so it is
 untested in anger. `HANDOFF.md`'s head is bumped to the current commit and points
 at the brief.
 
+### 19:1x — `.gitattributes`, so the built museum stops churning
+
+Every commit has been warning `in the working copy of 'index-v2.html', LF will be
+replaced by CRLF the next time Git touches it`. The museum is generated and
+tracked at once — it is the file a visitor double-clicks — so a line-ending
+rewrite in it is an 897 KB diff that means nothing. `.gitattributes` declares the
+policy once: source, checks and prose are LF in the repository; `index-v2.html` is
+`-text` and stored byte for byte (last matching pattern wins, which is why that
+line sits after `*.html`); images and bundles are binary. Verified before
+committing: `git add -A` stages only the new file, nothing else re-normalises, and
+`git check-attr text -- index-v2.html` comes back `unset`. This was defect D9 in
+`REVIEW-BRIEF.md`, and it is the only file I touched while being told not to touch
+code.
+
 **Still open, in the order I would take them.**
+
 - The fourteen cellar rooms are furnished and now hold an empty plinth each, but
   still have **no exhibits**: no links, no pick nodes. Which categories get a
   first exhibit, and whether any of it goes downstairs, is a content decision for
