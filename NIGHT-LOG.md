@@ -997,3 +997,39 @@ exact words; what costs what, and why cost follows how many places have to agree
 rather than how big the change looks; twelve typed prompt failures with the better
 ask; how to read a report about code without reading code; and fifteen one-sentence
 rules at the end.
+
+**06:0x-06:3x — the eighteenth auditor read the measuring layer, and it broke the
+instruments.** Fifteen checks run one at a time, twelve probes read. Thirty problems,
+now T01-T30 in `MASTER-BUGS.md`. The three that change how I should have worked all
+night:
+
+- **Two of `check-collision`'s headline zeros are tautologies.** `rig.blocked(x, z,
+  storey)` takes no radius, so asking whether a point at a blocker's own centre is
+  blocked always says yes. "pick nodes not solid: 0" and "furniture inert where it
+  stands: 0" can never be anything else. The number I have been quoting as evidence
+  about furniture collision measures nothing.
+- **`check-v2`'s counters are read from wherever the tour reached after four seconds
+  of wall clock.** With `src/` byte-identical to the head the brief was written at,
+  the Cupola row moved from 476/125229/376/53/66 to 462/120437/368/52/64. The green
+  baseline was a description, not a gate.
+- **Only one of the fifteen checks sets an exit code.** Fourteen print FAIL and exit
+  0, so every "all checks pass" I have written tonight is weaker than it sounded.
+  `check-tube`'s "agree 38 of 40" is really about a third, because the counter
+  increments per room per sample; `check-terminator` prints success for an all-black
+  Earth; `check-keys` never asserts that `H` moved anybody; `probe-corridor-props.mjs`
+  is a `SyntaxError` that has been printing nothing at all; `probe-cellar-empty.mjs`
+  reads a field that does not exist and reports the data table as empty.
+
+**And a correction against myself, which is the one that stings.** I labelled the
+plated-over doorways (B02) *seen* because `dump-at.mjs science 0 1.6` returned one
+solid plaster hit. It does not test the door at all: the probe fires along `room.n`,
+which is the window wall, and it builds its frame at `S.FLOOR_BASE` for every room,
+so the height was wrong too. B02 still stands - `building.js:853` cuts the room
+mouths out of the corridor wall as openings and `lined()` at `:849` fills that same
+span with a 2 cm plaster panel the room's full width and the corridor's full height,
+with no door cutout, batched so nothing blocks it - but it stands on a code read,
+not on a measurement, and I have downgraded it to *reasoned* and written the probe
+that would settle it. The lesson is the same one as the deck ring two passes ago:
+**I have been accepting a number from an instrument I had never asked what it
+measures.** Both times the instrument was in `scratch/`, both times the number was
+reassuring, and both times I quoted it in a commit message.

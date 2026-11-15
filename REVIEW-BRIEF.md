@@ -42,7 +42,10 @@ visitor uses and the only way to check that a source change survived bundling.
 There is no test runner and no `npm test`. Every check is a script in `scratch/`
 that drives a real headless Chrome over the Chrome DevTools Protocol through
 `scratch/cdp.mjs` (which hands you `{ send, evaluate, sleep, consoleLines }`) and
-prints a verdict. Run them from the repo root:
+prints a verdict. **Only `check-lift.mjs` sets an exit code**: the other fourteen
+print what they found and exit 0 even when they print the word FAIL, so read the
+text and never trust the status of a batch (`MASTER-BUGS.md` T19). Run them from the
+repo root:
 
 ```
 node scratch/check-v2.mjs        # boots clean, reports draw calls / tris / errors
@@ -77,12 +80,12 @@ a regression unless the commit says why.
 |---|---|
 | `index-v2.html` | 897 KB |
 | boot | console clean, `errors: []` |
-| Cupola view | 476 draw calls, 125229 triangles, 376 geometries, 53 textures, 66 programs |
+| Cupola view | 462 draw calls, 120437 triangles, 368 geometries, 52 textures, 64 programs — **read with care**: `check-v2` samples wherever the tour reached after 4 s of wall clock, so all five move run to run. Pin the camera before comparing (`MASTER-BUGS.md` T12) |
 | rooms | 51 (47 category + 4 about the museum), 8 zones, 12 ranges, 16 corridors |
 | links / pick nodes | 192 exhibits, 204 pick nodes, **0 pick nodes without an exhibit** |
 | collision | 1433 circles (218 plinth, 1187 prop, 28 lift shaft), 0 inert, 0 doors pinched, 0 blocked corridor centrelines |
 | tours | 8 routes walked with no clipping |
-| pop-in over ~230 m | 104 appearance/disappearance events, 46 appearing ahead, **6 oscillating** — and the walk is not deterministic, so treat this as an order of magnitude, not a number to match exactly |
+| pop-in over ~222 m | 104 appearance/disappearance events, 46 appearing ahead, **9 oscillating** — reproduced exactly across two runs, and it does not match the 78/5 this brief used to record. Treat it as an order of magnitude, not a number to match |
 | lift | 20/20 |
 | terminator | correct at every hour |
 | keys | `H` walks home, `Shift+H` → (0, 4.5), `Tab` opens the brochure |

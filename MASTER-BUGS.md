@@ -9,10 +9,11 @@ remote: https://github.com/MsFreeLanes/Orbituary
 # MASTER BUGS — every defect found, ranked, with how each was found
 
 Nothing in this document has been fixed. No source file was edited to write it.
-Seven read-only audits ran over the source (about 9,800 lines across 19 files),
-plus the defect queue carried in `REVIEW-BRIEF.md` and the open items in
-`NIGHT-LOG.md`. This is the consolidated list. Finding IDs are stable and were
-assigned as findings landed, so they are not contiguous within a tier.
+Eight read-only audits ran over the source (about 9,800 lines across 19 files) and
+over the test layer, plus the defect queue carried in `REVIEW-BRIEF.md` and the open
+items in `NIGHT-LOG.md`. This is the consolidated list: 68 defects and 30 problems
+with the checks. Finding IDs are stable and were assigned as findings landed, so
+they are not contiguous within a tier.
 
 ## How to spend a paid model's budget on this file
 
@@ -78,21 +79,29 @@ comes to read is missing. No check reads the plaque, so `check-v2` is green.
 `.plaque-title`) is the missing test.*
 
 **B02 · `building.js:849` · every doorway in the building is plated over with
-solid plaster** — *seen*
-`lined()` welds a plaster panel across each mouth, sized to the room's full
-width and the corridor's full height, to stop the range shell and the room wall
-going coplanar. But the room's own door wall already closes that span, so the
-panel lands 2 mm proud of it and fills the door hole — and the room's door plate
-is buried inside the panel. Collision does not know about the panel, so a visitor
-walks into what looks like a wall and arrives in the room. Confirmed with
-`node scratch/dump-at.mjs science 0 1.6`: one solid hit, plaster, at room-local
-z = −0.197 on the door axis at eye height. Corroborated by my own earlier
-misreading: `plate-creative-writing.png` shows a blank plaster wall where the
-door should be, and I concluded the camera was badly framed. It wasn't.
-*Note for whoever fixes it: the coplanarity it was guarding against is real
-(`df1dea8`), so keep the shell short of the mouth and size the lining to the
-mouth minus the door opening, or drop the lining where the door wall already
-closes the span.*
+solid plaster** — *reasoned, from a precise code read*
+The corridor's side wall is built with the room mouths as **openings**
+(`addWall(..., { openings: left })`, `building.js:853-854`), so there is a hole the
+room's full width and the corridor's full height. Then `lined()` (`:842-851`) fills
+that same span with a 2 cm plaster panel — `boxUV(0.02, h, op.w, 2.4)` at
+`x = side*(half - t/2 - 0.012)`, where `op.w` is `r.w`, the room's **whole width**,
+and `h` the corridor's whole height. There is no door cutout. The panel stands
+about 1 cm inside the corridor, proud of the wall plane, and the room's own wall
+with its door hole is behind it. So from the range you see plaster where the mouth
+is, the door plate is buried, and because the panel is batched geometry it was
+never registered as a blocker — a visitor walks into what looks like a wall and
+arrives in the room. The coplanarity this was written to avoid (the hairline fixed
+in `df1dea8`) is real, so a fix must keep the shell short of the mouth **and** size
+the lining to the mouth minus the door opening.
+*Correction to my own evidence, kept in the open:* this was first labelled *seen*
+on the strength of `dump-at.mjs science 0 1.6`. That was wrong. `dump-at` fires
+along `room.n` from inside the room, which is the **window** wall and not the door,
+and it builds its frame at `S.FLOOR_BASE` for every room (T24), so the ray height
+was wrong as well. `plate-creative-writing.png` shows a blank plaster wall where the
+shot script aims at a cellar door, which is consistent with B02 but is not proof.
+**The probe that would settle it: a ray from the corridor centreline at eye height
+1.65 along the door axis — expecting the far wall at `room.d`, and finding plaster
+at the mouth.**
 
 **B03 · `rig.js:362-366` · the stair well is walkable air** — *seen*
 `canStand` falls back to `inside(plan.walkable, …, 'ground')`, and that union is
@@ -621,8 +630,115 @@ panel.** B01, B07, B25 and B51–B56 are all in that blind spot. `check-keys.mjs
 asserts that shortcuts *open* things; it never asserts that controls are reachable
 or that a panel can be closed.
 
-*(A dedicated test-layer audit is still running; anything it adds goes in a
-follow-up commit under the same numbering.)*
+**T12 · `check-v2.mjs` · the counters in the green-baseline table are
+time-dependent, so they cannot gate a regression.** They are read from wherever the
+tour happened to reach after 4 s of wall clock at 2 fps. A run today, with `src/`
+byte-identical to the head the brief was written at, gives **462 calls / 120437
+tris / 368 geoms / 52 texs / 64 programs** against the recorded
+476 / 125229 / 376 / 53 / 66 — all five moved with nothing changed. No verdict, no
+exit code. *Fix: pin the camera to a named standing point before reading counters.*
+
+**T13 · `check-collision.mjs` · two of its headline numbers are tautologies.**
+`rig.blocked(x, z, storey)` takes **no radius**, so querying a point at a blocker's
+own centre is always blocked. "pick nodes not solid: 0" is guaranteed because nodes
+sit exactly at `spotToWorld` (`building.js:485` vs `rig.js:212`), and "furniture
+inert where it stands: 0" is guaranteed because each blocker is queried with its own
+floor tag. Both can never be anything but zero — so the evidence line behind
+`REVIEW-BRIEF.md` D2 measures nothing at all.
+
+**T14 · `check-tube.mjs` · its headline number is wrong by a factor of three, and
+it is not awaited.** `withBrowser(...)` is not awaited, there is no verdict and no
+exit code, and `agree++` fires per room per sample, so the real denominator is up to
+120 while the printout says "agree 38 of 40". The true agreement is about a third.
+The Node half samples `accessibility` and the stair hall, which the browser half
+never checks, and the `k` values are hand-copied.
+
+**T15 · `check-terminator.mjs` · an all-black canvas prints success.** The verdict
+is skipped unless `alt < 1.45 && max(sun, anti) > 0.12`, so a black or uniform
+Earth gives 24 skips and the success line; `sun > anti*1.6` passes on any nonzero
+sunward value; `FAIL` prints but `process.exitCode` is never set.
+
+**T16 · `check-keys.mjs` · it never asserts that a key did anything.** After `H` the
+x/z are unchanged (`touring: true`) and nothing checks that the visitor moved, so a
+completely dead `H` key prints the same line. No `keyUp` is dispatched; `E` and
+pointer lock are untested; the `windowsVirtualKeyCode` it sends is bogus (137 for
+`H`).
+
+**T17 · `check-events.mjs` · one rule is unreachable and two are copies.** Rule 6
+(`rooms.includes('rotunda')`) can never fire because the check builds the pool
+without rotunda and `events.js:62` already excludes the visitor's room. Rules 3 and
+4 hardcode 90/60/140 instead of reading `ROOM_COOL`, `GAP_MIN` and `GAP_JITTER`, so
+editing `events.js` silently disables the check that guards it.
+
+**T18 · `check-props.mjs` · it can pass by seeing nothing.** `if (!boxes ||
+!boxes.length) continue` means 24 rooms print nothing; if `_propBoxes` were renamed
+the check would print only its success line and exit 0. There is no count assertion,
+and it hardcodes `HALF 0.31` and `PLINTH_H 1.0` "from scale.js".
+
+**T19 · nine of the fifteen checks set no exit code — only `check-lift.mjs` does.**
+Everything else can print a failure and still exit 0, so no script, no CI step and
+no agent loop can ever fail on them. This is why "all checks pass" has been a weak
+sentence all night.
+
+**T20 · `check-scale.mjs` · the `defined` regex requires two-space indentation.** A
+re-indented `scale.js` silently falls back to a looser pattern and the count drifts.
+
+**T21 · `check-sky.mjs` · one test is self-referential and two have slack.** The
+Vega/Sirius "matches formula" test reads `sky.state.lst` on both sides, so it can
+catch a wrong vault quaternion but **never a wrong sidereal clock**. Crux is
+asserted only as `> 0` and measured 39.16. Sydney noon is ±60 min sampled at 10-minute
+steps and measured 50. The equinox sunrise and sunset checks sit at 1.46 and 1.48 of
+a 1.6 tolerance.
+
+**T22 · `check-candidates.mjs` · it prints a real signal and ignores it.** "!!
+categories with no room: Creative, Dev, Tools" — categories that have links and no
+room — while its `fits()` and `kind()` use hardcoded 12.0×11.0 / 8.0 / 6.0 / 1.70 /
+2.2 / 1.50 instead of `scale.js`, so its clearances cannot be checked against the
+real plan. Report only, no verdict.
+
+**T23 · `probe-corridor-props.mjs` · it cannot run.** Backticks around `inside()`
+inside the template body make it a `SyntaxError`; it prints nothing. `node --check`
+says it is the only broken file in `scratch/`. Even if it parsed, it compares
+room-local `_propBoxes` against world corridor points, so it would name the wrong
+prop — and its header still cites findings that were the phantom axis bug.
+
+**T24 · `dump-at.mjs` · its frame is built at `S.FLOOR_BASE` for every room**, so
+local Y and the ray height are 3.6 m wrong for any ground-floor room. This is the
+probe I used to "confirm" B02, and it also fires along `room.n`, which is the window
+wall, not the door.
+
+**T25 · `probe-cellar-empty.mjs` · it reads `l.cat` where the data uses `c`,** so it
+prints "categories in data 1" and "in data 0" for all fourteen cellar rooms: it
+answers its own question backwards. Run today it still prints one useful line — the
+ground rooms with nothing in them are `rules-room`, `recompiles-and-decompiles`,
+`trophy-hall`, `box-office`, `acquisitions-hall` and `cupola`.
+
+**T26 · `probe-deck-ring.mjs` · it prints the pedestal-to-spoke distance and never
+compares it to `halfX`,** which it also prints. "0.4 m off the nearest spoke" can
+still be 0.9 m inside a corridor. This is exactly how B09 survived: the probe looked
+like a pass.
+
+**T27 · `probe-wanted.mjs` · a broken probe prints a perfect score.** If the card
+texture tag is missing, `cards = 0`, `off` stays null and `worstOff` prints 0 m. It
+prints; it does not assert — `REVIEW-BRIEF.md` says it asserts 204 pick nodes and 0
+without an exhibit, and it does neither.
+
+**T28 · `probe-plinth-corridor.mjs` · its answer is not comparable to the code it
+audits.** It uses pad 0 and includes the cupola, while the repair pass in `plan.js`
+uses pad 0.55 and skips the cupola, and it ignores the 0.52 m collision radius.
+
+**T29 · `probe-perf.mjs` · it reports frame-time percentiles and a GPU string from
+SwiftShader,** which the repo's own rule says mean nothing, and its header claims
+frame times fix that. There is no baseline to compare to either.
+
+**T30 · the small ones.** `probe-lift-diag.mjs`'s `near` list uses an axis-aligned
+box on rotated door rects (its `fromAbove`/`fromBelow` crate test is a genuine
+storey test). `probe-terminator-angle.mjs` has no null guard on `earth` and prints
+angles without computing the difference. `probe-card.mjs` reads real HUD text but
+teleports then calls one `rig.update(0.05)`, which can leave a stale card, and has
+no expected-wording baseline. `probe-stair-up.mjs` is sound — correct rect axes, a
+real verdict — and its `storeyAgainstRoom` count is the false positive T10 warns
+about.
 
 ---
 
@@ -687,7 +803,9 @@ appears in a committed document or a source comment and is now known to be false
 | `REVIEW-BRIEF.md` D6 | atmosphere keeps animating out of sight | dust is gated on `group.visible` and the cull toggles that group; only the *audio* half of D6 is still open (B67) |
 | `REVIEW-BRIEF.md` D7 | the shaft circles are the only thing between a visitor and a 3.6 m hole | they guard one of four sides; the east and south edges are open (B04) |
 | `REVIEW-BRIEF.md`, `check-scale` row | the scale check reports "none unused" | it only resolves `S.*` references; six constants are unused (T05, B35) |
-| `REVIEW-BRIEF.md` pop-in row | 223 m / 78 flips / 34 ahead / 5 oscillating | a clean solo run today gives 230 m / 104 flips / 46 ahead / 6 oscillating, and the walk is not deterministic (T08) |
+| `REVIEW-BRIEF.md` pop-in row | 223 m / 78 flips / 34 ahead / 5 oscillating | today it gives 222 m / 104 flips / 56 off / 46 ahead / **9 oscillating**, identical across two runs, with no source change since the brief was written — so the recorded baseline is stale or was wrong (T08) |
+| `REVIEW-BRIEF.md` green baseline, Cupola row | 476 calls / 125229 tris / 376 geoms / 53 texs / 66 programs | those counters are read from wherever the tour reached after 4 s of wall clock; a run with `src/` byte-identical gives 462 / 120437 / 368 / 52 / 64. The row is a description, not a gate (T12) |
+| my own note in this file, first draft | B02 was *seen* via `dump-at.mjs science 0 1.6` | that probe fires along `room.n` — the window wall, not the door — and builds its frame at `S.FLOOR_BASE` for every room. B02 stands on the code read, not on that ray (T24) |
 | commit `14d9a3c`, `NIGHT-LOG.md` | the Cupola deck ring was re-broken clear of the corridors, proved by "centrelines blocked: 0" | all six pedestals are still inside spoke corridors; that number only ever sampled the exact centreline (B09, T01) |
 | `plan.js` deck-ring comment | "1.04 m … never stands in the walking line" | wrong for four of six pedestals |
 | `lighting.js:174` comment | the stair-hall anchor is at the tube's height, north of the well | the anchor is 3.3 m from the fitting and inside the well (B17) |
@@ -698,10 +816,13 @@ appears in a committed document or a source comment and is now known to be false
 
 ## What was not audited
 
-Every file in `src/` has now been read end to end by at least one auditor, plus
-`build.mjs` and `src/shell.html`. A dedicated audit of the test layer is running;
-anything it adds will follow under the same numbering. No audit looked for
-*missing features* beyond Tier 5, and none of them ran the museum on real
-hardware — the headless harness renders through SwiftShader, so no frame-rate
-claim in this file means anything about the 5090.
+Every file in `src/` has been read end to end by at least one auditor, plus
+`build.mjs`, `src/shell.html` and the whole of the measuring layer: fifteen checks
+run one at a time and twelve probes read. No audit looked for *missing features*
+beyond Tier 5, and none of them ran the museum on real hardware — the headless
+harness renders through SwiftShader, so no frame-rate claim in this file means
+anything about the 5090. And after a pass whose whole subject was untrustworthy
+measurements, the honest caveat on this document is its own: **the numbers quoted
+here were produced by instruments described in Tier 4.** Where a number matters,
+the entry says which instrument produced it.
 
