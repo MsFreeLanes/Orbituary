@@ -17,9 +17,25 @@ what is waiting on a decision. If you are being handed the project to
 `REVIEW-BRIEF.md` instead: it has the green baseline to compare against, the
 invariants the building depends on, the traps that cost this session hours, and a
 numbered defect queue with the probe that demonstrates each one. The full defect
-list itself is **`MASTER-BUGS.md`**: 68 findings and 11 problems with the checks,
+list itself is **`MASTER-BUGS.md`**: 68 findings and 30 problems with the checks,
 ranked into tiers with confidence labels, plus a *Corrections* table for claims in
 these documents that the audit disproved.
+
+**The documents in this repo, and which one you want.**
+
+| file | what it is for |
+|---|---|
+| `README.md` | what a visitor sees: what the museum is and how to open it |
+| `MUSEUM-V2-PLAN.md` | the locked plan — what was promised, in phases |
+| `HANDOFF.md` | this file: state, honestly — finished, half-finished, waiting on a decision |
+| `NIGHT-LOG.md` | the diary, pass by pass, including the attempts that went nowhere and the claims later found wrong |
+| `REVIEW-BRIEF.md` | for a debugger: the baseline, the invariants, the traps, what is deliberate |
+| `MASTER-BUGS.md` | every defect found so far, ranked into tiers, each with a confidence label and the check that would catch a regression |
+| `QUESTIONS-FOR-OWNER.md` | the ten decisions only the owner can make, each with the default a reviewer should take |
+| `HARDWARE.md` | what this machine actually runs, measured rather than remembered |
+| `MMMM.md` | the prompting wiki — how to get good work out of a model, per vendor, dated |
+| `CODING-HEURISTICS.md` | how code goes wrong, in plain words, for someone who does not write it |
+| `scratch/` | the measuring layer: fifteen checks, twelve probes, the screenshots. The `.mjs` files are tracked; the `.png` files and `bundle.js` are not |
 
 ## Where the build stands against the plan
 

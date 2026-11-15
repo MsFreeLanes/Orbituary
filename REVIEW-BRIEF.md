@@ -18,7 +18,7 @@ changing code here safely: what to run, what the numbers are when nothing is
 broken, what must stay true, what is deliberately the way it is, and what is
 actually wrong.
 
-**The defect list now lives in `MASTER-BUGS.md`** — 68 findings and 11 problems
+**The defect list now lives in `MASTER-BUGS.md`** — 68 findings and 30 problems
 with the checks themselves, ranked into tiers, each with a file and line, a
 confidence label and the check that would catch a regression. The queue further
 down this file is the shorter list I wrote before that audit; where the two
